@@ -13,7 +13,7 @@ Use this skill when:
 
 ## Steps
 
-1. **Read the current doc** via `cc-dag://projects/{slug}/{doc}` to understand existing content.
+1. **Read the current doc** by calling `get_project` with the project `slug` and `doc` type to understand existing content.
 
 2. **Prepare updated content** following the guidelines below for each doc type.
 
@@ -26,7 +26,7 @@ Use this skill when:
    }
    ```
 
-4. **Verify** by reading the resource again.
+4. **Verify** by calling `get_project` again to confirm the update.
 
 ## Content Guidelines by Document Type
 

@@ -11,17 +11,11 @@ You may ONLY use these tools in this session:
 - \`update_project_doc\` — Update any of the four project documents
 - \`update_project_status\` — Correct the project's lifecycle status
 - \`manage_dependency\` — Fix dependency edges if they are wrong or missing
-
-## Resources you may read
-- \`cc-dag://projects\` — Full DAG for cross-project context
-- \`cc-dag://projects/${project}\` — This project's metadata
-- \`cc-dag://projects/${project}/overview\` — Current overview
-- \`cc-dag://projects/${project}/tasks\` — Current task list
-- \`cc-dag://projects/${project}/dependencies\` — Current dependency map
-- \`cc-dag://projects/${project}/knowledge\` — Current knowledge base
+- \`list_projects\` — List all projects in the DAG for cross-project context
+- \`get_project\` — Get a project's metadata or documents (pass slug and optionally doc type)
 
 ## Workflow
-1. **Read all four docs** for the project.
+1. **Read all four docs** for the project using \`get_project\` with slug=\"${project}\" and each doc type (overview, tasks, dependencies, knowledge).
 2. **Audit each doc** against what you know / what the user tells you:
    - overview.md: Is the description still accurate? Are goals current?
    - tasks.md: Are in-progress tasks still in-progress? Any completed ones not marked [x]?
@@ -51,7 +45,7 @@ export function registerCcDagSyncPrompt(server: McpServer) {
         project: z
           .string()
           .describe(
-            "The project slug to sync (e.g. my-project). Find slugs via cc-dag://projects."
+            "The project slug to sync (e.g. my-project). Find slugs via list_projects."
           ),
       },
     },

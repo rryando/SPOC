@@ -18,7 +18,7 @@ Use this skill when the user wants to:
    - `repoUrl` (optional) — Git repository URL
    - `dependsOn` (optional) — Array of existing project slugs this depends on
 
-2. **Check existing projects** by reading the resource `cc-dag://projects` to:
+2. **Check existing projects** by calling the `list_projects` tool to:
    - Avoid duplicate names
    - Verify any `dependsOn` targets exist
 
@@ -32,7 +32,7 @@ Use this skill when the user wants to:
    }
    ```
 
-4. **Verify** by reading `cc-dag://projects/{slug}` to confirm the project was created.
+4. **Verify** by calling `get_project` with the new slug to confirm the project was created.
 
 5. **Populate knowledge** (optional) — If the repo already exists, read the skill `cc-dag://skills/update-docs` to learn how to populate the knowledge doc with structured information about the codebase.
 

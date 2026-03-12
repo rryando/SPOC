@@ -9,9 +9,7 @@ Help the user initialize a new project in the DAG. Gather the required informati
 You may ONLY use these tools in this session:
 - \`init_project\` — Create the new project entry in the DAG
 - \`update_project_doc\` — Populate project documents after creation
-
-## Resources you may read
-- \`cc-dag://projects\` — Check existing projects to avoid duplicates and validate dependencies
+- \`list_projects\` — Check existing projects to avoid duplicates and validate dependencies
 
 ## Workflow
 1. Ask the user for (or infer from context):
@@ -20,7 +18,7 @@ You may ONLY use these tools in this session:
    - **repoUrl** (optional) — Git repository URL
    - **dependsOn** (optional) — Array of existing project slugs this depends on
 
-2. Read \`cc-dag://projects\` to:
+2. Call \`list_projects\` to:
    - Confirm no duplicate slugs
    - Verify any \`dependsOn\` targets exist
 

@@ -12,19 +12,13 @@ You have full access to all cc-dag tools:
 - \`update_project_doc\` — Update overview, tasks, dependencies, or knowledge docs
 - \`update_project_status\` — Advance project status (draft → active → completed → archived)
 - \`manage_dependency\` — Add or remove dependency edges discovered during execution
+- \`list_projects\` — List all projects in the DAG for cross-project context
+- \`get_project\` — Get a project's metadata or documents (pass slug and optionally doc type)
 
 You also have access to all your standard tools (file system, shell, search, etc.) for doing the actual implementation work.
 
-## Resources you may read
-- \`cc-dag://projects\` — Full DAG for cross-project context
-- \`cc-dag://projects/${project}\` — This project's metadata
-- \`cc-dag://projects/${project}/overview\` — Project goals and summary
-- \`cc-dag://projects/${project}/tasks\` — Task list ([ ] todo / [/] in-progress / [x] done)
-- \`cc-dag://projects/${project}/dependencies\` — Upstream and downstream dependencies
-- \`cc-dag://projects/${project}/knowledge\` — Codebase knowledge base
-
 ## Workflow
-1. **Orient**: Read the project's tasks.md to understand what's pending and what's in-progress.
+1. **Orient**: Use \`get_project\` with slug=\"${project}\" and doc=\"tasks\" to read the project's task list. Also read overview and knowledge docs for context.
 2. **Select**: Identify the highest-priority unblocked task(s). Confirm with the user if ambiguous.
 3. **Execute**: Work through the task. Use your standard tools for the actual implementation.
 4. **Update docs as you go**:
@@ -52,7 +46,7 @@ export function registerCcDagExecutePrompt(server: McpServer) {
         project: z
           .string()
           .describe(
-            "The project slug to execute tasks for (e.g. my-project). Find slugs via cc-dag://projects."
+            "The project slug to execute tasks for (e.g. my-project). Find slugs via list_projects."
           ),
       },
     },

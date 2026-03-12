@@ -10,17 +10,11 @@ Help the user think through tasks, architecture decisions, dependencies, and nex
 You may ONLY use these tools in this session:
 - \`update_project_doc\` — Save brainstorm outputs back to the project docs
 - \`manage_dependency\` — Add or remove dependency edges if new relationships are identified
-
-## Resources you may read
-- \`cc-dag://projects\` — Full DAG for cross-project context
-- \`cc-dag://projects/${project}\` — This project's metadata
-- \`cc-dag://projects/${project}/overview\` — Current project overview
-- \`cc-dag://projects/${project}/tasks\` — Current task list
-- \`cc-dag://projects/${project}/dependencies\` — Current dependency map
-- \`cc-dag://projects/${project}/knowledge\` — Current codebase knowledge
+- \`list_projects\` — List all projects in the DAG for cross-project context
+- \`get_project\` — Get a project's metadata or documents (overview, tasks, dependencies, knowledge)
 
 ## Workflow
-1. Read the project's current docs to understand the current state.
+1. Use \`get_project\` to read the project's current docs (overview, tasks, dependencies, knowledge) to understand the current state.
 2. Engage the user in a collaborative brainstorm:
    - What problems need solving?
    - What are the architectural options?
@@ -48,7 +42,7 @@ export function registerCcDagBrainstormPrompt(server: McpServer) {
         project: z
           .string()
           .describe(
-            "The project slug to brainstorm (e.g. my-project). Find slugs via cc-dag://projects."
+            "The project slug to brainstorm (e.g. my-project). Find slugs via list_projects."
           ),
       },
     },

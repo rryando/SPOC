@@ -95,6 +95,8 @@ npm run dev
 | `update_project_doc` | Update a project document (`overview`, `tasks`, `dependencies`, `knowledge`) |
 | `update_project_status` | Change a project's status (`draft` → `active` → `completed` → `archived`) |
 | `manage_dependency` | Add or remove dependency edges between projects with cycle detection |
+| `list_projects` | List all projects in the DAG with their status and dependency edges |
+| `get_project` | Get a project's metadata or a specific document (overview, tasks, dependencies, knowledge) |
 
 ## MCP Resources
 

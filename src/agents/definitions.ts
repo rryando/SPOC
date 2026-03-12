@@ -20,6 +20,12 @@ export interface AgentDefinition {
 // ---------------------------------------------------------------------------
 
 export const AGENT_DEFINITIONS: Record<AgentId, AgentDefinition> = {
+  orchestrate: {
+    id: "orchestrate",
+    name: "Orchestrate",
+    hint: "Intelligent routing across all cc-dag workflows",
+    promptName: "cc-dag-orchestrate",
+  },
   "init-project": {
     id: "init-project",
     name: "Init Project",

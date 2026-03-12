@@ -9,7 +9,15 @@ import {
   type AgentId,
 } from "./config.js";
 import { AGENT_DEFINITIONS } from "../agents/definitions.js";
-import { IDE_IDS, ideOption, printInstructions, type IdeId } from "./instructions.js";
+import {
+  IDE_IDS,
+  ideOption,
+  ideConfigPath,
+  ideHasCcDag,
+  writeIdeConfig,
+  displayPath,
+  type IdeId,
+} from "./instructions.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -97,15 +105,46 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     },
   };
 
-  // ── Write config ──────────────────────────────────────────────────────────
+  // ── Write cc-dag config ─────────────────────────────────────────────────
   const s = p.spinner();
   s.start("Writing configuration…");
   writeConfig(config);
   s.stop("Configuration saved.");
 
-  // ── Print IDE instructions ────────────────────────────────────────────────
-  const instructions = printInstructions(answers.ides);
-  p.note(instructions, "MCP Configuration Instructions");
+  // ── Write MCP entries per IDE ───────────────────────────────────────────
+  const results: string[] = [];
+
+  for (const id of answers.ides) {
+    const configFile = displayPath(ideConfigPath(id));
+    const already = ideHasCcDag(id);
+
+    if (already) {
+      results.push(`${color.dim("⊘")} ${color.bold(IDE_MAP_LABEL[id])} — already configured in ${color.dim(configFile)}`);
+      continue;
+    }
+
+    const shouldWrite = await p.confirm({
+      message: `Write cc-dag MCP entry to ${color.cyan(configFile)}?`,
+      initialValue: true,
+    });
+
+    if (p.isCancel(shouldWrite)) {
+      p.cancel("Setup cancelled.");
+      process.exit(0);
+    }
+
+    if (shouldWrite) {
+      const result = writeIdeConfig(id);
+      const verb = result.action === "created" ? "Created" : "Updated";
+      results.push(`${color.green("✔")} ${color.bold(IDE_MAP_LABEL[id])} — ${verb} ${color.dim(configFile)}`);
+    } else {
+      results.push(`${color.yellow("⊘")} ${color.bold(IDE_MAP_LABEL[id])} — skipped`);
+    }
+  }
+
+  if (results.length > 0) {
+    p.note(results.join("\n"), "MCP Configuration");
+  }
 
   // ── Print enabled slash commands ──────────────────────────────────────────
   const slashList = answers.agents
@@ -120,3 +159,13 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       " to start the MCP server."
   );
 }
+
+// ---------------------------------------------------------------------------
+// Label lookup (avoids importing full IdeInfo)
+// ---------------------------------------------------------------------------
+const IDE_MAP_LABEL: Record<IdeId, string> = {
+  vscode: "VS Code (Copilot)",
+  "copilot-cli": "GitHub Copilot CLI",
+  "claude-code": "Claude Code",
+  opencode: "OpenCode",
+};
