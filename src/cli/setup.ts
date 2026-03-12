@@ -16,6 +16,8 @@ import {
   ideHasCcDag,
   writeIdeConfig,
   displayPath,
+  opencodeHasAgent,
+  writeOpencodeAgent,
   type IdeId,
 } from "./instructions.js";
 
@@ -98,6 +100,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     version: "1",
     ides: answers.ides,
     agents: {
+      orchestrate: { enabled: enabledAgents.has("orchestrate") },
       "init-project": { enabled: enabledAgents.has("init-project") },
       brainstorm: { enabled: enabledAgents.has("brainstorm") },
       execute: { enabled: enabledAgents.has("execute") },
@@ -144,6 +147,50 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   if (results.length > 0) {
     p.note(results.join("\n"), "MCP Configuration");
+  }
+
+  // ── Register OpenCode agent (if OpenCode selected + orchestrate enabled) ──
+  const selectedOpenCode = answers.ides.includes("opencode");
+  const orchestrateEnabled = enabledAgents.has("orchestrate");
+
+  if (selectedOpenCode && orchestrateEnabled) {
+    const alreadyHasAgent = opencodeHasAgent();
+
+    if (alreadyHasAgent) {
+      p.note(
+        `${color.dim("⊘")} cc-dag orchestrator agent already registered in OpenCode`,
+        "OpenCode Agent"
+      );
+    } else {
+      const shouldRegister = await p.confirm({
+        message: `Register ${color.cyan("cc-dag")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldRegister)) {
+        p.cancel("Setup cancelled.");
+        process.exit(0);
+      }
+
+      if (shouldRegister) {
+        const agentResult = writeOpencodeAgent();
+        const verb = agentResult.action === "created" ? "Created" : "Updated";
+        p.note(
+          [
+            `${color.green("✔")} ${verb} agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
+            `${color.green("✔")} Wrote prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
+            "",
+            `Switch to the ${color.cyan("cc-dag")} agent with ${color.bold("Tab")} in OpenCode.`,
+          ].join("\n"),
+          "OpenCode Agent"
+        );
+      } else {
+        p.note(
+          `${color.yellow("⊘")} Skipped OpenCode agent registration`,
+          "OpenCode Agent"
+        );
+      }
+    }
   }
 
   // ── Print enabled slash commands ──────────────────────────────────────────

@@ -14,6 +14,7 @@ export interface CcDagConfig {
   version: "1";
   ides: string[];
   agents: {
+    orchestrate: AgentConfig;
     "init-project": AgentConfig;
     brainstorm: AgentConfig;
     execute: AgentConfig;
@@ -24,6 +25,7 @@ export interface CcDagConfig {
 export type AgentId = keyof CcDagConfig["agents"];
 
 export const AGENT_IDS: AgentId[] = [
+  "orchestrate",
   "init-project",
   "brainstorm",
   "execute",
@@ -39,6 +41,7 @@ export function defaultConfig(): CcDagConfig {
     version: "1",
     ides: [],
     agents: {
+      orchestrate: { enabled: true },
       "init-project": { enabled: true },
       brainstorm: { enabled: true },
       execute: { enabled: true },

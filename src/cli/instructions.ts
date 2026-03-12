@@ -7,6 +7,7 @@ import {
 import { resolve, dirname } from "node:path";
 import { homedir } from "node:os";
 import color from "picocolors";
+import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/cc-dag-orchestrate.js";
 
 // ---------------------------------------------------------------------------
 // IDE MCP Configuration — Definitions + Auto-Write
@@ -211,4 +212,84 @@ export function writeIdeConfig(id: IdeId): WriteResult {
 export function displayPath(p: string): string {
   const home = homedir();
   return p.startsWith(home) ? "~" + p.slice(home.length) : p;
+}
+
+// ---------------------------------------------------------------------------
+// OpenCode Agent Registration
+// ---------------------------------------------------------------------------
+
+/** Path to the OpenCode config directory. */
+function opencodeConfigDir(): string {
+  return resolve(homedir(), ".config", "opencode");
+}
+
+/** Path to the OpenCode prompts directory. */
+function opencodePromptsDir(): string {
+  return resolve(opencodeConfigDir(), "prompts");
+}
+
+/** Path to the cc-dag orchestrator prompt file. */
+function opencodePromptPath(): string {
+  return resolve(opencodePromptsDir(), "cc-dag-orchestrate.txt");
+}
+
+/**
+ * The OpenCode agent entry for cc-dag orchestrator.
+ */
+const CC_DAG_AGENT_ENTRY = {
+  description:
+    "CC-DAG project orchestrator — classifies intent and routes across init, brainstorm, execute, sync, and explore workflows",
+  mode: "primary" as const,
+  prompt: "{file:./prompts/cc-dag-orchestrate.txt}",
+  color: "#00bcd4",
+};
+
+/**
+ * Checks whether the cc-dag agent is already registered in opencode.json.
+ */
+export function opencodeHasAgent(): boolean {
+  const configFile = resolve(opencodeConfigDir(), "opencode.json");
+  if (!existsSync(configFile)) return false;
+  try {
+    const raw = readFileSync(configFile, "utf-8");
+    const config = JSON.parse(raw) as Record<string, unknown>;
+    const agents = config.agent as Record<string, unknown> | undefined;
+    return agents != null && "cc-dag" in agents;
+  } catch {
+    return false;
+  }
+}
+
+export interface AgentWriteResult {
+  configPath: string;
+  promptPath: string;
+  action: "created" | "updated";
+  alreadyConfigured: boolean;
+}
+
+/**
+ * Registers the cc-dag orchestrator as a primary agent in opencode.json.
+ * Also writes the prompt text file to ~/.config/opencode/prompts/.
+ */
+export function writeOpencodeAgent(): AgentWriteResult {
+  const alreadyConfigured = opencodeHasAgent();
+  const configFile = resolve(opencodeConfigDir(), "opencode.json");
+  const promptFile = opencodePromptPath();
+  const existed = existsSync(configFile);
+
+  // Write the prompt text file
+  mkdirSync(opencodePromptsDir(), { recursive: true });
+  writeFileSync(promptFile, ORCHESTRATE_PROMPT_TEXT + "\n", "utf-8");
+
+  // Merge agent entry into opencode.json
+  const existing = readJsonFile(configFile);
+  deepSet(existing, ["agent", "cc-dag"], CC_DAG_AGENT_ENTRY);
+  writeJsonFile(configFile, existing);
+
+  return {
+    configPath: configFile,
+    promptPath: promptFile,
+    action: existed ? "updated" : "created",
+    alreadyConfigured,
+  };
 }

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-const PROMPT_TEXT = `You are the orchestration agent for the cc-dag MCP server.
+export const ORCHESTRATE_PROMPT_TEXT = `You are the orchestration agent for the cc-dag MCP server.
 
 You sit above the specialist workflows (init, brainstorm, execute, sync) and route each user request to the right workflow automatically.
 
@@ -127,7 +127,7 @@ export function registerCcDagOrchestratePrompt(server: McpServer) {
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: PROMPT_TEXT,
+            text: ORCHESTRATE_PROMPT_TEXT,
           },
         },
       ],

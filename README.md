@@ -104,7 +104,21 @@ npm run dev
 |---|---|
 | `cc-dag://projects` | List all tracked projects |
 | `cc-dag://projects/{slug}` | Get details for a specific project |
-| `cc-dag://skills/*` | Agent skill guides (init-project, update-docs, explore-dag) |
+| `cc-dag://skills/*` | Agent skill guides (init-project, update-docs, explore-dag, orchestrate) |
+
+## Orchestrator Agent
+
+cc-dag includes an orchestration prompt: `/cc-dag-orchestrate`.
+
+Use it as the default entry point when you want the agent to classify intent and route automatically across workflows:
+- **INIT** (new project setup)
+- **BRAINSTORM** (planning and task breakdown)
+- **EXECUTE** (do the next concrete task)
+- **SYNC** (reconcile docs with reality)
+- **EXPLORE** (inspect DAG/project state)
+- **MULTI** (chain multiple workflows in sequence)
+
+Compared to invoking specialist prompts directly, the orchestrator handles routing and phase transitions for you, while still using the same underlying cc-dag tools and document conventions.
 
 ## Project Structure
 
