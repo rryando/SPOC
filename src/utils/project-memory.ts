@@ -60,6 +60,7 @@ export interface PlanMeta {
   title: string;
   status: PlanStatus;
   keywords: string[];
+  summary: string;
   file: string;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +72,7 @@ export interface KnowledgeMeta {
   title: string;
   kind: KnowledgeKind;
   keywords: string[];
+  summary: string;
   file: string;
   createdAt: string;
   updatedAt: string;
@@ -93,6 +95,7 @@ export interface CreatePlanInput {
   title: string;
   status: PlanStatus;
   keywords: string[];
+  summary?: string;
   content?: string;
   now?: string;
 }
@@ -101,6 +104,8 @@ export interface UpdatePlanInput {
   id: string;
   status?: PlanStatus;
   title?: string;
+  summary?: string;
+  keywords?: string[];
   now?: string;
 }
 
@@ -109,6 +114,7 @@ export interface CreateKnowledgeInput {
   title: string;
   kind: KnowledgeKind;
   keywords: string[];
+  summary?: string;
   content?: string;
   now?: string;
 }
@@ -117,6 +123,8 @@ export interface UpdateKnowledgeInput {
   id: string;
   title?: string;
   kind?: KnowledgeKind;
+  summary?: string;
+  keywords?: string[];
   now?: string;
 }
 
@@ -353,6 +361,7 @@ export function createPlan(projectDir: string, input: CreatePlanInput): PlanMeta
     title: input.title,
     status: input.status,
     keywords,
+    summary: input.summary ?? "",
     file: bodyFile,
     createdAt: ts,
     updatedAt: ts,
@@ -398,6 +407,8 @@ export function updatePlan(projectDir: string, input: UpdatePlanInput): PlanMeta
     rewriteH1(bodyPath, input.title);
     meta.title = input.title;
   }
+  if (input.summary !== undefined) meta.summary = input.summary;
+  if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
   meta.updatedAt = ts;
 
   writeJson(metaPath, meta);
@@ -470,6 +481,7 @@ export function createKnowledgeEntry(
     title: input.title,
     kind: input.kind,
     keywords,
+    summary: input.summary ?? "",
     file: bodyFile,
     createdAt: ts,
     updatedAt: ts,
@@ -515,6 +527,8 @@ export function updateKnowledgeEntry(
     rewriteH1(bodyPath, input.title);
     meta.title = input.title;
   }
+  if (input.summary !== undefined) meta.summary = input.summary;
+  if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
   meta.updatedAt = nowISO(input.now);
 
   writeJson(metaPath, meta);
