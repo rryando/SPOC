@@ -56,7 +56,7 @@ For durable project memory (lessons, gotchas, patterns, detailed architecture, m
    {
      "slug": "my-project",
      "title": "Authentication Module",
-     "category": "architecture"
+      "kind": "architecture"
    }
    ```
 
@@ -94,7 +94,7 @@ Use `tasks.md` for execution queue state, not full feature planning narratives. 
    {
      "slug": "my-project",
      "title": "API v2 Migration",
-     "status": "active"
+      "status": "in_progress"
    }
    ```
 

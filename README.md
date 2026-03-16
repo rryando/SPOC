@@ -105,7 +105,7 @@ npm run dev
 | `create_project_knowledge_entry` | Create a structured knowledge entry for durable project memory |
 | `list_project_knowledge_entries` | List all knowledge entries for a project with their metadata |
 | `get_project_knowledge_entry` | Get a knowledge entry's metadata and body content |
-| `update_project_knowledge_meta` | Update a knowledge entry's title, category, or other metadata |
+| `update_project_knowledge_meta` | Update a knowledge entry's title, kind, or other metadata |
 | `update_project_knowledge_body` | Replace a knowledge entry's body content |
 
 ## MCP Resources
