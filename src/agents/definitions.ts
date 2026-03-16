@@ -41,13 +41,13 @@ export const AGENT_DEFINITIONS: Record<AgentId, AgentDefinition> = {
   execute: {
     id: "execute",
     name: "Execute",
-    hint: "Execute a task from a project's backlog",
+    hint: "Execute tasks with structured knowledge tracking",
     promptName: "cc-dag-execute",
   },
   "sync-knowledge": {
     id: "sync-knowledge",
     name: "Sync Knowledge",
-    hint: "Sync project knowledge from codebase changes",
+    hint: "Sync project docs, plans, and knowledge from codebase changes",
     promptName: "cc-dag-sync",
   },
 };

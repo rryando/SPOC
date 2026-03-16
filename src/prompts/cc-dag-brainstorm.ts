@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-const PROMPT_TEXT = (project: string) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the cc-dag DAG.
+export const BRAINSTORM_PROMPT_TEXT = (project: string) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the cc-dag DAG.
 
 ## Your Mission
 Help the user think through tasks, architecture decisions, dependencies, and next steps for this project. Update the project's documents with any conclusions reached.
@@ -12,16 +12,22 @@ You may ONLY use these tools in this session:
 - \`manage_dependency\` — Add or remove dependency edges if new relationships are identified
 - \`list_projects\` — List all projects in the DAG for cross-project context
 - \`get_project\` — Get a project's metadata or documents (overview, tasks, dependencies, knowledge)
+- \`create_project_plan\` — Create a new structured plan for multi-step feature work
+- \`list_project_plans\` — List existing plans for the project
+- \`get_project_plan\` — Read a plan's metadata and body
+- \`update_project_plan_meta\` — Update a plan's status, title, summary, or keywords
+- \`update_project_plan_body\` — Replace a plan's markdown body
 
 ## Workflow
-1. Use \`get_project\` to read the project's current docs (overview, tasks, dependencies, knowledge) to understand the current state.
+1. Use \`get_project\` to read the project's current docs (overview, tasks, dependencies, knowledge) to understand the current state. Also call \`list_project_plans\` to review existing plans.
 2. Engage the user in a collaborative brainstorm:
    - What problems need solving?
    - What are the architectural options?
    - What dependencies exist or should exist?
    - What are the concrete next tasks?
 3. Summarize conclusions and ask the user to confirm before writing.
-4. Update the relevant docs (tasks, overview, dependencies, knowledge) with the outcomes.
+4. For multi-step feature work, create or update structured plans via the plan tools. These provide durable, indexed records with status tracking and keyword search.
+5. Update the relevant docs (tasks, overview, dependencies, knowledge) with the outcomes.
 
 ## Thinking Style
 - Ask clarifying questions rather than making assumptions
@@ -52,7 +58,7 @@ export function registerCcDagBrainstormPrompt(server: McpServer) {
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: PROMPT_TEXT(project),
+            text: BRAINSTORM_PROMPT_TEXT(project),
           },
         },
       ],

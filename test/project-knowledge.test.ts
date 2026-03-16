@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/cc-dag-orchestrate.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/cc-dag-execute.js";
+import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
 
 describe("project-knowledge tools", () => {
   it("full knowledge lifecycle: create, list, get, update meta, update body", async () => {
@@ -155,5 +158,23 @@ describe("project-knowledge tools", () => {
         await server.close();
       }
     });
+  });
+});
+
+describe("prompt and agent text — knowledge-specific checks", () => {
+  it("orchestrate prompt references knowledge entry tools", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_knowledge_entry");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("list_project_knowledge_entries");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("get_project_knowledge_entry");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("update_project_knowledge_meta");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("update_project_knowledge_body");
+  });
+
+  it("execute prompt references structured knowledge entries for durable discoveries", () => {
+    expect(EXECUTE_PROMPT_TEXT("my-project")).toContain("structured knowledge entries");
+  });
+
+  it("agent definitions sync-knowledge hint references knowledge", () => {
+    expect(AGENT_DEFINITIONS["sync-knowledge"].hint).toContain("knowledge");
   });
 });

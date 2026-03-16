@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-const PROMPT_TEXT = `You are an expert project manager using the cc-dag MCP server to initialize and track a new project.
+export const INIT_PROMPT_TEXT = `You are an expert project manager using the cc-dag MCP server to initialize and track a new project.
 
 ## Your Mission
 Help the user initialize a new project in the DAG. Gather the required information, check for conflicts, create the project, and optionally bootstrap its documentation.
@@ -22,7 +22,7 @@ You may ONLY use these tools in this session:
    - Confirm no duplicate slugs
    - Verify any \`dependsOn\` targets exist
 
-3. Call \`init_project\` with the gathered params.
+3. Call \`init_project\` with the gathered params. This creates the project directory with four summary docs and empty plans/ and knowledge/ indexes for structured memory.
 
 4. Optionally, if the user provides context about the codebase, populate the docs using \`update_project_doc\` for \`overview\`, \`tasks\`, \`dependencies\`, and/or \`knowledge\`.
 
@@ -50,7 +50,7 @@ export function registerCcDagInitPrompt(server: McpServer) {
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: PROMPT_TEXT,
+            text: INIT_PROMPT_TEXT,
           },
         },
       ],

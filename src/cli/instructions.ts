@@ -255,9 +255,9 @@ function opencodePromptPath(): string {
 /**
  * The OpenCode agent entry for cc-dag orchestrator.
  */
-const CC_DAG_AGENT_ENTRY = {
+export const CC_DAG_AGENT_ENTRY = {
   description:
-    "CC-DAG project orchestrator — classifies intent and routes across init, brainstorm, execute, sync, and explore workflows",
+    "CC-DAG project orchestrator — routes init, planning, execution, sync, and structured project memory workflows",
   mode: "primary" as const,
   prompt: "{file:./prompts/cc-dag-orchestrate.txt}",
   color: "#00bcd4",
