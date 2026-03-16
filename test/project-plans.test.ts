@@ -219,6 +219,22 @@ describe("prompt and agent text — plan/knowledge references", () => {
     expect(INIT_PROMPT_TEXT).toContain("knowledge/");
   });
 
+  it("init prompt instructs proactive codebase analysis and knowledge entry creation", () => {
+    expect(INIT_PROMPT_TEXT).toContain("create_project_knowledge_entry");
+    expect(INIT_PROMPT_TEXT).toContain("code patterns");
+    expect(INIT_PROMPT_TEXT).toContain("coding style");
+    expect(INIT_PROMPT_TEXT).toContain("modules");
+    expect(INIT_PROMPT_TEXT).toContain("services");
+    expect(INIT_PROMPT_TEXT).toContain("tech stack");
+    expect(INIT_PROMPT_TEXT).toContain("key files");
+  });
+
+  it("sync prompt instructs codebase re-scan and knowledge entry creation/update", () => {
+    expect(SYNC_PROMPT_TEXT("my-project")).toContain("create_project_knowledge_entry");
+    expect(SYNC_PROMPT_TEXT("my-project")).toContain("re-scan");
+    expect(SYNC_PROMPT_TEXT("my-project")).toContain("update_project_knowledge_body");
+  });
+
   it("brainstorm prompt mentions creating structured plans", () => {
     expect(BRAINSTORM_PROMPT_TEXT("my-project")).toContain("create or update structured plans");
   });
