@@ -165,13 +165,32 @@ export function ideConfigExists(id: IdeId): boolean {
 
 /**
  * Checks whether the cc-dag MCP entry already exists in the IDE config.
+ * Uses key-path inspection rather than raw string search to avoid false
+ * positives (e.g. agent.cc-dag being mistaken for mcp.cc-dag in OpenCode).
  */
 export function ideHasCcDag(id: IdeId): boolean {
   const p = IDE_MAP[id].configPath();
   if (!existsSync(p)) return false;
   try {
-    const raw = readFileSync(p, "utf-8");
-    return raw.includes('"cc-dag"');
+    const config = readJsonFile(p);
+    switch (id) {
+      case "opencode": {
+        // MCP entry lives at config.mcp["cc-dag"]
+        const mcp = config.mcp as Record<string, unknown> | undefined;
+        return mcp != null && "cc-dag" in mcp;
+      }
+      case "vscode": {
+        // Entry lives at config.servers["cc-dag"]
+        const servers = config.servers as Record<string, unknown> | undefined;
+        return servers != null && "cc-dag" in servers;
+      }
+      case "copilot-cli":
+      case "claude-code": {
+        // Entry lives at config.mcpServers["cc-dag"]
+        const mcpServers = config.mcpServers as Record<string, unknown> | undefined;
+        return mcpServers != null && "cc-dag" in mcpServers;
+      }
+    }
   } catch {
     return false;
   }

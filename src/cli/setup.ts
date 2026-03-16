@@ -69,7 +69,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
             hint: AGENT_DEFINITIONS[id].hint,
           })),
           initialValues: existing
-            ? AGENT_IDS.filter((id) => existing.agents[id].enabled)
+            ? AGENT_IDS.filter((id) => existing.agents[id]?.enabled)
             : AGENT_IDS, // all enabled by default
           required: true,
         }),
