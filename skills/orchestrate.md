@@ -26,10 +26,10 @@ If ambiguous, ask one clarifying question. If clear, proceed directly.
 ### 2) Routing to workflow
 Run the matching tool sequence:
 - **INIT**: `list_projects` → `init_project` → optional `update_project_doc`
-- **BRAINSTORM**: `get_project` (all docs) → planning → `update_project_doc`
-- **EXECUTE**: `get_project` (tasks + context) → choose highest-priority task → execute → `update_project_doc` → optional `update_project_status`
-- **SYNC**: `get_project` (all docs) → audit → propose fixes → `update_project_doc` → optional `update_project_status`
-- **EXPLORE**: `list_projects` → `get_project` as needed → report
+- **BRAINSTORM**: `get_project` (all docs) → `list_project_plans` → planning → `create_project_plan` or `update_project_plan_body` → `update_project_doc` (tasks)
+- **EXECUTE**: `get_project` (tasks + context) → `get_project_plan` (active plan) → choose highest-priority task → execute → `update_project_doc` → optional `update_project_status`
+- **SYNC**: `get_project` (all docs) → `list_project_plans` + `list_project_knowledge_entries` → audit → propose fixes → `update_project_doc` → optional `update_project_status`
+- **EXPLORE**: `list_projects` → `get_project` as needed → `list_project_plans` + `list_project_knowledge_entries` → report
 - **MULTI**: run ordered phases, passing context from each phase to the next
 
 ### 3) Completion contract
@@ -52,7 +52,11 @@ Always end with:
 - Verbalize detected intent and plan before acting
 - Keep users informed at phase transitions
 - For doc updates, follow standard formats:
-  - tasks: `[ ]` / `[/]` / `[x]`
+  - tasks: `[ ]` / `[/]` / `[x]` — execution queue state only, not full feature narratives
   - overview: concise summary + concrete goals
   - dependencies: upstream/downstream
-  - knowledge: stack, architecture, patterns, gotchas, key files
+  - knowledge.md: high-level project context and pointers
+- For structured memory stores:
+  - Use `create_project_plan` / `update_project_plan_body` for structured plans for feature work
+  - Use `create_project_knowledge_entry` / `update_project_knowledge_body` for durable knowledge entries (lessons, gotchas, patterns, architecture, modules, feature notes)
+  - Use `list_project_plans` / `list_project_knowledge_entries` to inspect plan and knowledge indexes

@@ -41,6 +41,11 @@ Use this skill when the user wants to:
 The init tool renders templates with placeholder content. After init, guide the user to fill in:
 
 - **overview.md** — Project summary, goals, notes
-- **tasks.md** — Concrete backlog items
+- **tasks.md** — Concrete backlog items (execution queue state, not full feature narratives)
 - **dependencies.md** — Upstream/downstream context
-- **knowledge.md** — See the `update-docs` skill for detailed guidelines
+- **knowledge.md** — High-level project context and pointers; see the `update-docs` skill for detailed guidelines
+
+The init tool also creates empty indexes for structured subresources:
+
+- **plans/** — Structured plans for feature work that spans multiple tasks or decisions. Create plans with `create_project_plan`.
+- **knowledge/** — Durable knowledge entries for lessons, gotchas, patterns, architecture, and feature notes. Create entries with `create_project_knowledge_entry`.

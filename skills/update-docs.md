@@ -47,7 +47,29 @@ Use this skill when:
 
 ### `knowledge` — Structured Code Knowledge
 
-This is the most important document. Fill in each section thoroughly:
+`knowledge.md` is the summary landing page. Use it for high-level project context and pointers — tech stack, architecture overview, key files, and links to deeper knowledge entries.
+
+For durable project memory (lessons, gotchas, patterns, detailed architecture, modules, feature notes), use structured knowledge entries instead of writing everything in the monolithic knowledge.md:
+
+1. **Create a knowledge entry** by calling `create_project_knowledge_entry`:
+   ```json
+   {
+     "slug": "my-project",
+     "title": "Authentication Module",
+     "category": "architecture"
+   }
+   ```
+
+2. **Write the body** by calling `update_project_knowledge_body`:
+   ```json
+   {
+     "slug": "my-project",
+     "entryId": "authentication-module",
+     "body": "## Authentication Module\n\n..."
+   }
+   ```
+
+3. **List existing entries** with `list_project_knowledge_entries` to avoid duplicates.
 
 | Section | What to include |
 |---------|----------------|
@@ -58,5 +80,33 @@ This is the most important document. Fill in each section thoroughly:
 | **Key Files** | Entry points, config files, main modules with their purpose |
 | **API Surface** | Endpoints, interfaces, exported functions |
 | **Data Model** | Schemas, database tables, key data structures |
+
+> **Tip**: Put the summary table in knowledge.md. Put the deep dives in knowledge entries.
+
+### `plans/` — Structured Plans for Feature Work
+
+Use structured plans for feature work that spans multiple tasks or decisions. Plans live in the `plans/` subdirectory, separate from the `tasks.md` execution queue.
+
+Use `tasks.md` for execution queue state, not full feature planning narratives. When a feature needs design rationale, phased steps, or decision records, create a plan instead:
+
+1. **Create a plan** by calling `create_project_plan`:
+   ```json
+   {
+     "slug": "my-project",
+     "title": "API v2 Migration",
+     "status": "active"
+   }
+   ```
+
+2. **Write the plan body** by calling `update_project_plan_body`:
+   ```json
+   {
+     "slug": "my-project",
+     "planId": "api-v2-migration",
+     "body": "## Goal\n\nMigrate all endpoints to v2...\n\n## Phases\n\n..."
+   }
+   ```
+
+3. **List existing plans** with `list_project_plans` to see what's in progress.
 
 > **Tip**: When analyzing a new repo, start with Key Files and Tech Stack — they give you the scaffolding to fill the rest.

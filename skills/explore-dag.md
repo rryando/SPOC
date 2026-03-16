@@ -25,6 +25,12 @@ Use this skill when:
    - `doc="dependencies"` — What does it connect to?
    - `doc="knowledge"` — How does the code work?
 
+### Inspect plan and knowledge indexes
+Beyond the four core docs, each project can have structured plans and knowledge entries:
+1. Call `list_project_plans` with the project slug to see all plans (feature designs, migration strategies, etc.).
+2. Call `list_project_knowledge_entries` with the project slug to see all knowledge entries (architecture, patterns, gotchas, etc.).
+3. Use `get_project_plan` or `get_project_knowledge_entry` to read the full body of any item.
+
 ### Traverse dependencies
 1. From the `list_projects` output, find a project's `dependsOn` array.
 2. For each dependency, call `get_project` to read its meta and docs recursively.
@@ -41,5 +47,6 @@ Given project `core-lib`, find everything that depends on it:
 ## Tips
 - Start with `list_projects` for the big picture
 - Use `knowledge` docs to quickly understand unfamiliar codebases
+- Use `list_project_plans` and `list_project_knowledge_entries` to discover deeper project context
 - Check `status` to know if a dependency is still actively maintained
 - Use `manage_dependency` tool to add/remove edges as you discover relationships

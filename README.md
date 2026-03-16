@@ -97,6 +97,16 @@ npm run dev
 | `manage_dependency` | Add or remove dependency edges between projects with cycle detection |
 | `list_projects` | List all projects in the DAG with their status and dependency edges |
 | `get_project` | Get a project's metadata or a specific document (overview, tasks, dependencies, knowledge) |
+| `create_project_plan` | Create a structured plan for feature work within a project |
+| `list_project_plans` | List all plans for a project with their status and metadata |
+| `get_project_plan` | Get a plan's metadata and body content |
+| `update_project_plan_meta` | Update a plan's title, status, or other metadata |
+| `update_project_plan_body` | Replace a plan's body content |
+| `create_project_knowledge_entry` | Create a structured knowledge entry for durable project memory |
+| `list_project_knowledge_entries` | List all knowledge entries for a project with their metadata |
+| `get_project_knowledge_entry` | Get a knowledge entry's metadata and body content |
+| `update_project_knowledge_meta` | Update a knowledge entry's title, category, or other metadata |
+| `update_project_knowledge_body` | Replace a knowledge entry's body content |
 
 ## MCP Resources
 
@@ -104,6 +114,12 @@ npm run dev
 |---|---|
 | `cc-dag://projects` | List all tracked projects |
 | `cc-dag://projects/{slug}` | Get details for a specific project |
+| `cc-dag://projects/{slug}/plans` | List all plans for a project |
+| `cc-dag://projects/{slug}/plans/{planId}` | Get a plan's body content |
+| `cc-dag://projects/{slug}/plans/{planId}/meta` | Get a plan's metadata |
+| `cc-dag://projects/{slug}/knowledge` | List all knowledge entries for a project |
+| `cc-dag://projects/{slug}/knowledge/{entryId}` | Get a knowledge entry's body content |
+| `cc-dag://projects/{slug}/knowledge/{entryId}/meta` | Get a knowledge entry's metadata |
 | `cc-dag://skills/*` | Agent skill guides (init-project, update-docs, explore-dag, orchestrate) |
 
 ## Orchestrator Agent
@@ -133,4 +149,13 @@ Compared to invoking specialist prompts directly, the orchestrator handles routi
 └── ~/.cc-dag/            # Runtime data (created on first run)
     ├── meta.json         # Root DAG graph
     └── projects/         # Per-project directories
+        └── {slug}/
+            ├── overview.md
+            ├── tasks.md
+            ├── dependencies.md
+            ├── knowledge.md
+            ├── plans/          # Structured plans for feature work
+            │   └── {planId}.md
+            └── knowledge/      # Structured knowledge entries
+                └── {entryId}.md
 ```
