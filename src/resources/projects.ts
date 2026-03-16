@@ -1,7 +1,9 @@
 import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getDataDir } from "../utils/paths.js";
+import { readPlanIndex, readKnowledgeIndex } from "../utils/project-memory.js";
+import { normalizeIdentifier } from "../utils/slug.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const DOC_FILES: Record<string, string> = {
@@ -11,8 +13,13 @@ const DOC_FILES: Record<string, string> = {
   knowledge: "knowledge.md",
 };
 
+/**
+ * Registration order matters: the MCP SDK matches the FIRST template whose
+ * pattern fits the URI.  More-specific plan/knowledge templates must be
+ * registered BEFORE the generic `{slug}/{doc}` catch-all.
+ */
 export function registerProjectResources(server: McpServer) {
-  // Static: list all projects (root DAG graph)
+  // ── 1. Static: list all projects (root DAG graph) ──────────────────
   server.resource(
     "projects-list",
     "cc-dag://projects",
@@ -26,7 +33,7 @@ export function registerProjectResources(server: McpServer) {
     }
   );
 
-  // Template: single project meta
+  // ── 2. Template: single project meta ───────────────────────────────
   server.resource(
     "project-meta",
     new ResourceTemplate("cc-dag://projects/{slug}", { list: undefined }),
@@ -46,7 +53,147 @@ export function registerProjectResources(server: McpServer) {
     }
   );
 
-  // Template: project document
+  // ── 3. Plan & knowledge templates (specific — before catch-all) ────
+
+  // 3a. Plan index
+  server.resource(
+    "project-plans-index",
+    new ResourceTemplate("cc-dag://projects/{slug}/plans", { list: undefined }),
+    { description: "Plan index for a project", mimeType: "application/json" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      if (!existsSync(resolve(projectDir, "meta.json"))) {
+        throw new Error(`Project "${slug}" not found.`);
+      }
+      const index = readPlanIndex(projectDir);
+      return {
+        contents: [{ uri: uri.href, text: JSON.stringify(index, null, 2), mimeType: "application/json" }],
+      };
+    }
+  );
+
+  // 3b. Plan body (markdown)
+  server.resource(
+    "project-plan-body",
+    new ResourceTemplate("cc-dag://projects/{slug}/plans/{planId}", { list: undefined }),
+    { description: "Plan body markdown", mimeType: "text/markdown" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const planId = normalizeIdentifier(variables.planId as string);
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      const metaPath = join(projectDir, "plans", `${planId}.meta.json`);
+
+      if (!existsSync(metaPath)) {
+        throw new Error(`Plan "${planId}" not found in project "${slug}".`);
+      }
+
+      const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+      const bodyPath = resolve(projectDir, meta.file);
+
+      if (!existsSync(bodyPath)) {
+        throw new Error(`Plan body file not found for "${planId}" in project "${slug}".`);
+      }
+
+      const content = readFileSync(bodyPath, "utf-8");
+      return {
+        contents: [{ uri: uri.href, text: content, mimeType: "text/markdown" }],
+      };
+    }
+  );
+
+  // 3c. Plan meta (JSON)
+  server.resource(
+    "project-plan-meta",
+    new ResourceTemplate("cc-dag://projects/{slug}/plans/{planId}/meta", { list: undefined }),
+    { description: "Plan metadata JSON", mimeType: "application/json" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const planId = normalizeIdentifier(variables.planId as string);
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      const metaPath = join(projectDir, "plans", `${planId}.meta.json`);
+
+      if (!existsSync(metaPath)) {
+        throw new Error(`Plan "${planId}" not found in project "${slug}".`);
+      }
+
+      const content = readFileSync(metaPath, "utf-8");
+      return {
+        contents: [{ uri: uri.href, text: content, mimeType: "application/json" }],
+      };
+    }
+  );
+
+  // 3d. Knowledge index
+  server.resource(
+    "project-knowledge-index",
+    new ResourceTemplate("cc-dag://projects/{slug}/knowledge", { list: undefined }),
+    { description: "Knowledge entry index for a project", mimeType: "application/json" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      if (!existsSync(resolve(projectDir, "meta.json"))) {
+        throw new Error(`Project "${slug}" not found.`);
+      }
+      const index = readKnowledgeIndex(projectDir);
+      return {
+        contents: [{ uri: uri.href, text: JSON.stringify(index, null, 2), mimeType: "application/json" }],
+      };
+    }
+  );
+
+  // 3e. Knowledge body (markdown)
+  server.resource(
+    "project-knowledge-body",
+    new ResourceTemplate("cc-dag://projects/{slug}/knowledge/{entryId}", { list: undefined }),
+    { description: "Knowledge entry body markdown", mimeType: "text/markdown" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const entryId = normalizeIdentifier(variables.entryId as string);
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      const metaPath = join(projectDir, "knowledge", `${entryId}.meta.json`);
+
+      if (!existsSync(metaPath)) {
+        throw new Error(`Knowledge entry "${entryId}" not found in project "${slug}".`);
+      }
+
+      const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+      const bodyPath = resolve(projectDir, meta.file);
+
+      if (!existsSync(bodyPath)) {
+        throw new Error(`Knowledge body file not found for "${entryId}" in project "${slug}".`);
+      }
+
+      const content = readFileSync(bodyPath, "utf-8");
+      return {
+        contents: [{ uri: uri.href, text: content, mimeType: "text/markdown" }],
+      };
+    }
+  );
+
+  // 3f. Knowledge meta (JSON)
+  server.resource(
+    "project-knowledge-meta",
+    new ResourceTemplate("cc-dag://projects/{slug}/knowledge/{entryId}/meta", { list: undefined }),
+    { description: "Knowledge entry metadata JSON", mimeType: "application/json" },
+    async (uri, variables) => {
+      const slug = variables.slug as string;
+      const entryId = normalizeIdentifier(variables.entryId as string);
+      const projectDir = resolve(getDataDir(), "projects", slug);
+      const metaPath = join(projectDir, "knowledge", `${entryId}.meta.json`);
+
+      if (!existsSync(metaPath)) {
+        throw new Error(`Knowledge entry "${entryId}" not found in project "${slug}".`);
+      }
+
+      const content = readFileSync(metaPath, "utf-8");
+      return {
+        contents: [{ uri: uri.href, text: content, mimeType: "application/json" }],
+      };
+    }
+  );
+
+  // ── 4. Catch-all: legacy project document ──────────────────────────
   server.resource(
     "project-doc",
     new ResourceTemplate("cc-dag://projects/{slug}/{doc}", { list: undefined }),

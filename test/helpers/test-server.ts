@@ -6,6 +6,7 @@ import { registerGetProject } from "../../src/tools/get-project.js";
 import { registerUpdateDoc } from "../../src/tools/update-doc.js";
 import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
+import { registerProjectResources } from "../../src/resources/projects.js";
 
 type ToolRegistration = (server: McpServer) => void;
 
@@ -47,6 +48,9 @@ function createServerWithRegistrations(
     register(server);
   }
 
+  // Register resources
+  registerProjectResources(server);
+
   return server;
 }
 
@@ -79,5 +83,19 @@ export async function invokeJsonTool(
     }
 
     return result;
+  });
+}
+
+export async function readResourceText(
+  server: McpServer,
+  uri: string
+): Promise<string> {
+  return withConnectedClient(server, async (client) => {
+    const result = await client.readResource({ uri });
+    const first = result.contents[0];
+    if (!first || !("text" in first)) {
+      throw new Error(`No text content for resource ${uri}`);
+    }
+    return first.text as string;
   });
 }
