@@ -72,6 +72,11 @@ export function registerInitProject(server: McpServer) {
           status: "draft",
           createdAt: now,
           dependsOnList: dependsOn.length > 0 ? dependsOn.join(", ") : "—",
+          statusBlock: `**Status:** draft\n`,
+          repoBlock: repoUrl ? `**Repo:** ${repoUrl}\n` : "",
+          upstreamBlock: dependsOn.length > 0
+            ? dependsOn.map((d) => `- ${d}`).join("\n")
+            : "- None",
         };
 
         // Render templates
@@ -91,6 +96,20 @@ export function registerInitProject(server: McpServer) {
           writeFileSync(resolve(projectDir, out), content, "utf-8");
         }
 
+        // Create empty plan and knowledge indexes
+        mkdirSync(resolve(projectDir, "plans"), { recursive: true });
+        mkdirSync(resolve(projectDir, "knowledge"), { recursive: true });
+        writeFileSync(
+          resolve(projectDir, "plans", "index.json"),
+          JSON.stringify({ plans: [] }, null, 2),
+          "utf-8"
+        );
+        writeFileSync(
+          resolve(projectDir, "knowledge", "index.json"),
+          JSON.stringify({ entries: [] }, null, 2),
+          "utf-8"
+        );
+
         // Update root meta
         rootMeta.projects.push({
           id: slug,
@@ -104,7 +123,7 @@ export function registerInitProject(server: McpServer) {
           content: [
             {
               type: "text" as const,
-              text: `✅ Project "${params.name}" initialized at projects/${slug}/\n\nCreated files:\n- meta.json\n- overview.md\n- tasks.md\n- dependencies.md\n- knowledge.md`,
+              text: `✅ Project "${params.name}" initialized at projects/${slug}/\n\nCreated files:\n- meta.json\n- overview.md\n- tasks.md\n- dependencies.md\n- knowledge.md\n- plans/index.json\n- knowledge/index.json`,
             },
           ],
         };
