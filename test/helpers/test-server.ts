@@ -2,10 +2,18 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerInitProject } from "../../src/tools/init-project.js";
+import { registerGetProject } from "../../src/tools/get-project.js";
+import { registerUpdateDoc } from "../../src/tools/update-doc.js";
+import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 
 type ToolRegistration = (server: McpServer) => void;
 
-const defaultRegistrations: ToolRegistration[] = [registerInitProject];
+const defaultRegistrations: ToolRegistration[] = [
+  registerInitProject,
+  registerGetProject,
+  registerUpdateDoc,
+  registerProjectPlanTools,
+];
 
 async function withConnectedClient<T>(
   server: McpServer,
