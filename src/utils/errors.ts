@@ -47,6 +47,58 @@ export function dependencyNotFound(ids: string[]): DagError {
   );
 }
 
+export function invalidPlanStatus(status: string): DagError {
+  return new DagError(
+    "INVALID_PLAN_STATUS",
+    `Invalid plan status "${status}".`
+  );
+}
+
+export function invalidKnowledgeKind(kind: string): DagError {
+  return new DagError(
+    "INVALID_KNOWLEDGE_KIND",
+    `Invalid knowledge kind "${kind}".`
+  );
+}
+
+export function invalidKeyword(keyword: string): DagError {
+  return new DagError(
+    "INVALID_KEYWORD",
+    `Invalid keyword "${keyword}".`
+  );
+}
+
+export function normalizedIdCollision(
+  kind: "plan" | "knowledge entry",
+  requestedId: string,
+  normalizedId: string
+): DagError {
+  return new DagError(
+    "NORMALIZED_ID_COLLISION",
+    `Cannot create ${kind} "${requestedId}" because normalized id "${normalizedId}" already exists.`
+  );
+}
+
+export function itemNotFound(
+  kind: "plan" | "knowledge entry",
+  id: string
+): DagError {
+  return new DagError(
+    "ITEM_NOT_FOUND",
+    `Could not find ${kind} "${id}".`
+  );
+}
+
+export function indexRebuildFailed(
+  kind: "plans" | "knowledge",
+  reason: string
+): DagError {
+  return new DagError(
+    "INDEX_REBUILD_FAILED",
+    `Unable to rebuild ${kind} index: ${reason}`
+  );
+}
+
 /**
  * Format a DagError into an MCP tool error response.
  */

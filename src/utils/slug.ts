@@ -9,3 +9,10 @@ export function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Normalize a user-provided identifier into the canonical storage form.
+ */
+export function normalizeIdentifier(value: string): string {
+  return slugify(value);
+}
