@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
@@ -28,6 +29,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "^6.4.1",
+    "vitest": "^3.2.4"
   }
 }
