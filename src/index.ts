@@ -10,6 +10,7 @@ import { registerManageDependency } from "./tools/manage-dependency.js";
 import { registerListProjects } from "./tools/list-projects.js";
 import { registerGetProject } from "./tools/get-project.js";
 import { registerProjectPlanTools } from "./tools/project-plans.js";
+import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAllPrompts } from "./prompts/index.js";
@@ -52,6 +53,7 @@ async function run(): Promise<void> {
   registerListProjects(server);
   registerGetProject(server);
   registerProjectPlanTools(server);
+  registerProjectKnowledgeTools(server);
 
   // Register resources
   registerProjectResources(server);
