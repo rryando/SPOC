@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { slugify } from "../utils/slug.js";
 import { renderTemplate, getTemplatePath } from "../utils/template.js";
+import { normalizeWorkspacePath } from "../utils/workspace-match.js";
 import { readRootMeta, wouldCreateCycle, validateDependencies } from "../utils/dag.js";
 import {
   projectAlreadyExists,
@@ -21,6 +22,10 @@ export const InitProjectSchema = {
     .array(z.string())
     .optional()
     .describe("Array of project slugs this project depends on"),
+  workspacePaths: z
+    .array(z.string())
+    .optional()
+    .describe("Workspace directory paths where this project is checked out"),
 };
 
 export function registerInitProject(server: McpServer) {
@@ -95,6 +100,15 @@ export function registerInitProject(server: McpServer) {
           );
           writeFileSync(resolve(projectDir, out), content, "utf-8");
         }
+
+        // Post-render: inject workspacePaths into meta.json
+        // (array type not supported by {{var}} template engine)
+        const rawWorkspacePaths = params.workspacePaths ?? [];
+        const normalizedPaths = rawWorkspacePaths.map(normalizeWorkspacePath);
+        const metaJsonPath = resolve(projectDir, "meta.json");
+        const metaObj = JSON.parse(readFileSync(metaJsonPath, "utf-8")) as Record<string, unknown>;
+        metaObj.workspacePaths = normalizedPaths;
+        writeFileSync(metaJsonPath, JSON.stringify(metaObj, null, 2), "utf-8");
 
         // Create empty plan and knowledge indexes
         mkdirSync(resolve(projectDir, "plans"), { recursive: true });

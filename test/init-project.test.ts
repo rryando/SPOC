@@ -52,4 +52,44 @@ describe("init_project", () => {
       }
     });
   });
+
+  it("stores workspacePaths in project meta when provided", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "With Paths",
+          description: "A project with workspace paths",
+          workspacePaths: ["/Users/ryan/with-paths/", "/other/path"],
+        });
+
+        const meta = JSON.parse(
+          readFileSync(resolve(dataDir, "projects", "with-paths", "meta.json"), "utf-8")
+        );
+        // Should normalize trailing slashes
+        expect(meta.workspacePaths).toEqual(["/Users/ryan/with-paths", "/other/path"]);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("defaults workspacePaths to empty array when not provided", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "No Paths",
+          description: "A project without workspace paths",
+        });
+
+        const meta = JSON.parse(
+          readFileSync(resolve(dataDir, "projects", "no-paths", "meta.json"), "utf-8")
+        );
+        expect(meta.workspacePaths).toEqual([]);
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });
