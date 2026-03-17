@@ -10,12 +10,9 @@ npm run build
 
 # Interactive setup wizard — configures IDEs and agents
 node dist/index.js init
-
-# Start the MCP server
-node dist/index.js
 ```
 
-On first run, cc-dag creates `~/.cc-dag/` to store project data and configuration.
+The setup wizard writes the MCP server entry to your chosen IDE/platform, which will start the server automatically. On first run, cc-dag creates `~/.cc-dag/` to store project data and configuration.
 
 ### MCP Client Configuration
 
@@ -38,7 +35,6 @@ The `node dist/index.js init` wizard can automatically write the MCP entry for s
 |---|---|
 | `node dist/index.js init` | Interactive setup wizard — select IDEs, enable/disable agents, write MCP configs |
 | `node dist/index.js config` | Reconfigure an existing installation (same wizard, preserves existing choices) |
-| `node dist/index.js` | Start the MCP server (stdio transport) |
 
 ## Data Directory
 
@@ -93,6 +89,150 @@ npm run dev
 # Run tests
 npm run test
 ```
+
+## Concepts
+
+### Projects and the DAG
+
+A **project** is the top-level unit in cc-dag. Each project has a unique slug, a lifecycle status, and four summary documents. Projects can declare **dependency edges** to other projects, forming a directed acyclic graph (DAG) with automatic cycle detection.
+
+```
+Project A ──depends on──▶ Project B ──depends on──▶ Project C
+```
+
+Project lifecycle: `draft` → `active` → `completed` → `archived`
+
+### Summary Docs vs Structured Stores
+
+Each project has two layers of documentation:
+
+| Layer | What | Purpose |
+|---|---|---|
+| **Summary docs** | `overview.md`, `tasks.md`, `dependencies.md`, `knowledge.md` | Quick-orientation landing pages. Short, scannable, always current. |
+| **Structured stores** | `plans/{planId}.md`, `knowledge/{entryId}.md` | Full-length documents with indexed metadata. Durable, searchable, detailed. |
+
+`tasks.md` is the **execution queue** — a flat checklist of actionable items. Complex multi-step feature work goes in `plans/`.
+
+`knowledge.md` is a **pointer page** — a summary that links to detailed knowledge entries in `knowledge/`.
+
+### Task Status
+
+Tasks in `tasks.md` use checkbox syntax:
+
+| Syntax | Meaning |
+|---|---|
+| `- [ ] Task` | Backlog (not started) |
+| `- [/] Task` | In progress |
+| `- [x] Task` | Done |
+
+### Knowledge Entry Kinds
+
+Each knowledge entry is tagged with a `kind` that describes what type of information it captures:
+
+| Kind | Use For |
+|---|---|
+| `architecture` | System design, tech stack, high-level structure |
+| `pattern` | Recurring code patterns, conventions, idioms |
+| `module` | Module or service documentation |
+| `feature` | Feature descriptions and behavior |
+| `reference` | Key files, dependencies, external links |
+| `lesson` | Insights learned during development |
+| `gotcha` | Pitfalls, surprises, things that break unexpectedly |
+
+### Plan Statuses
+
+Plans track the lifecycle of feature work:
+
+`proposed` → `planned` → `in_progress` → `done` → `archived`
+
+---
+
+## How It Works
+
+### Workflow Diagram
+
+```mermaid
+flowchart TD
+    User([User Request])
+    Orch{"/cc-dag-orchestrate\n(intent classification)"}
+    Init["/cc-dag-init\nCreate project, scan codebase,\npopulate docs & knowledge"]
+    Brain["/cc-dag-brainstorm\nExplore approaches, create\nplans & task breakdowns"]
+    Exec["/cc-dag-execute\nPick highest-priority task,\nimplement, update docs"]
+    Sync["/cc-dag-sync\nRe-scan codebase, audit docs,\nreconcile with reality"]
+    Explore["EXPLORE\n(read-only)\nList projects, inspect\nstatus & dependencies"]
+    Multi["MULTI\nChain workflows\nin sequence"]
+
+    DAG[("~/.cc-dag/\nProjects, Docs,\nPlans, Knowledge")]
+
+    User --> Orch
+    Orch -- "new project" --> Init
+    Orch -- "plan features" --> Brain
+    Orch -- "do work" --> Exec
+    Orch -- "update docs" --> Sync
+    Orch -- "inspect state" --> Explore
+    Orch -- "compound request" --> Multi
+
+    Multi -.-> Init
+    Multi -.-> Brain
+    Multi -.-> Exec
+    Multi -.-> Sync
+    Multi -.-> Explore
+
+    Init --> DAG
+    Brain --> DAG
+    Exec --> DAG
+    Sync --> DAG
+    Explore --> DAG
+```
+
+### Orchestrator Flow
+
+The orchestrator (`/cc-dag-orchestrate`) is the recommended entry point. Every request goes through three phases:
+
+1. **Classify** — detect intent as one of six types (INIT, BRAINSTORM, EXECUTE, SYNC, EXPLORE, MULTI)
+2. **Route** — delegate to the appropriate specialist workflow with the right tool set
+3. **Complete** — summarize what was done, current project state, and recommended next steps
+
+If intent is ambiguous, the orchestrator asks exactly one clarifying question before proceeding.
+
+### Specialist Workflows
+
+Each specialist prompt can also be invoked directly:
+
+| Prompt | Argument | What It Does |
+|---|---|---|
+| `/cc-dag-orchestrate` | _(none)_ | Classifies intent and routes to the right workflow |
+| `/cc-dag-init` | _(none)_ | Creates a new project, performs a full codebase scan, populates docs and knowledge entries |
+| `/cc-dag-brainstorm` | `project` (slug) | Reviews existing state, collaboratively explores approaches, creates plans and tasks |
+| `/cc-dag-execute` | `project` (slug) | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
+| `/cc-dag-sync` | `project` (slug) | Re-scans codebase, audits all docs against reality, reconciles differences |
+
+### Workspace Integration
+
+Workspace paths connect local directories to cc-dag projects, enabling two features:
+
+**Context resolution** — When an agent starts a session in a directory, `resolve_project_context` matches it against registered workspace paths and returns the project's overview, in-progress tasks, recent knowledge, and active plans. This gives the agent immediate project awareness without manual lookup.
+
+**AGENTS.md generation** — `sync_agents_md` assembles a guardrail document from three sources and symlinks it into each workspace directory:
+
+1. **Coding discipline rules** — 7 non-negotiable principles (DRY, Single Responsibility, etc.)
+2. **Codebase analysis** — provided by the calling LLM after scanning the project (tech stack, directory structure, naming conventions, code patterns)
+3. **Project context** — pulled from cc-dag (overview, current focus, dependencies, active plans)
+
+Register workspace paths with `update_project_paths`. A project can have multiple paths (e.g., monorepo subdirectories).
+
+### Supported IDEs
+
+The `init` wizard can auto-configure these IDEs/tools:
+
+| IDE / Tool | Config Path |
+|---|---|
+| VS Code (Copilot) | `~/.vscode/mcp.json` |
+| GitHub Copilot CLI | `~/.config/github-copilot/mcp.json` |
+| Claude Code | `~/.claude/claude_desktop_config.json` |
+| OpenCode | `~/.config/opencode/opencode.json` |
+
+---
 
 ## MCP Tools
 
@@ -151,27 +291,7 @@ npm run test
 
 ## MCP Prompts (Slash Commands)
 
-Prompts are registered as slash commands and can be individually enabled/disabled via `node dist/index.js config`.
-
-| Prompt | Description |
-|---|---|
-| `/cc-dag-orchestrate` | Top-level router — classifies intent and delegates to specialist workflows |
-| `/cc-dag-init` | Guided new-project setup |
-| `/cc-dag-brainstorm` | Planning and task breakdown |
-| `/cc-dag-execute` | Execute the next concrete task |
-| `/cc-dag-sync` | Reconcile docs with reality (sync knowledge) |
-
-### Orchestrator Agent
-
-The `/cc-dag-orchestrate` prompt is the recommended entry point. It classifies intent and routes automatically across workflows:
-- **INIT** (new project setup)
-- **BRAINSTORM** (planning and task breakdown)
-- **EXECUTE** (do the next concrete task)
-- **SYNC** (reconcile docs with reality)
-- **EXPLORE** (inspect DAG/project state)
-- **MULTI** (chain multiple workflows in sequence)
-
-Compared to invoking specialist prompts directly, the orchestrator handles routing and phase transitions for you, while still using the same underlying cc-dag tools and document conventions.
+Prompts are registered as slash commands and can be individually enabled/disabled via `node dist/index.js config`. See [Specialist Workflows](#specialist-workflows) above for details on each prompt.
 
 ## Project Structure
 
