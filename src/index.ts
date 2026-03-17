@@ -11,6 +11,8 @@ import { registerListProjects } from "./tools/list-projects.js";
 import { registerGetProject } from "./tools/get-project.js";
 import { registerProjectPlanTools } from "./tools/project-plans.js";
 import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
+import { registerUpdatePaths } from "./tools/update-paths.js";
+import { registerResolveContext } from "./tools/resolve-context.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAllPrompts } from "./prompts/index.js";
@@ -54,6 +56,8 @@ async function run(): Promise<void> {
   registerGetProject(server);
   registerProjectPlanTools(server);
   registerProjectKnowledgeTools(server);
+  registerUpdatePaths(server);
+  registerResolveContext(server);
 
   // Register resources
   registerProjectResources(server);
