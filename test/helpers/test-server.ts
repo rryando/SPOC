@@ -8,6 +8,7 @@ import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
 import { registerUpdatePaths } from "../../src/tools/update-paths.js";
 import { registerResolveContext } from "../../src/tools/resolve-context.js";
+import { registerSyncAgentsMd } from "../../src/tools/sync-agents-md.js";
 import { registerProjectResources } from "../../src/resources/projects.js";
 
 type ToolRegistration = (server: McpServer) => void;
@@ -20,6 +21,7 @@ const defaultRegistrations: ToolRegistration[] = [
   registerProjectKnowledgeTools,
   registerUpdatePaths,
   registerResolveContext,
+  registerSyncAgentsMd,
 ];
 
 async function withConnectedClient<T>(

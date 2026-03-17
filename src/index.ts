@@ -13,6 +13,7 @@ import { registerProjectPlanTools } from "./tools/project-plans.js";
 import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
 import { registerUpdatePaths } from "./tools/update-paths.js";
 import { registerResolveContext } from "./tools/resolve-context.js";
+import { registerSyncAgentsMd } from "./tools/sync-agents-md.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAllPrompts } from "./prompts/index.js";
@@ -58,6 +59,7 @@ async function run(): Promise<void> {
   registerProjectKnowledgeTools(server);
   registerUpdatePaths(server);
   registerResolveContext(server);
+  registerSyncAgentsMd(server);
 
   // Register resources
   registerProjectResources(server);
