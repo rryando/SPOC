@@ -9,65 +9,16 @@ import {
 } from "../utils/workspace-match.js";
 import { readPlanIndex, readKnowledgeIndex } from "../utils/project-memory.js";
 import {
+  extractOverviewContent,
+  extractInProgressTasks,
+} from "../utils/content-assembly.js";
+import {
   noProjectMatch,
   ambiguousProjectMatch,
   invalidWorkspacePath,
   formatError,
 } from "../utils/errors.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-// ---------------------------------------------------------------------------
-// Content assembly helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Check if overview content is still the default template (no real content).
- * Template has: `# Name\n\n> Description\n\n...## Summary\n\n## Goals\n\n## Current Focus`
- * If all subsections beneath the headers are empty, it's default.
- *
- * NOTE: This parser is coupled to the template format in project.md.tmpl.
- * If the template changes, this function may need updating.
- */
-function extractOverviewContent(raw: string): string | null {
-  const lines = raw.split("\n");
-  let startIdx = 0;
-
-  // Skip leading H1
-  if (lines[startIdx]?.startsWith("# ")) startIdx++;
-  // Skip blank lines after H1
-  while (startIdx < lines.length && lines[startIdx]?.trim() === "") startIdx++;
-  // Skip blockquote
-  if (lines[startIdx]?.startsWith("> ")) startIdx++;
-  // Skip blank lines after blockquote
-  while (startIdx < lines.length && lines[startIdx]?.trim() === "") startIdx++;
-  // Skip status/repo blocks
-  while (
-    startIdx < lines.length &&
-    (lines[startIdx]?.startsWith("**Status:**") ||
-      lines[startIdx]?.startsWith("**Repo:**") ||
-      lines[startIdx]?.trim() === "")
-  ) {
-    startIdx++;
-  }
-
-  const remaining = lines.slice(startIdx).join("\n").trim();
-
-  // Check if it's just empty section headers with no content beneath them
-  const withoutHeaders = remaining
-    .replace(/^##\s+.+$/gm, "")
-    .trim();
-
-  if (withoutHeaders === "") return null;
-  return remaining;
-}
-
-/**
- * Extract in-progress task lines (matching `- [/]` pattern).
- */
-function extractInProgressTasks(raw: string): string | null {
-  const lines = raw.split("\n").filter((line) => /^- \[\/\]/.test(line.trim()));
-  return lines.length > 0 ? lines.join("\n") : null;
-}
 
 // ---------------------------------------------------------------------------
 // Tool registration

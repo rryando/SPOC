@@ -1,0 +1,95 @@
+/**
+ * Shared content extraction helpers for assembling project context.
+ * Used by both resolve_project_context and sync_agents_md tools.
+ */
+
+/**
+ * Extract meaningful overview content from overview.md, stripping template boilerplate.
+ * Returns null if the overview is still the default template (no real content).
+ *
+ * Strips: leading H1, blockquote, status/repo blocks, then checks if remaining
+ * content is just empty section headers.
+ *
+ * NOTE: Coupled to the template format in project.md.tmpl.
+ */
+export function extractOverviewContent(raw: string): string | null {
+  const lines = raw.split("\n");
+  let startIdx = 0;
+
+  // Skip leading H1
+  if (lines[startIdx]?.startsWith("# ")) startIdx++;
+  // Skip blank lines after H1
+  while (startIdx < lines.length && lines[startIdx]?.trim() === "") startIdx++;
+  // Skip blockquote
+  if (lines[startIdx]?.startsWith("> ")) startIdx++;
+  // Skip blank lines after blockquote
+  while (startIdx < lines.length && lines[startIdx]?.trim() === "") startIdx++;
+  // Skip status/repo blocks
+  while (
+    startIdx < lines.length &&
+    (lines[startIdx]?.startsWith("**Status:**") ||
+      lines[startIdx]?.startsWith("**Repo:**") ||
+      lines[startIdx]?.trim() === "")
+  ) {
+    startIdx++;
+  }
+
+  const remaining = lines.slice(startIdx).join("\n").trim();
+
+  // Check if it's just empty section headers with no content beneath them
+  const withoutHeaders = remaining.replace(/^##\s+.+$/gm, "").trim();
+
+  if (withoutHeaders === "") return null;
+  return remaining;
+}
+
+/**
+ * Extract in-progress task lines (matching `- [/]` pattern).
+ */
+export function extractInProgressTasks(raw: string): string | null {
+  const lines = raw.split("\n").filter((line) => /^- \[\/\]/.test(line.trim()));
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+/**
+ * Extract meaningful dependencies content from dependencies.md, stripping template boilerplate.
+ * Returns null if the content is still the default template.
+ *
+ * Strips leading H1 (`# Dependencies — {name}`). Downgrades `## Upstream` /
+ * `## Downstream` to `###` so they nest correctly under the `## Dependencies`
+ * header in assembled documents. Returns null if the only non-blank content
+ * under each header is `- None yet` / `- None` or nothing.
+ *
+ * NOTE: Coupled to the template format in dependency.md.tmpl.
+ */
+export function extractDependenciesContent(raw: string): string | null {
+  const lines = raw.split("\n");
+  let startIdx = 0;
+
+  // Skip leading H1
+  if (lines[startIdx]?.startsWith("# ")) startIdx++;
+  // Skip blank lines after H1
+  while (startIdx < lines.length && lines[startIdx]?.trim() === "") startIdx++;
+
+  const remaining = lines.slice(startIdx).join("\n").trim();
+
+  if (remaining === "") return null;
+
+  // Check if it's just empty template: only headers and "- None yet" / "- None" lines
+  const withoutHeaders = remaining.replace(/^##\s+.+$/gm, "").trim();
+  const withoutNoneYet = withoutHeaders
+    .split("\n")
+    .filter(
+      (line) =>
+        line.trim() !== "" &&
+        line.trim() !== "- None yet" &&
+        line.trim() !== "- None"
+    )
+    .join("")
+    .trim();
+
+  if (withoutNoneYet === "") return null;
+
+  // Downgrade ## Upstream / ## Downstream to ### for embedding under ## Dependencies
+  return remaining.replace(/^## (Upstream|Downstream)/gm, "### $1");
+}
