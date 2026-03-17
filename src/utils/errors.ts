@@ -99,6 +99,32 @@ export function indexRebuildFailed(
   );
 }
 
+export function noProjectMatch(workspacePath: string): DagError {
+  return new DagError(
+    "NO_PROJECT_MATCH",
+    `No project found matching workspace path "${workspacePath}". ` +
+      `Register a workspace path using update_project_paths(slug, "add", [path]).`
+  );
+}
+
+export function ambiguousProjectMatch(
+  workspacePath: string,
+  slugs: string[]
+): DagError {
+  return new DagError(
+    "AMBIGUOUS_PROJECT_MATCH",
+    `Multiple projects match workspace path "${workspacePath}" at the same depth: ${slugs.join(", ")}. ` +
+      `Use more specific workspace paths or remove duplicates with update_project_paths.`
+  );
+}
+
+export function invalidWorkspacePath(path: string): DagError {
+  return new DagError(
+    "INVALID_WORKSPACE_PATH",
+    `Workspace path "${path}" is not absolute. Paths must start with "/".`
+  );
+}
+
 /**
  * Format a DagError into an MCP tool error response.
  */
