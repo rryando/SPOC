@@ -109,4 +109,19 @@ Use `tasks.md` for execution queue state, not full feature planning narratives. 
 
 3. **List existing plans** with `list_project_plans` to see what's in progress.
 
+#### Plan Keyword Conventions
+
+External agent workflows (e.g. superpowers skills) store documents in cc-dag as plans with specific keywords:
+
+| Keywords | Status | Origin |
+|----------|--------|--------|
+| `spec`, `design` | `proposed` | Design specs from brainstorming |
+| `implementation-plan` | `planned` | Step-by-step implementation plans |
+
+Use `list_project_plans` with keyword filters to discover these:
+- `list_project_plans(slug, keywords: ["spec"])` — find design specs
+- `list_project_plans(slug, keywords: ["implementation-plan"])` — find implementation plans
+
+When creating plans through cc-dag workflows, you don't need to follow these conventions — they're specific to external agent integration.
+
 > **Tip**: When analyzing a new repo, start with Key Files and Tech Stack — they give you the scaffolding to fill the rest.

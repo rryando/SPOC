@@ -45,6 +45,7 @@ You also have standard file exploration tools (file reads, directory listing, gr
    - dependencies.md: Do the listed upstream/downstream relationships still exist?
    - knowledge.md: Is the landing page summary still accurate?
    - plans/: Are plan statuses current? Any plans that should be marked done or archived?
+      - Check for externally-created plans using keyword filters: \`list_project_plans(slug, keywords: ["spec"])\` for design specs, \`list_project_plans(slug, keywords: ["implementation-plan"])\` for implementation plans. Verify their statuses match the actual state of work.
    - knowledge/: Are entries still accurate? Any missing entries for recent discoveries?
 5. **Ask the user** about anything you can't verify independently.
 

@@ -133,6 +133,16 @@ Always end with:
 - **plans/**: Structured plan records for multi-step feature work (status, keywords, detailed body)
 - **knowledge/**: Structured knowledge entries for durable discoveries (kind, keywords, detailed body)
 
+## Plan Keyword Conventions
+External agent workflows (e.g. superpowers skills) store documents in cc-dag using these keyword conventions:
+- \`spec\`, \`design\` — Design/spec documents (status: \`proposed\`)
+- \`implementation-plan\` — Implementation plans (status: \`planned\`)
+
+When browsing or auditing plans, use \`list_project_plans\` with keyword filters to discover these:
+- \`list_project_plans(slug, keywords: ["spec"])\` — find design specs
+- \`list_project_plans(slug, keywords: ["implementation-plan"])\` — find implementation plans
+- Plans without these keywords are cc-dag native plans created through brainstorm/execute workflows
+
 Stay focused. Route first, then execute the right workflow decisively.`;
 
 export function registerCcDagOrchestratePrompt(server: McpServer) {

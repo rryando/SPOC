@@ -27,6 +27,7 @@ You may ONLY use these tools in this session:
    - What are the concrete next tasks?
 3. Summarize conclusions and ask the user to confirm before writing.
 4. For multi-step feature work, create or update structured plans via the plan tools. These provide durable, indexed records with status tracking and keyword search.
+   - **Note:** External agent workflows (e.g. superpowers) may have already created plans with keywords \`spec\`, \`design\`, or \`implementation-plan\`. Use \`list_project_plans\` with keyword filters to discover these before creating duplicates.
 5. Update the relevant docs (tasks, overview, dependencies, knowledge) with the outcomes.
 
 ## Thinking Style

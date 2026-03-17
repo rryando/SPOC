@@ -48,5 +48,6 @@ Given project `core-lib`, find everything that depends on it:
 - Start with `list_projects` for the big picture
 - Use `knowledge` docs to quickly understand unfamiliar codebases
 - Use `list_project_plans` and `list_project_knowledge_entries` to discover deeper project context
+- Filter plans by keyword to find specific document types: `list_project_plans(slug, keywords: ["spec"])` for design specs, `list_project_plans(slug, keywords: ["implementation-plan"])` for implementation plans
 - Check `status` to know if a dependency is still actively maintained
 - Use `manage_dependency` tool to add/remove edges as you discover relationships

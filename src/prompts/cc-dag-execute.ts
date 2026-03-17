@@ -28,6 +28,8 @@ You also have access to all your standard tools (file system, shell, search, etc
 ## Workflow
 1. **Orient**: Use \`get_project\` with slug=\"${project}\" and doc=\"tasks\" to read the project's task list. Also read overview and knowledge docs for context.
 2. **Select**: Identify the highest-priority unblocked task(s). Confirm with the user if ambiguous.
+   - Also check for implementation plans: \`list_project_plans\` with keywords \`["implementation-plan"]\` to find detailed step-by-step plans that may have been created by external workflows (e.g. superpowers).
+   - Plans with keyword \`spec\` or \`design\` contain design context that may inform execution.
 3. **Execute**: Work through the task. Use your standard tools for the actual implementation.
 4. **Update docs as you go**:
    - Mark tasks [/] when you start them, [x] when done
