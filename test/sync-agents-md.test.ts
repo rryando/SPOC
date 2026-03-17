@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
@@ -29,7 +29,7 @@ const fullAnalysis = {
 };
 
 describe("sync_agents_md", () => {
-  it("writes AGENTS.md with full content to workspace path", async () => {
+  it("writes AGENTS.md to cc-dag and symlinks from workspace", async () => {
     await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
       try {
@@ -82,10 +82,20 @@ describe("sync_agents_md", () => {
 
         const text = resultText(result);
 
-        // Verify file was written
-        const agentsPath = join(wsDir, "AGENTS.md");
-        expect(existsSync(agentsPath)).toBe(true);
-        const fileContent = readFileSync(agentsPath, "utf-8");
+        // Verify source file written to cc-dag data dir
+        const sourcePath = resolve(dataDir, "projects", "my-project", "AGENTS.md");
+        expect(existsSync(sourcePath)).toBe(true);
+        const fileContent = readFileSync(sourcePath, "utf-8");
+
+        // Verify workspace has a symlink pointing to the source
+        const symlinkPath = join(wsDir, "AGENTS.md");
+        expect(existsSync(symlinkPath)).toBe(true);
+        expect(lstatSync(symlinkPath).isSymbolicLink()).toBe(true);
+        expect(readlinkSync(symlinkPath)).toBe(sourcePath);
+
+        // Verify content is readable through the symlink
+        const symlinkContent = readFileSync(symlinkPath, "utf-8");
+        expect(symlinkContent).toBe(fileContent);
 
         // Verify preamble
         expect(fileContent).toContain("# AGENTS.md — My Project");
@@ -115,8 +125,9 @@ describe("sync_agents_md", () => {
         expect(fileContent).toContain("## Active Plans");
         expect(fileContent).toContain("Auth System");
 
-        // Verify response confirms write
-        expect(text).toContain("AGENTS.md written to 1 path(s)");
+        // Verify response mentions symlink
+        expect(text).toContain("AGENTS.md written");
+        expect(text).toContain("symlink");
       } finally {
         await server.close();
       }
@@ -225,7 +236,11 @@ describe("sync_agents_md", () => {
         expect(text).toContain("# AGENTS.md — Dry Run");
         expect(text).toContain("Dry run");
 
-        // File NOT written
+        // No file written in cc-dag data dir
+        const sourcePath = resolve(dataDir, "projects", "dry-run", "AGENTS.md");
+        expect(existsSync(sourcePath)).toBe(false);
+
+        // No symlink in workspace
         expect(existsSync(join(wsDir, "AGENTS.md"))).toBe(false);
       } finally {
         await server.close();
@@ -255,7 +270,7 @@ describe("sync_agents_md", () => {
   });
 
   it("warns and skips non-existent workspace paths", async () => {
-    await withTempDataDir(async () => {
+    await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
       try {
         await invokeJsonTool(server, "init_project", {
@@ -272,14 +287,17 @@ describe("sync_agents_md", () => {
         const text = resultText(result);
         expect(text).toContain("Warning:");
         expect(text).toContain("/nonexistent/path/that/does/not/exist");
-        expect(text).toContain("No files written");
+
+        // Source file should still be written to cc-dag even if no workspace paths exist
+        const sourcePath = resolve(dataDir, "projects", "bad-path", "AGENTS.md");
+        expect(existsSync(sourcePath)).toBe(true);
       } finally {
         await server.close();
       }
     });
   });
 
-  it("writes identical AGENTS.md to multiple workspace paths", async () => {
+  it("symlinks identical AGENTS.md to multiple workspace paths", async () => {
     await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
       try {
@@ -299,9 +317,18 @@ describe("sync_agents_md", () => {
           codebaseAnalysis: minimalAnalysis,
         });
 
-        const content1 = readFileSync(join(wsDir1, "AGENTS.md"), "utf-8");
-        const content2 = readFileSync(join(wsDir2, "AGENTS.md"), "utf-8");
+        // Both should be symlinks pointing to the same source
+        const sourcePath = resolve(dataDir, "projects", "multi-path", "AGENTS.md");
+        const link1 = join(wsDir1, "AGENTS.md");
+        const link2 = join(wsDir2, "AGENTS.md");
 
+        expect(lstatSync(link1).isSymbolicLink()).toBe(true);
+        expect(lstatSync(link2).isSymbolicLink()).toBe(true);
+        expect(readlinkSync(link1)).toBe(sourcePath);
+        expect(readlinkSync(link2)).toBe(sourcePath);
+
+        const content1 = readFileSync(link1, "utf-8");
+        const content2 = readFileSync(link2, "utf-8");
         expect(content1).toBe(content2);
         expect(content1).toContain("# AGENTS.md — Multi Path");
       } finally {
@@ -350,6 +377,47 @@ describe("sync_agents_md", () => {
         // Headers should be downgraded to ### when embedded under ## Dependencies
         expect(fileContent).toContain("### Upstream");
         expect(fileContent).toContain("auth-service: Authentication provider");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("replaces stale symlink on re-sync", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        const wsDir = resolve(dataDir, "workspace");
+        mkdirSync(wsDir, { recursive: true });
+
+        await invokeJsonTool(server, "init_project", {
+          name: "Re Sync",
+          description: "test",
+          workspacePaths: [wsDir],
+        });
+
+        // First sync
+        await invokeJsonTool(server, "sync_agents_md", {
+          slug: "re-sync",
+          codebaseAnalysis: minimalAnalysis,
+        });
+
+        const symlinkPath = join(wsDir, "AGENTS.md");
+        expect(lstatSync(symlinkPath).isSymbolicLink()).toBe(true);
+        const contentBefore = readFileSync(symlinkPath, "utf-8");
+        expect(contentBefore).not.toContain("## Testing Patterns");
+
+        // Second sync with different analysis
+        await invokeJsonTool(server, "sync_agents_md", {
+          slug: "re-sync",
+          codebaseAnalysis: fullAnalysis,
+        });
+
+        // Symlink should still work and content should be updated
+        expect(lstatSync(symlinkPath).isSymbolicLink()).toBe(true);
+        const contentAfter = readFileSync(symlinkPath, "utf-8");
+        expect(contentAfter).toContain("## Testing Patterns");
+        expect(contentAfter).toContain("Vitest, co-located test files");
       } finally {
         await server.close();
       }

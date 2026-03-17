@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  symlinkSync,
+  unlinkSync,
+  lstatSync,
+} from "node:fs";
 import { resolve, join } from "node:path";
 import { getDataDir } from "../utils/paths.js";
 import { readRootMeta } from "../utils/dag.js";
@@ -212,22 +219,36 @@ export function registerSyncAgentsMd(server: McpServer) {
 
         const content = parts.join("") + "\n";
 
-        // Check workspace path existence and write
+        // Write source file to cc-dag data dir and create symlinks
+        const sourcePath = resolve(projectDir, "AGENTS.md");
         const warnings: string[] = [];
-        const written: string[] = [];
+        const symlinked: string[] = [];
 
-        for (const wsPath of workspacePaths) {
-          if (!existsSync(wsPath)) {
-            warnings.push(
-              `Warning: workspace path "${wsPath}" does not exist, skipped.`
-            );
-            continue;
-          }
+        if (!params.dryRun) {
+          // Write source of truth to cc-dag data dir
+          writeFileSync(sourcePath, content, "utf-8");
 
-          if (!params.dryRun) {
-            const agentsPath = join(wsPath, "AGENTS.md");
-            writeFileSync(agentsPath, content, "utf-8");
-            written.push(agentsPath);
+          // Create symlinks from each workspace path
+          for (const wsPath of workspacePaths) {
+            if (!existsSync(wsPath)) {
+              warnings.push(
+                `Warning: workspace path "${wsPath}" does not exist, skipped.`
+              );
+              continue;
+            }
+
+            const linkPath = join(wsPath, "AGENTS.md");
+
+            // Remove existing file or symlink at the target
+            try {
+              lstatSync(linkPath);
+              unlinkSync(linkPath);
+            } catch {
+              // Does not exist — nothing to remove
+            }
+
+            symlinkSync(sourcePath, linkPath);
+            symlinked.push(linkPath);
           }
         }
 
@@ -236,13 +257,13 @@ export function registerSyncAgentsMd(server: McpServer) {
 
         if (params.dryRun) {
           responseParts.push("**Dry run** — content generated but not written.\n");
-        } else if (written.length > 0) {
+        } else if (symlinked.length > 0) {
           responseParts.push(
-            `✅ AGENTS.md written to ${written.length} path(s):\n${written.map((p) => `- ${p}`).join("\n")}\n`
+            `✅ AGENTS.md written to \`${sourcePath}\`\nsymlink created at ${symlinked.length} path(s):\n${symlinked.map((p) => `- ${p}`).join("\n")}\n`
           );
         } else {
           responseParts.push(
-            "⚠️ No files written — all workspace paths are non-existent.\n"
+            `⚠️ AGENTS.md written to \`${sourcePath}\` but no symlinks created — all workspace paths are non-existent.\n`
           );
         }
 
