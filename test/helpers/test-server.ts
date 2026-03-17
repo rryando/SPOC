@@ -6,6 +6,7 @@ import { registerGetProject } from "../../src/tools/get-project.js";
 import { registerUpdateDoc } from "../../src/tools/update-doc.js";
 import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
+import { registerUpdatePaths } from "../../src/tools/update-paths.js";
 import { registerProjectResources } from "../../src/resources/projects.js";
 
 type ToolRegistration = (server: McpServer) => void;
@@ -16,6 +17,7 @@ const defaultRegistrations: ToolRegistration[] = [
   registerUpdateDoc,
   registerProjectPlanTools,
   registerProjectKnowledgeTools,
+  registerUpdatePaths,
 ];
 
 async function withConnectedClient<T>(
