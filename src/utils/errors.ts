@@ -125,6 +125,13 @@ export function invalidWorkspacePath(path: string): DagError {
   );
 }
 
+export function noWorkspacePaths(slug: string): DagError {
+  return new DagError(
+    "NO_WORKSPACE_PATHS",
+    `No workspace paths registered for project "${slug}". Use update_project_paths to add paths first.`
+  );
+}
+
 /**
  * Format a DagError into an MCP tool error response.
  */
