@@ -17,6 +17,8 @@ You have access to all cc-dag tools:
 - \`manage_dependency\` — Add or remove dependency edges
 - \`list_projects\` — List all projects and dependency edges
 - \`get_project\` — Read project metadata and documents
+- \`resolve_project_context\` — Resolve project context from a workspace directory path
+- \`update_project_paths\` — Add, remove, or set workspace directory paths for a project
 
 ### Structured plan tools (plans/ index)
 - \`create_project_plan\` — Create a new structured plan for multi-step feature work
@@ -31,6 +33,16 @@ You have access to all cc-dag tools:
 - \`get_project_knowledge_entry\` — Read a knowledge entry's metadata and optionally its body
 - \`update_project_knowledge_meta\` — Update a knowledge entry's kind, title, summary, or keywords
 - \`update_project_knowledge_body\` — Replace a knowledge entry's markdown body
+
+## Project Context Resolution
+
+At the start of every session, if you know the user's working directory, call
+\`resolve_project_context\` with that path. If a project is found, use the
+returned context to inform your work — it contains the project overview,
+current focus areas, relevant knowledge, and active plans.
+
+If no project matches, proceed normally. The user may be working on something
+not yet tracked in cc-dag.
 
 ## Phase 0 — Intent Classification (MANDATORY)
 For every user request, classify into exactly one of:
