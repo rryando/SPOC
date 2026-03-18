@@ -18,6 +18,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:opencode-bundle": "node scripts/build-opencode-superpowers-bundle.mjs",
+    "prepack": "npm run build:opencode-bundle",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",

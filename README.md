@@ -38,6 +38,13 @@ selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distr
 - `spoc config` re-syncs SPOC-owned OpenCode Superpowers files automatically.
 - bundled install is skipped when the SPOC orchestrator agent is disabled or not registered.
 
+SPOC ships a curated OpenCode runtime bundle.
+
+- all Superpowers skills remain available in OpenCode.
+- all shipped Superpowers agent definitions are bundled.
+- non-runtime support files are intentionally excluded to keep the package lean.
+- `opencode/superpowers/bundle-runtime.json` defines the curated runtime payload.
+
 ## CLI Commands
 
 | Command | Description |

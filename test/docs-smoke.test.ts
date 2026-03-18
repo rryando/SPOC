@@ -12,6 +12,10 @@ import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
 const root = resolve(import.meta.dirname, "..");
 
 const readme = readFileSync(resolve(root, "README.md"), "utf-8");
+const openCodeManagedSuperpowersSection = readme.slice(
+  readme.indexOf("### OpenCode Managed Superpowers"),
+  readme.indexOf("## CLI Commands"),
+);
 const orchestrateSkill = readFileSync(resolve(root, "skills/orchestrate.md"), "utf-8");
 const updateDocsSkill = readFileSync(resolve(root, "skills/update-docs.md"), "utf-8");
 const initSkill = readFileSync(resolve(root, "skills/init-project.md"), "utf-8");
@@ -103,10 +107,18 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README explains that OpenCode setup installs SPOC-managed superpowers", () => {
-    expect(readme).toContain("selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distribution");
-    expect(readme).toContain("SPOC becomes the manager of the active `superpowers` set for OpenCode");
-    expect(readme).toContain("existing generic Superpowers installs may be replaced after confirmation");
-    expect(readme).toContain("`spoc config` re-syncs SPOC-owned OpenCode Superpowers files");
-    expect(readme).toContain("bundled install is skipped when the SPOC orchestrator agent is disabled");
+    expect(openCodeManagedSuperpowersSection).toContain("selecting OpenCode in `spoc init` installs");
+    expect(openCodeManagedSuperpowersSection).toContain("manager of the active `superpowers` set");
+    expect(openCodeManagedSuperpowersSection).toContain("generic Superpowers installs may be replaced");
+    expect(openCodeManagedSuperpowersSection).toContain("`spoc config` re-syncs");
+    expect(openCodeManagedSuperpowersSection).toContain("orchestrator agent is disabled");
+  });
+
+  it("README explains the curated OpenCode runtime bundle", () => {
+    expect(openCodeManagedSuperpowersSection).toContain("curated OpenCode runtime bundle");
+    expect(openCodeManagedSuperpowersSection).toContain("Superpowers skills remain available");
+    expect(openCodeManagedSuperpowersSection).toContain("agent definitions are bundled");
+    expect(openCodeManagedSuperpowersSection).toContain("excluded to keep the package lean");
+    expect(openCodeManagedSuperpowersSection).toContain("`opencode/superpowers/bundle-runtime.json`");
   });
 });
