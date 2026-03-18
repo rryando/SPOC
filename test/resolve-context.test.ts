@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
@@ -109,7 +111,7 @@ describe("resolve_project_context", () => {
     });
   });
 
-  it("includes in-progress tasks in Current Focus", async () => {
+  it("uses the policy-selected task in Current Focus and Operating Brief", async () => {
     await withTempDataDir(async () => {
       const server = createTestServer();
       try {
@@ -133,9 +135,14 @@ describe("resolve_project_context", () => {
         );
 
         const text = resultText(result);
+        expect(text).toContain("## Operating Brief");
+        expect(text).toContain("**Current Focus:** Build the API");
+        expect(text).toContain("**Recommended Surface:** queue");
+        expect(text).toContain("**Why:** This is best tracked as immediate execution state.");
+        expect(text).toContain("**Next Action:** Continue the queue item \"Build the API\"");
         expect(text).toContain("## Current Focus");
-        expect(text).toContain("- [/] Build the API");
-        expect(text).toContain("- [/] Write tests");
+        expect(text).toContain("- Build the API");
+        expect(text).not.toContain("- Write tests");
         expect(text).not.toContain("- [ ] Deploy");
         expect(text).not.toContain("- [x] Setup project");
       } finally {
@@ -216,6 +223,11 @@ describe("resolve_project_context", () => {
         );
 
         const text = resultText(result);
+        expect(text).toContain("## Operating Brief");
+        expect(text).toContain("**Current Focus:** Auth System");
+        expect(text).toContain("**Recommended Surface:** memory");
+        expect(text).toContain("**Why:** This should outlive the current task and be reusable later.");
+        expect(text).toContain("**Next Action:**");
         expect(text).toContain("## Key Knowledge");
         expect(text).toContain("API Architecture");
         expect(text).toContain("REST API with Express and Zod validation");
@@ -223,6 +235,68 @@ describe("resolve_project_context", () => {
         expect(text).toContain("Auth System");
         expect(text).toContain("Implement JWT-based authentication");
         expect(text).not.toContain("Old Plan");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("orders knowledge with valid timestamps ahead of invalid timestamps", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Knowledge Order",
+          description: "Ordering test",
+          workspacePaths: ["/Users/ryan/knowledge-order"],
+        });
+
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "knowledge-order",
+          title: "First Note",
+          kind: "reference",
+          summary: "Has invalid updatedAt",
+        });
+
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "knowledge-order",
+          title: "Second Note",
+          kind: "reference",
+          summary: "Has valid updatedAt",
+        });
+
+        const projectDir = resolve(dataDir, "projects", "knowledge-order");
+        const knowledgeDir = resolve(projectDir, "knowledge");
+        const indexPath = resolve(knowledgeDir, "index.json");
+
+        const index = JSON.parse(readFileSync(indexPath, "utf-8")) as {
+          entries: Array<{ id: string; updatedAt: string }>;
+        };
+
+        index.entries = index.entries.map((entry) => ({
+          ...entry,
+          updatedAt:
+            entry.id === "first-note"
+              ? "not-a-date"
+              : "2026-03-18T00:00:00.000Z",
+        }));
+        writeFileSync(indexPath, JSON.stringify(index, null, 2) + "\n", "utf-8");
+
+        for (const entry of index.entries) {
+          const metaPath = resolve(knowledgeDir, `${entry.id}.meta.json`);
+          const meta = JSON.parse(readFileSync(metaPath, "utf-8")) as {
+            updatedAt: string;
+          };
+          meta.updatedAt = entry.updatedAt;
+          writeFileSync(metaPath, JSON.stringify(meta, null, 2) + "\n", "utf-8");
+        }
+
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/Users/ryan/knowledge-order",
+        });
+
+        const text = resultText(result);
+        expect(text.indexOf("Second Note")).toBeLessThan(text.indexOf("First Note"));
       } finally {
         await server.close();
       }

@@ -11,7 +11,9 @@ import { readPlanIndex, readKnowledgeIndex } from "../utils/project-memory.js";
 import {
   extractOverviewContent,
   extractInProgressTasks,
+  extractBacklogTasks,
 } from "../utils/content-assembly.js";
+import { deriveOperatingBrief } from "../utils/workflow-policy.js";
 import {
   noProjectMatch,
   ambiguousProjectMatch,
@@ -115,23 +117,18 @@ export function registerResolveContext(server: McpServer) {
           }
         }
 
-        // Current Focus (in-progress tasks)
         const tasksPath = resolve(projectDir, "tasks.md");
-        if (existsSync(tasksPath)) {
-          const tasksRaw = readFileSync(tasksPath, "utf-8");
-          const inProgress = extractInProgressTasks(tasksRaw);
-          if (inProgress) {
-            sections.push(`\n## Current Focus\n\n${inProgress}`);
-          }
-        }
+        const tasksRaw = existsSync(tasksPath)
+          ? readFileSync(tasksPath, "utf-8")
+          : "";
 
         // Key Knowledge (last 10 entries by updatedAt)
         const knowledgeIndex = readKnowledgeIndex(projectDir);
         if (knowledgeIndex.entries.length > 0) {
           const sorted = [...knowledgeIndex.entries].sort(
             (a, b) =>
-              new Date(b.updatedAt).getTime() -
-              new Date(a.updatedAt).getTime()
+              safeTime(b.updatedAt) -
+              safeTime(a.updatedAt)
           );
           const top = sorted.slice(0, 10); // Intentionally hardcoded limit for v1
           const bullets = top
@@ -148,6 +145,28 @@ export function registerResolveContext(server: McpServer) {
         const activePlans = planIndex.plans.filter(
           (p) => p.status === "in_progress" || p.status === "planned"
         );
+
+        const inProgressTasks = extractInProgressTasks(tasksRaw);
+        const backlogTasks = extractBacklogTasks(tasksRaw);
+        const brief = deriveOperatingBrief({
+          plans: planIndex.plans,
+          inProgressTasks,
+          backlogTasks,
+          hasDurableKnowledgeSignal: knowledgeIndex.entries.length > 0,
+        });
+
+        sections.push(
+          "\n## Operating Brief\n",
+          `**Current Focus:** ${brief.currentFocus}`,
+          `**Recommended Surface:** ${brief.recommendedSurface}`,
+          `**Why:** ${brief.why}`,
+          `**Next Action:** ${brief.nextAction}`
+        );
+
+        if (brief.currentFocus !== "None") {
+          sections.push(`\n## Current Focus\n\n- ${brief.currentFocus}`);
+        }
+
         if (activePlans.length > 0) {
           const bullets = activePlans
             .map((p) => {
@@ -179,4 +198,10 @@ export function registerResolveContext(server: McpServer) {
       }
     }
   );
+}
+
+function safeTime(value?: string): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
 }

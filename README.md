@@ -195,6 +195,20 @@ The orchestrator (`/cc-dag-orchestrate`) is the recommended entry point. Every r
 
 If intent is ambiguous, the orchestrator asks exactly one clarifying question before proceeding.
 
+## Agent Operating Model
+
+cc-dag presents three main surfaces to agents: **Queue / Plan / Memory**.
+
+- **Queue** — immediate execution state in `tasks.md`
+- **Plan** — multi-step work tracked in structured plans
+- **Memory** — durable reusable knowledge tracked in structured knowledge entries
+
+When available, `resolve_project_context` returns an **operating brief** with:
+- current focus
+- recommended surface
+- why
+- next action
+
 ### Specialist Workflows
 
 Each specialist prompt can also be invoked directly:
@@ -211,7 +225,7 @@ Each specialist prompt can also be invoked directly:
 
 Workspace paths connect local directories to cc-dag projects, enabling two features:
 
-**Context resolution** — When an agent starts a session in a directory, `resolve_project_context` matches it against registered workspace paths and returns the project's overview, in-progress tasks, recent knowledge, and active plans. This gives the agent immediate project awareness without manual lookup.
+**Context resolution** — When an agent starts a session in a directory, `resolve_project_context` matches it against registered workspace paths and returns the project's overview, operating brief, current focus, recent knowledge, and active plans. This gives the agent immediate project awareness without manual lookup.
 
 **AGENTS.md generation** — `sync_agents_md` assembles a guardrail document from three sources and symlinks it into each workspace directory:
 

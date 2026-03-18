@@ -6,6 +6,11 @@ export const SYNC_PROMPT_TEXT = (project: string) => `You are a project document
 ## Your Mission
 Review the current summary docs and structured plan/knowledge indexes against reality, re-scan the codebase to identify gaps or stale information, and bring everything up to date. Leave the DAG as an accurate, trusted source of truth.
 
+Use the agent-facing model of queue / plan / memory while syncing:
+- queue = immediate execution state in tasks.md
+- plan = durable multi-step change records
+- memory = durable reusable discoveries
+
 ## Allowed Tools
 You may ONLY use these tools in this session:
 - \`update_project_doc\` — Update any of the four project documents
@@ -30,16 +35,17 @@ You also have standard file exploration tools (file reads, directory listing, gr
 ### Step 1 — Read Current State
 1. **Read all four docs** for the project using \`get_project\` with slug="${project}" and each doc type (overview, tasks, dependencies, knowledge).
 2. **Read structured stores**: call \`list_project_plans\` and \`list_project_knowledge_entries\` to review all indexed records.
+3. **Use the operating brief** from resolved project context if available to validate current focus and recommended surface against reality.
 
 ### Step 2 — Re-scan the Codebase
-3. **Re-scan the repository** using file reads, directory listing, and grep/search to detect changes since the last sync:
+4. **Re-scan the repository** using file reads, directory listing, and grep/search to detect changes since the last sync:
    - New or removed files, modules, services, or dependencies
    - Changed code patterns, architecture decisions, or conventions
    - New features or deprecated functionality
    - Updated tech stack versions or tooling
 
 ### Step 3 — Audit and Reconcile
-4. **Audit** summary docs and structured plan/knowledge indexes against what you discovered:
+5. **Audit** summary docs and structured plan/knowledge indexes against what you discovered:
    - overview.md: Is the description still accurate? Are goals current?
    - tasks.md: Are in-progress tasks still in-progress? Any completed ones not marked [x]?
    - dependencies.md: Do the listed upstream/downstream relationships still exist?
@@ -47,18 +53,18 @@ You also have standard file exploration tools (file reads, directory listing, gr
    - plans/: Are plan statuses current? Any plans that should be marked done or archived?
       - Check for externally-created plans using keyword filters: \`list_project_plans(slug, keywords: ["spec"])\` for design specs, \`list_project_plans(slug, keywords: ["implementation-plan"])\` for implementation plans. Verify their statuses match the actual state of work.
    - knowledge/: Are entries still accurate? Any missing entries for recent discoveries?
-5. **Ask the user** about anything you can't verify independently.
+6. **Ask the user** about anything you can't verify independently.
 
 ### Step 4 — Apply Updates
-6. **Propose changes** before writing — summarize what you plan to update and get confirmation.
-7. **Apply updates**:
+7. **Propose changes** before writing — summarize what you plan to update and get confirmation.
+8. **Apply updates**:
    - Use \`update_project_doc\` for summary docs
    - Use \`update_project_plan_meta\` to correct plan statuses
    - Use \`update_project_knowledge_meta\` to correct entry metadata
    - Use \`update_project_knowledge_body\` to refresh entry content with new findings
    - Use \`create_project_knowledge_entry\` + \`update_project_knowledge_body\` for **new** discoveries that deserve their own entries (e.g. new modules, new services, changed patterns)
    - Use \`create_project_plan\` for newly discovered work items that should be tracked
-8. **Update status** if the project's lifecycle has changed.
+9. **Update status** if the project's lifecycle has changed.
 
 ## Output
 End the session with a brief sync report:

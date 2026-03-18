@@ -104,8 +104,8 @@ function buildProjectContext(projectDir: string): string {
   if (existsSync(tasksPath)) {
     const tasksRaw = readFileSync(tasksPath, "utf-8");
     const inProgress = extractInProgressTasks(tasksRaw);
-    if (inProgress) {
-      sections.push(`\n## Current Focus\n\n${inProgress}`);
+    if (inProgress.length > 0) {
+      sections.push(`\n## Current Focus\n\n${inProgress.join("\n")}`);
     }
   }
 

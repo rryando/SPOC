@@ -44,11 +44,24 @@ export function extractOverviewContent(raw: string): string | null {
 }
 
 /**
- * Extract in-progress task lines (matching `- [/]` pattern).
+ * Extract in-progress task lines (matching `- [/]` pattern) in file order.
  */
-export function extractInProgressTasks(raw: string): string | null {
-  const lines = raw.split("\n").filter((line) => /^- \[\/\]/.test(line.trim()));
-  return lines.length > 0 ? lines.join("\n") : null;
+export function extractInProgressTasks(raw: string): string[] {
+  return raw.split("\n").filter((line) => /^- \[\/\]/.test(line.trim()));
+}
+
+/**
+ * Extract backlog task lines (matching `- [ ]` pattern) in file order.
+ */
+export function extractBacklogTasks(raw: string): string[] {
+  return raw.split("\n").filter((line) => /^- \[ \]/.test(line.trim()));
+}
+
+/**
+ * Remove leading markdown checkbox syntax from a task line.
+ */
+export function stripTaskCheckbox(line: string): string {
+  return line.replace(/^- \[[ x\/]\]\s*/, "").trim();
 }
 
 /**

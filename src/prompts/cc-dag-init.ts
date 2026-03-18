@@ -30,6 +30,11 @@ You also have standard file exploration tools (file reads, directory listing, gr
 
 4. Populate the four summary docs using \`update_project_doc\` for \`overview\`, \`tasks\`, \`dependencies\`, and \`knowledge\`.
 
+5. Explain the initialized project using the simplified three-surface model:
+   - queue = immediate execution state in \`tasks.md\`
+   - plan = multi-step work in structured plans
+   - memory = durable reusable knowledge in structured knowledge entries
+
 ### Phase 2 — Proactive Codebase Analysis
 After project creation, perform a **full codebase analysis** to discover and document the project's structure, patterns, and conventions. Use file reads, directory listings, and grep/search to scan the repository thoroughly.
 
@@ -43,7 +48,7 @@ Create a structured knowledge entry (via \`create_project_knowledge_entry\` + \`
 | **coding style** | \`pattern\` | Formatting, linting rules, import ordering, file organization conventions |
 | **modules** | \`module\` | Core modules and shared functions — what they do, where they live, how they interconnect |
 | **services** | \`module\` | External services, APIs, databases, message queues the project interacts with |
-| **dependencies** | \`reference\` | Key third-party libraries and why they are used |
+| **third-party libraries** | \`reference\` | Key third-party libraries and why they are used |
 | **features** | \`feature\` | Major user-facing or system-facing features the project implements |
 
 For each entry:
@@ -52,7 +57,7 @@ For each entry:
 - Write a thorough body covering what you discovered, with specific file paths and code references
 
 ### Phase 3 — Confirmation
-5. Confirm success, show the created project slug, and summarize the knowledge entries created.
+6. Confirm success, show the created project slug, and summarize the knowledge entries created.
 
 ## Content Guidelines
 - overview.md: 2-3 sentence summary + concrete goals
@@ -68,7 +73,7 @@ export function registerCcDagInitPrompt(server: McpServer) {
     {
       title: "CC-DAG: Initialize Project",
       description:
-        "Start a guided session to initialize a new project in the DAG. Gathers project info, checks for conflicts, creates the entry, and optionally bootstraps documentation.",
+        "Start a guided session to initialize a new project in the DAG. Gathers project info, creates queue/plan/memory surfaces, and bootstraps documentation plus structured knowledge.",
     },
     () => ({
       messages: [
