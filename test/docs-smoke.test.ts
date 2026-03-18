@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
+import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/cc-dag-brainstorm.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/cc-dag-execute.js";
+import { INIT_PROMPT_TEXT } from "../src/prompts/cc-dag-init.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/cc-dag-orchestrate.js";
+import { SYNC_PROMPT_TEXT } from "../src/prompts/cc-dag-sync.js";
 
 // Resolve relative to project root (one level up from test/)
 const root = resolve(import.meta.dirname, "..");
@@ -10,6 +16,12 @@ const orchestrateSkill = readFileSync(resolve(root, "skills/orchestrate.md"), "u
 const updateDocsSkill = readFileSync(resolve(root, "skills/update-docs.md"), "utf-8");
 const initSkill = readFileSync(resolve(root, "skills/init-project.md"), "utf-8");
 const exploreDagSkill = readFileSync(resolve(root, "skills/explore-dag.md"), "utf-8");
+const brainstormPrompt = BRAINSTORM_PROMPT_TEXT("my-project");
+const executePrompt = EXECUTE_PROMPT_TEXT("my-project");
+const syncPrompt = SYNC_PROMPT_TEXT("my-project");
+const initPrompt = INIT_PROMPT_TEXT;
+const orchestratePrompt = ORCHESTRATE_PROMPT_TEXT;
+const agentDefinitions = JSON.stringify(AGENT_DEFINITIONS);
 
 describe("docs and skills smoke tests", () => {
   it("README mentions create_project_plan tool", () => {
@@ -42,5 +54,51 @@ describe("docs and skills smoke tests", () => {
 
   it("update-docs skill mentions knowledge.md", () => {
     expect(updateDocsSkill).toContain("knowledge.md");
+  });
+
+  it("README mentions Queue / Plan / Memory", () => {
+    expect(readme).toContain("Queue / Plan / Memory");
+  });
+
+  it("README mentions operating brief", () => {
+    expect(readme).toContain("operating brief");
+  });
+
+  it("orchestrate prompt mentions queue / plan / memory", () => {
+    expect(orchestratePrompt).toContain("queue / plan / memory");
+    expect(orchestratePrompt).toContain("**queue** = immediate execution state in `tasks.md`");
+    expect(orchestratePrompt).toContain("**plan** = durable multi-step change record");
+    expect(orchestratePrompt).toContain("**memory** = durable reusable knowledge");
+  });
+
+  it("execute prompt mentions recommended surface", () => {
+    expect(executePrompt).toContain("recommended surface");
+    expect(executePrompt).toContain("tasks.md is the queue surface");
+    expect(executePrompt).toContain("structured plans are the plan surface");
+    expect(executePrompt).toContain("this is the memory surface");
+  });
+
+  it("brainstorm prompt mentions queue items vs multi-step plans", () => {
+    expect(brainstormPrompt).toContain("queue items vs multi-step plans");
+    expect(brainstormPrompt).toContain("durable memory vs summary-only doc updates");
+  });
+
+  it("sync prompt mentions operating brief", () => {
+    expect(syncPrompt).toContain("operating brief");
+    expect(syncPrompt).toContain("queue / plan / memory");
+    expect(syncPrompt).toContain("queue = immediate execution state in tasks.md");
+    expect(syncPrompt).toContain("plan = durable multi-step change records");
+    expect(syncPrompt).toContain("memory = durable reusable discoveries");
+  });
+
+  it("init prompt mentions three-surface model", () => {
+    expect(initPrompt).toContain("three-surface model");
+    expect(initPrompt).toContain("queue = immediate execution state in `tasks.md`");
+    expect(initPrompt).toContain("plan = multi-step work in structured plans");
+    expect(initPrompt).toContain("memory = durable reusable knowledge in structured knowledge entries");
+  });
+
+  it("agent definitions mention queue, plan, and memory", () => {
+    expect(agentDefinitions).toContain("queue, plan, and memory");
   });
 });

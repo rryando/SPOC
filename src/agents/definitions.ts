@@ -23,31 +23,31 @@ export const AGENT_DEFINITIONS: Record<AgentId, AgentDefinition> = {
   orchestrate: {
     id: "orchestrate",
     name: "Orchestrate",
-    hint: "Intelligent routing across all cc-dag workflows",
+    hint: "Intelligent routing across queue, plan, and memory workflows",
     promptName: "cc-dag-orchestrate",
   },
   "init-project": {
     id: "init-project",
     name: "Init Project",
-    hint: "Initialize a new project in the DAG",
+    hint: "Initialize a new project with queue, plan, and memory surfaces",
     promptName: "cc-dag-init",
   },
   brainstorm: {
     id: "brainstorm",
     name: "Brainstorm",
-    hint: "Brainstorm features and tasks for a project",
+    hint: "Brainstorm queue items, multi-step plans, and durable memory",
     promptName: "cc-dag-brainstorm",
   },
   execute: {
     id: "execute",
     name: "Execute",
-    hint: "Execute tasks with structured knowledge tracking",
+    hint: "Execute queue items with structured plan and memory awareness",
     promptName: "cc-dag-execute",
   },
   "sync-knowledge": {
     id: "sync-knowledge",
     name: "Sync Knowledge",
-    hint: "Sync project docs, plans, and knowledge from codebase changes",
+    hint: "Sync queue, plans, and knowledge memory surfaces from codebase changes",
     promptName: "cc-dag-sync",
   },
 };

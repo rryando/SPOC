@@ -20,3 +20,6 @@ Thumbs.db
 
 # Runtime data
 data/
+
+# Local worktrees
+.worktrees/

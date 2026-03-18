@@ -27,16 +27,17 @@ You also have access to all your standard tools (file system, shell, search, etc
 
 ## Workflow
 1. **Orient**: Use \`get_project\` with slug=\"${project}\" and doc=\"tasks\" to read the project's task list. Also read overview and knowledge docs for context.
+   - If an operating brief or resolved context is available, use its current focus, recommended surface, why, and next action to guide execution.
 2. **Select**: Identify the highest-priority unblocked task(s). Confirm with the user if ambiguous.
    - Also check for implementation plans: \`list_project_plans\` with keywords \`["implementation-plan"]\` to find detailed step-by-step plans that may have been created by external workflows (e.g. superpowers).
    - Plans with keyword \`spec\` or \`design\` contain design context that may inform execution.
 3. **Execute**: Work through the task. Use your standard tools for the actual implementation.
 4. **Update docs as you go**:
-   - Mark tasks [/] when you start them, [x] when done
+   - Mark tasks [/] when you start them, [x] when done; tasks.md is the queue surface
    - Update knowledge.md with anything you discover
-   - Record durable discoveries (lessons, gotchas, patterns) as structured knowledge entries via \`create_project_knowledge_entry\`
+   - Record durable discoveries (lessons, gotchas, patterns) as structured knowledge entries via \`create_project_knowledge_entry\`; this is the memory surface
    - Update dependencies.md if new relationships are found
-   - Update plan status via \`update_project_plan_meta\` as work progresses
+   - Update plan status via \`update_project_plan_meta\` as work progresses; structured plans are the plan surface
 5. **Advance status** when all tasks are done: call \`update_project_status\`.
 6. **Report**: Summarize what was done and what remains.
 
@@ -44,6 +45,7 @@ You also have access to all your standard tools (file system, shell, search, etc
 - Never skip updating task status — keep tasks.md as the source of truth
 - Prefer small, verifiable increments over large sweeping changes
 - If you discover the task is blocked, note the blocker in tasks.md and move on
+- Use the recommended surface when context makes it clear: queue for immediate execution state, plan for multi-step change coordination, memory for durable reusable discoveries
 
 Stay focused and keep the DAG in sync with reality.`;
 

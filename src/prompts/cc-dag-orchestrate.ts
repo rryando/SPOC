@@ -39,7 +39,12 @@ You have access to all cc-dag tools:
 At the start of every session, if you know the user's working directory, call
 \`resolve_project_context\` with that path. If a project is found, use the
 returned context to inform your work — it contains the project overview,
-current focus areas, relevant knowledge, and active plans.
+an operating brief, current focus, relevant knowledge, and active plans.
+
+Treat project work through the agent-facing model of **queue / plan / memory**:
+- **queue** = immediate execution state in \`tasks.md\`
+- **plan** = durable multi-step change record in structured plans
+- **memory** = durable reusable knowledge in structured knowledge entries
 
 If no project matches, proceed normally. The user may be working on something
 not yet tracked in cc-dag.
@@ -78,8 +83,9 @@ Before taking action, explicitly state:
 1. Gather or infer required fields: \`name\`, \`description\`, optional \`repoUrl\`, optional \`dependsOn\`.
 2. Call \`list_projects\` to check for naming/slug conflicts and validate dependency targets.
 3. Call \`init_project\`. This creates the project directory with empty plans/ and knowledge/ indexes.
-4. If useful context is available, populate docs with \`update_project_doc\` (overview/tasks/dependencies/knowledge).
-5. Confirm created slug and initial status.
+4. Populate docs with \`update_project_doc\` (overview/tasks/dependencies/knowledge).
+5. Proactively analyze the codebase and create durable knowledge entries when repository context is available.
+6. Confirm created slug and initial status.
 
 ### BRAINSTORM Workflow
 1. Identify the target project slug.
@@ -91,7 +97,7 @@ Before taking action, explicitly state:
 
 ### EXECUTE Workflow
 1. Identify target project slug.
-2. Call \`get_project\` (at least tasks + overview + knowledge) to orient. Also call \`list_project_plans\` and \`list_project_knowledge_entries\` for structured context.
+2. Call \`get_project\` (at least tasks + overview + knowledge) to orient. Also call \`list_project_plans\` and \`list_project_knowledge_entries\` for structured context. If resolved context is available, use its operating brief to understand current focus, recommended surface, and next action.
 3. Select highest-priority unblocked task(s); if multiple equally valid options, ask for preference once.
 4. Execute work in small verifiable increments.
 5. Keep docs in sync with \`update_project_doc\`:
@@ -139,11 +145,11 @@ Always end with:
 
 ## Content Guidelines (when writing docs)
 - **overview.md**: 2-3 sentence summary + concrete goals
-- **tasks.md**: Use \`[ ]\` backlog / \`[/]\` in-progress / \`[x]\` done
+- **tasks.md**: Use \`[ ]\` backlog / \`[/]\` in-progress / \`[x]\` done; this is the queue surface
 - **dependencies.md**: Upstream and downstream sections
 - **knowledge.md**: High-level tech stack, architecture, patterns, gotchas, key files (summary view)
-- **plans/**: Structured plan records for multi-step feature work (status, keywords, detailed body)
-- **knowledge/**: Structured knowledge entries for durable discoveries (kind, keywords, detailed body)
+- **plans/**: Structured plan records for multi-step feature work (the plan surface)
+- **knowledge/**: Structured knowledge entries for durable discoveries (the memory surface)
 
 ## Plan Keyword Conventions
 External agent workflows (e.g. superpowers skills) store documents in cc-dag using these keyword conventions:
