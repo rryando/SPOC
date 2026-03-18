@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
-import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/cc-dag-brainstorm.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/cc-dag-execute.js";
-import { INIT_PROMPT_TEXT } from "../src/prompts/cc-dag-init.js";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/cc-dag-orchestrate.js";
-import { SYNC_PROMPT_TEXT } from "../src/prompts/cc-dag-sync.js";
+import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
+import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
+import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
 
 // Resolve relative to project root (one level up from test/)
 const root = resolve(import.meta.dirname, "..");

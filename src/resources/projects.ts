@@ -22,7 +22,7 @@ export function registerProjectResources(server: McpServer) {
   // ── 1. Static: list all projects (root DAG graph) ──────────────────
   server.resource(
     "projects-list",
-    "cc-dag://projects",
+    "spoc://projects",
     { description: "Root DAG graph — all projects and their dependency edges", mimeType: "application/json" },
     async (uri) => {
       const metaPath = resolve(getDataDir(), "meta.json");
@@ -36,7 +36,7 @@ export function registerProjectResources(server: McpServer) {
   // ── 2. Template: single project meta ───────────────────────────────
   server.resource(
     "project-meta",
-    new ResourceTemplate("cc-dag://projects/{slug}", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}", { list: undefined }),
     { description: "Per-project metadata and document references", mimeType: "application/json" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -58,7 +58,7 @@ export function registerProjectResources(server: McpServer) {
   // 3a. Plan index
   server.resource(
     "project-plans-index",
-    new ResourceTemplate("cc-dag://projects/{slug}/plans", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/plans", { list: undefined }),
     { description: "Plan index for a project", mimeType: "application/json" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -76,7 +76,7 @@ export function registerProjectResources(server: McpServer) {
   // 3b. Plan body (markdown)
   server.resource(
     "project-plan-body",
-    new ResourceTemplate("cc-dag://projects/{slug}/plans/{planId}", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/plans/{planId}", { list: undefined }),
     { description: "Plan body markdown", mimeType: "text/markdown" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -105,7 +105,7 @@ export function registerProjectResources(server: McpServer) {
   // 3c. Plan meta (JSON)
   server.resource(
     "project-plan-meta",
-    new ResourceTemplate("cc-dag://projects/{slug}/plans/{planId}/meta", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/plans/{planId}/meta", { list: undefined }),
     { description: "Plan metadata JSON", mimeType: "application/json" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -127,7 +127,7 @@ export function registerProjectResources(server: McpServer) {
   // 3d. Knowledge index
   server.resource(
     "project-knowledge-index",
-    new ResourceTemplate("cc-dag://projects/{slug}/knowledge", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/knowledge", { list: undefined }),
     { description: "Knowledge entry index for a project", mimeType: "application/json" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -145,7 +145,7 @@ export function registerProjectResources(server: McpServer) {
   // 3e. Knowledge body (markdown)
   server.resource(
     "project-knowledge-body",
-    new ResourceTemplate("cc-dag://projects/{slug}/knowledge/{entryId}", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/knowledge/{entryId}", { list: undefined }),
     { description: "Knowledge entry body markdown", mimeType: "text/markdown" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -174,7 +174,7 @@ export function registerProjectResources(server: McpServer) {
   // 3f. Knowledge meta (JSON)
   server.resource(
     "project-knowledge-meta",
-    new ResourceTemplate("cc-dag://projects/{slug}/knowledge/{entryId}/meta", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/knowledge/{entryId}/meta", { list: undefined }),
     { description: "Knowledge entry metadata JSON", mimeType: "application/json" },
     async (uri, variables) => {
       const slug = variables.slug as string;
@@ -196,7 +196,7 @@ export function registerProjectResources(server: McpServer) {
   // ── 4. Catch-all: legacy project document ──────────────────────────
   server.resource(
     "project-doc",
-    new ResourceTemplate("cc-dag://projects/{slug}/{doc}", { list: undefined }),
+    new ResourceTemplate("spoc://projects/{slug}/{doc}", { list: undefined }),
     { description: "Project document content (overview, tasks, dependencies, knowledge)", mimeType: "text/markdown" },
     async (uri, variables) => {
       const slug = variables.slug as string;

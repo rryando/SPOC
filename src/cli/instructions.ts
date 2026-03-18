@@ -7,7 +7,7 @@ import {
 import { resolve, dirname } from "node:path";
 import { homedir } from "node:os";
 import color from "picocolors";
-import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/cc-dag-orchestrate.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
 
 // ---------------------------------------------------------------------------
 // IDE MCP Configuration — Definitions + Auto-Write
@@ -20,7 +20,7 @@ interface IdeInfo {
   hint: string;
   /** Human-readable path shown in confirmation prompt. */
   configPath: () => string;
-  /** Read existing config, merge cc-dag entry, return new content. */
+  /** Read existing config, merge SPOC entry, return new content. */
   merge: () => string;
 }
 
@@ -45,7 +45,7 @@ function writeJsonFile(path: string, data: Record<string, unknown>): void {
 
 /**
  * Deep-set a nested key path on an object (mutates in place).
- * E.g. deepSet(obj, ["mcp", "servers", "cc-dag"], value)
+ * E.g. deepSet(obj, ["mcp", "servers", "spoc"], value)
  */
 function deepSet(
   obj: Record<string, unknown>,
@@ -71,14 +71,14 @@ function deepSet(
 // MCP server entry per IDE
 // ---------------------------------------------------------------------------
 
-const CC_DAG_STDIO_ENTRY = {
+const SPOC_STDIO_ENTRY = {
   command: "npx",
-  args: ["-y", "cc-dag"],
+  args: ["-y", "spoc"],
 };
 
-const CC_DAG_OPENCODE_ENTRY = {
+const SPOC_OPENCODE_ENTRY = {
   type: "local" as const,
-  command: ["npx", "-y", "cc-dag"],
+  command: ["npx", "-y", "spoc"],
   enabled: true,
 };
 
@@ -95,7 +95,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcp", "cc-dag"], CC_DAG_OPENCODE_ENTRY);
+      deepSet(existing, ["mcp", "spoc"], SPOC_OPENCODE_ENTRY);
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -108,7 +108,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["servers", "cc-dag"], CC_DAG_STDIO_ENTRY);
+      deepSet(existing, ["servers", "spoc"], SPOC_STDIO_ENTRY);
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -122,7 +122,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcpServers", "cc-dag"], CC_DAG_STDIO_ENTRY);
+      deepSet(existing, ["mcpServers", "spoc"], SPOC_STDIO_ENTRY);
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -135,7 +135,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcpServers", "cc-dag"], CC_DAG_STDIO_ENTRY);
+      deepSet(existing, ["mcpServers", "spoc"], SPOC_STDIO_ENTRY);
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -164,31 +164,31 @@ export function ideConfigExists(id: IdeId): boolean {
 }
 
 /**
- * Checks whether the cc-dag MCP entry already exists in the IDE config.
+ * Checks whether the SPOC MCP entry already exists in the IDE config.
  * Uses key-path inspection rather than raw string search to avoid false
- * positives (e.g. agent.cc-dag being mistaken for mcp.cc-dag in OpenCode).
+ * positives (e.g. agent.spoc being mistaken for mcp.spoc in OpenCode).
  */
-export function ideHasCcDag(id: IdeId): boolean {
+export function ideHasSpoc(id: IdeId): boolean {
   const p = IDE_MAP[id].configPath();
   if (!existsSync(p)) return false;
   try {
     const config = readJsonFile(p);
     switch (id) {
       case "opencode": {
-        // MCP entry lives at config.mcp["cc-dag"]
+        // MCP entry lives at config.mcp["spoc"]
         const mcp = config.mcp as Record<string, unknown> | undefined;
-        return mcp != null && "cc-dag" in mcp;
+        return mcp != null && "spoc" in mcp;
       }
       case "vscode": {
-        // Entry lives at config.servers["cc-dag"]
+        // Entry lives at config.servers["spoc"]
         const servers = config.servers as Record<string, unknown> | undefined;
-        return servers != null && "cc-dag" in servers;
+        return servers != null && "spoc" in servers;
       }
       case "copilot-cli":
       case "claude-code": {
-        // Entry lives at config.mcpServers["cc-dag"]
+        // Entry lives at config.mcpServers["spoc"]
         const mcpServers = config.mcpServers as Record<string, unknown> | undefined;
-        return mcpServers != null && "cc-dag" in mcpServers;
+        return mcpServers != null && "spoc" in mcpServers;
       }
     }
   } catch {
@@ -204,13 +204,13 @@ export interface WriteResult {
 }
 
 /**
- * Writes (or merges) the cc-dag MCP server entry into the IDE's config file.
+ * Writes (or merges) the SPOC MCP server entry into the IDE's config file.
  * Returns a WriteResult describing what happened.
  */
 export function writeIdeConfig(id: IdeId): WriteResult {
   const info = IDE_MAP[id];
   const configFilePath = info.configPath();
-  const alreadyConfigured = ideHasCcDag(id);
+  const alreadyConfigured = ideHasSpoc(id);
   const existed = existsSync(configFilePath);
 
   const merged = info.merge();
@@ -247,24 +247,24 @@ function opencodePromptsDir(): string {
   return resolve(opencodeConfigDir(), "prompts");
 }
 
-/** Path to the cc-dag orchestrator prompt file. */
+/** Path to the SPOC orchestrator prompt file. */
 function opencodePromptPath(): string {
-  return resolve(opencodePromptsDir(), "cc-dag-orchestrate.txt");
+  return resolve(opencodePromptsDir(), "spoc-orchestrate.txt");
 }
 
 /**
- * The OpenCode agent entry for cc-dag orchestrator.
+ * The OpenCode agent entry for SPOC orchestrator.
  */
-export const CC_DAG_AGENT_ENTRY = {
+export const SPOC_AGENT_ENTRY = {
   description:
-    "CC-DAG project orchestrator — routes init, planning, execution, sync, and structured project memory workflows",
+    "SPOC project orchestrator — routes init, planning, execution, sync, and structured project memory workflows",
   mode: "primary" as const,
-  prompt: "{file:./prompts/cc-dag-orchestrate.txt}",
+  prompt: "{file:./prompts/spoc-orchestrate.txt}",
   color: "#00bcd4",
 };
 
 /**
- * Checks whether the cc-dag agent is already registered in opencode.json.
+ * Checks whether the SPOC agent is already registered in opencode.json.
  */
 export function opencodeHasAgent(): boolean {
   const configFile = resolve(opencodeConfigDir(), "opencode.json");
@@ -273,7 +273,7 @@ export function opencodeHasAgent(): boolean {
     const raw = readFileSync(configFile, "utf-8");
     const config = JSON.parse(raw) as Record<string, unknown>;
     const agents = config.agent as Record<string, unknown> | undefined;
-    return agents != null && "cc-dag" in agents;
+    return agents != null && "spoc" in agents;
   } catch {
     return false;
   }
@@ -287,7 +287,7 @@ export interface AgentWriteResult {
 }
 
 /**
- * Registers the cc-dag orchestrator as a primary agent in opencode.json.
+ * Registers the SPOC orchestrator as a primary agent in opencode.json.
  * Also writes the prompt text file to ~/.config/opencode/prompts/.
  */
 export function writeOpencodeAgent(): AgentWriteResult {
@@ -302,7 +302,7 @@ export function writeOpencodeAgent(): AgentWriteResult {
 
   // Merge agent entry into opencode.json
   const existing = readJsonFile(configFile);
-  deepSet(existing, ["agent", "cc-dag"], CC_DAG_AGENT_ENTRY);
+  deepSet(existing, ["agent", "spoc"], SPOC_AGENT_ENTRY);
   writeJsonFile(configFile, existing);
 
   return {

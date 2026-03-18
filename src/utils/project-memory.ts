@@ -1,5 +1,5 @@
 /**
- * Structured plan and knowledge entry management for cc-dag projects.
+ * Structured plan and knowledge entry management for SPOC projects.
  *
  * Provides CRUD operations with flat-file storage, automatic index
  * maintenance, and rebuild-on-read resilience.

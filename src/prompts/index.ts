@@ -1,23 +1,23 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerCcDagInitPrompt } from "./cc-dag-init.js";
-import { registerCcDagBrainstormPrompt } from "./cc-dag-brainstorm.js";
-import { registerCcDagExecutePrompt } from "./cc-dag-execute.js";
-import { registerCcDagSyncPrompt } from "./cc-dag-sync.js";
-import { registerCcDagOrchestratePrompt } from "./cc-dag-orchestrate.js";
+import { registerSpocInitPrompt } from "./spoc-init.js";
+import { registerSpocBrainstormPrompt } from "./spoc-brainstorm.js";
+import { registerSpocExecutePrompt } from "./spoc-execute.js";
+import { registerSpocSyncPrompt } from "./spoc-sync.js";
+import { registerSpocOrchestratePrompt } from "./spoc-orchestrate.js";
 import { readConfig, type AgentId } from "../cli/config.js";
 
 type PromptRegistrar = (server: McpServer) => void;
 
 const REGISTRARS: Record<AgentId, PromptRegistrar> = {
-  orchestrate: registerCcDagOrchestratePrompt,
-  "init-project": registerCcDagInitPrompt,
-  brainstorm: registerCcDagBrainstormPrompt,
-  execute: registerCcDagExecutePrompt,
-  "sync-knowledge": registerCcDagSyncPrompt,
+  orchestrate: registerSpocOrchestratePrompt,
+  "init-project": registerSpocInitPrompt,
+  brainstorm: registerSpocBrainstormPrompt,
+  execute: registerSpocExecutePrompt,
+  "sync-knowledge": registerSpocSyncPrompt,
 };
 
 /**
- * Reads ~/.cc-dag/config.json and registers MCP prompts for enabled agents.
+ * Reads ~/.spoc/config.json and registers MCP prompts for enabled agents.
  * If no config exists, all agents are registered by default.
  */
 export function registerAllPrompts(server: McpServer): void {

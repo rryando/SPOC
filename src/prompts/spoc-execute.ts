@@ -1,13 +1,13 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export const EXECUTE_PROMPT_TEXT = (project: string) => `You are an expert software engineer executing tasks for the project **${project}** tracked in the cc-dag DAG.
+export const EXECUTE_PROMPT_TEXT = (project: string) => `You are an expert software engineer executing tasks for the project **${project}** tracked in the SPOC DAG.
 
 ## Your Mission
 Work through the project's task list methodically. Read the current state, execute the highest-priority ready tasks, update the DAG as you go, and keep docs in sync with reality.
 
 ## Allowed Tools (Full Access)
-You have full access to all cc-dag tools:
+You have full access to all SPOC tools:
 - \`init_project\` — Initialize sub-projects if needed during execution
 - \`update_project_doc\` — Update overview, tasks, dependencies, or knowledge docs
 - \`update_project_status\` — Advance project status (draft → active → completed → archived)
@@ -49,11 +49,11 @@ You also have access to all your standard tools (file system, shell, search, etc
 
 Stay focused and keep the DAG in sync with reality.`;
 
-export function registerCcDagExecutePrompt(server: McpServer) {
+export function registerSpocExecutePrompt(server: McpServer) {
   server.registerPrompt(
-    "cc-dag-execute",
+    "spoc-execute",
     {
-      title: "CC-DAG: Execute Project Tasks",
+      title: "SPOC: Execute Project Tasks",
       description:
         "Start an execution session for a project. Reads the task list, works through pending tasks, and keeps all project docs in sync.",
       argsSchema: {

@@ -2,7 +2,7 @@ import type { AgentId } from "../cli/config.js";
 
 // ---------------------------------------------------------------------------
 // Agent Definition — TUI metadata only.
-// System prompts live in src/prompts/cc-dag-*.ts (the actual MCP registrations).
+// System prompts live in src/prompts/spoc-*.ts (the actual MCP registrations).
 // ---------------------------------------------------------------------------
 
 export interface AgentDefinition {
@@ -24,30 +24,30 @@ export const AGENT_DEFINITIONS: Record<AgentId, AgentDefinition> = {
     id: "orchestrate",
     name: "Orchestrate",
     hint: "Intelligent routing across queue, plan, and memory workflows",
-    promptName: "cc-dag-orchestrate",
+    promptName: "spoc-orchestrate",
   },
   "init-project": {
     id: "init-project",
     name: "Init Project",
     hint: "Initialize a new project with queue, plan, and memory surfaces",
-    promptName: "cc-dag-init",
+    promptName: "spoc-init",
   },
   brainstorm: {
     id: "brainstorm",
     name: "Brainstorm",
     hint: "Brainstorm queue items, multi-step plans, and durable memory",
-    promptName: "cc-dag-brainstorm",
+    promptName: "spoc-brainstorm",
   },
   execute: {
     id: "execute",
     name: "Execute",
     hint: "Execute queue items with structured plan and memory awareness",
-    promptName: "cc-dag-execute",
+    promptName: "spoc-execute",
   },
   "sync-knowledge": {
     id: "sync-knowledge",
     name: "Sync Knowledge",
     hint: "Sync queue, plans, and knowledge memory surfaces from codebase changes",
-    promptName: "cc-dag-sync",
+    promptName: "spoc-sync",
   },
 };

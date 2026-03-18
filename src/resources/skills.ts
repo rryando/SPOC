@@ -62,7 +62,7 @@ export function registerSkillResources(server: McpServer) {
   // Static: list all skills
   server.resource(
     "skills-list",
-    "cc-dag://skills",
+    "spoc://skills",
     { description: "List of available agent skills for this MCP server", mimeType: "application/json" },
     async (uri) => {
       const skills = listSkills();
@@ -76,7 +76,7 @@ export function registerSkillResources(server: McpServer) {
   // Template: individual skill
   server.resource(
     "skill-detail",
-    new ResourceTemplate("cc-dag://skills/{name}", { list: undefined }),
+    new ResourceTemplate("spoc://skills/{name}", { list: undefined }),
     { description: "Full skill instructions (markdown)", mimeType: "text/markdown" },
     async (uri, variables) => {
       const skillName = variables.name as string;

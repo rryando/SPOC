@@ -3,14 +3,14 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/cc-dag-orchestrate.js";
-import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/cc-dag-brainstorm.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/cc-dag-execute.js";
-import { SYNC_PROMPT_TEXT } from "../src/prompts/cc-dag-sync.js";
-import { INIT_PROMPT_TEXT } from "../src/prompts/cc-dag-init.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
+import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
+import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
+import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
 import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
 import { defaultConfig } from "../src/cli/config.js";
-import { CC_DAG_AGENT_ENTRY } from "../src/cli/instructions.js";
+import { SPOC_AGENT_ENTRY } from "../src/cli/instructions.js";
 
 describe("project-plans tools", () => {
   it("full plan lifecycle: create, list, get, update meta, update body", async () => {
@@ -257,7 +257,7 @@ describe("prompt and agent text — plan/knowledge references", () => {
     expect(defaultConfig().agents["sync-knowledge"].enabled).toBe(true);
   });
 
-  it("CC_DAG_AGENT_ENTRY description mentions structured project memory", () => {
-    expect(CC_DAG_AGENT_ENTRY.description).toContain("structured project memory");
+  it("SPOC_AGENT_ENTRY description mentions structured project memory", () => {
+    expect(SPOC_AGENT_ENTRY.description).toContain("structured project memory");
   });
 });

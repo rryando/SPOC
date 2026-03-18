@@ -5,7 +5,7 @@ import {
   writeConfig,
   configExists,
   AGENT_IDS,
-  type CcDagConfig,
+  type SpocConfig,
   type AgentId,
 } from "./config.js";
 import { AGENT_DEFINITIONS } from "../agents/definitions.js";
@@ -13,7 +13,7 @@ import {
   IDE_IDS,
   ideOption,
   ideConfigPath,
-  ideHasCcDag,
+  ideHasSpoc,
   writeIdeConfig,
   displayPath,
   opencodeHasAgent,
@@ -34,7 +34,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   const existing = configExists() ? readConfig() : null;
 
   console.clear();
-  p.intro(color.bgCyan(color.black(isInit ? " cc-dag setup " : " cc-dag config ")));
+  p.intro(color.bgCyan(color.black(isInit ? " SPOC setup " : " SPOC config ")));
 
   if (isInit && existing) {
     const overwrite = await p.confirm({
@@ -53,7 +53,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       // Step 1: IDE / tool selection
       ides: () =>
         p.multiselect<IdeId>({
-          message: "Which IDE / tools will you use with cc-dag?",
+          message: "Which IDE / tools will you use with SPOC?",
           options: IDE_IDS.map(ideOption),
           initialValues: existing?.ides as IdeId[] | undefined,
           required: true,
@@ -96,7 +96,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   // ── Build config ──────────────────────────────────────────────────────────
   const enabledAgents = new Set<string>(answers.agents);
-  const config: CcDagConfig = {
+  const config: SpocConfig = {
     version: "1",
     ides: answers.ides,
     agents: {
@@ -108,7 +108,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     },
   };
 
-  // ── Write cc-dag config ─────────────────────────────────────────────────
+  // ── Write SPOC config ───────────────────────────────────────────────────
   const s = p.spinner();
   s.start("Writing configuration…");
   writeConfig(config);
@@ -119,7 +119,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   for (const id of answers.ides) {
     const configFile = displayPath(ideConfigPath(id));
-    const already = ideHasCcDag(id);
+    const already = ideHasSpoc(id);
 
     if (already) {
       results.push(`${color.dim("⊘")} ${color.bold(IDE_MAP_LABEL[id])} — already configured in ${color.dim(configFile)}`);
@@ -127,7 +127,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     }
 
     const shouldWrite = await p.confirm({
-      message: `Write cc-dag MCP entry to ${color.cyan(configFile)}?`,
+      message: `Write SPOC MCP entry to ${color.cyan(configFile)}?`,
       initialValue: true,
     });
 
@@ -158,12 +158,12 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
     if (alreadyHasAgent) {
       p.note(
-        `${color.dim("⊘")} cc-dag orchestrator agent already registered in OpenCode`,
+        `${color.dim("⊘")} SPOC orchestrator agent already registered in OpenCode`,
         "OpenCode Agent"
       );
     } else {
       const shouldRegister = await p.confirm({
-        message: `Register ${color.cyan("cc-dag")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        message: `Register ${color.cyan("SPOC")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
         initialValue: true,
       });
 
@@ -180,7 +180,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
             `${color.green("✔")} ${verb} agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
             `${color.green("✔")} Wrote prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
             "",
-            `Switch to the ${color.cyan("cc-dag")} agent with ${color.bold("Tab")} in OpenCode.`,
+            `Switch to the ${color.cyan("SPOC")} agent with ${color.bold("Tab")} in OpenCode.`,
           ].join("\n"),
           "OpenCode Agent"
         );
@@ -202,7 +202,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   p.outro(
     color.green("Done!") +
       " Run " +
-      color.cyan("npx cc-dag") +
+      color.cyan("npx spoc") +
       " to start the MCP server."
   );
 }
