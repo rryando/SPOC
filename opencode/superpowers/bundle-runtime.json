@@ -1,0 +1,81 @@
+{
+  "sourceRoot": "~/.config/opencode/superpowers",
+  "skills": {
+    "brainstorming": [
+      "SKILL.md",
+      "spec-document-reviewer-prompt.md",
+      "visual-companion.md",
+      "scripts/frame-template.html",
+      "scripts/helper.js",
+      "scripts/server.js",
+      "scripts/start-server.sh",
+      "scripts/stop-server.sh"
+    ],
+    "dispatching-parallel-agents": [
+      "SKILL.md"
+    ],
+    "executing-plans": [
+      "SKILL.md"
+    ],
+    "finishing-a-development-branch": [
+      "SKILL.md"
+    ],
+    "receiving-code-review": [
+      "SKILL.md"
+    ],
+    "requesting-code-review": [
+      "SKILL.md",
+      "code-reviewer.md"
+    ],
+    "subagent-driven-development": [
+      "SKILL.md",
+      "code-quality-reviewer-prompt.md",
+      "implementer-prompt.md",
+      "spec-reviewer-prompt.md"
+    ],
+    "systematic-debugging": [
+      "SKILL.md",
+      "condition-based-waiting.md",
+      "condition-based-waiting-example.ts",
+      "defense-in-depth.md",
+      "find-polluter.sh",
+      "root-cause-tracing.md"
+    ],
+    "test-driven-development": [
+      "SKILL.md",
+      "testing-anti-patterns.md"
+    ],
+    "using-git-worktrees": [
+      "SKILL.md"
+    ],
+    "using-superpowers": [
+      "SKILL.md"
+    ],
+    "verification-before-completion": [
+      "SKILL.md"
+    ],
+    "writing-plans": [
+      "SKILL.md",
+      "plan-document-reviewer-prompt.md"
+    ],
+    "writing-skills": [
+      "SKILL.md",
+      "anthropic-best-practices.md",
+      "graphviz-conventions.dot",
+      "render-graphs.js",
+      "testing-skills-with-subagents.md"
+    ]
+  },
+  "agents": [
+    "agents/code-reviewer.md"
+  ],
+  "plugin": [
+    ".opencode/plugins/superpowers.js"
+  ],
+  "excludePatterns": [
+    "**/references/**",
+    "**/examples/**",
+    "**/CREATION-LOG.md",
+    "**/test-pressure-*.md"
+  ]
+}
