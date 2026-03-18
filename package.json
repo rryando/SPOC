@@ -10,7 +10,8 @@
   "files": [
     "dist/",
     "templates/",
-    "skills/"
+    "skills/",
+    "opencode/"
   ],
   "engines": {
     "node": ">=18"
