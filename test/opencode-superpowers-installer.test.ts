@@ -179,9 +179,7 @@ describe("opencode superpowers installer", () => {
       ).toBe(true);
       expect(
         JSON.parse(readFileSync(resolve(homeDir, ".config", "opencode", "opencode.json"), "utf-8")),
-      ).toMatchObject({
-        plugin: { superpowers: { type: "local" } },
-      });
+      ).not.toHaveProperty("plugin");
       expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain("skills/superpowers");
     });
   });

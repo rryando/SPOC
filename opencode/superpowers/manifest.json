@@ -24,13 +24,6 @@
     "destination": "plugins/superpowers.js"
   },
   "config": {
-    "requiredMerges": [
-      {
-        "path": ["plugin", "superpowers"],
-        "value": {
-          "type": "local"
-        }
-      }
-    ]
+    "requiredMerges": []
   }
 }
