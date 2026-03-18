@@ -29,6 +29,15 @@ The `node dist/index.js init` wizard can automatically write the MCP entry for s
 }
 ```
 
+### OpenCode Managed Superpowers
+
+selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distribution.
+
+- SPOC becomes the manager of the active `superpowers` set for OpenCode.
+- existing generic Superpowers installs may be replaced after confirmation.
+- `spoc config` re-syncs SPOC-owned OpenCode Superpowers files automatically.
+- bundled install is skipped when the SPOC orchestrator agent is disabled or not registered.
+
 ## CLI Commands
 
 | Command | Description |

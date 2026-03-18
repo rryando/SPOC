@@ -101,4 +101,12 @@ describe("docs and skills smoke tests", () => {
   it("agent definitions mention queue, plan, and memory", () => {
     expect(agentDefinitions).toContain("queue, plan, and memory");
   });
+
+  it("README explains that OpenCode setup installs SPOC-managed superpowers", () => {
+    expect(readme).toContain("selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distribution");
+    expect(readme).toContain("SPOC becomes the manager of the active `superpowers` set for OpenCode");
+    expect(readme).toContain("existing generic Superpowers installs may be replaced after confirmation");
+    expect(readme).toContain("`spoc config` re-syncs SPOC-owned OpenCode Superpowers files");
+    expect(readme).toContain("bundled install is skipped when the SPOC orchestrator agent is disabled");
+  });
 });

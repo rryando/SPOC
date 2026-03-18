@@ -20,6 +20,10 @@ import {
   writeOpencodeAgent,
   type IdeId,
 } from "./instructions.js";
+import {
+  detectOpencodeSuperpowersInstall,
+  installBundledOpencodeSuperpowers,
+} from "./opencode-superpowers.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -152,9 +156,11 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   // ── Register OpenCode agent (if OpenCode selected + orchestrate enabled) ──
   const selectedOpenCode = answers.ides.includes("opencode");
   const orchestrateEnabled = enabledAgents.has("orchestrate");
+  let opencodeAgentActive = false;
 
   if (selectedOpenCode && orchestrateEnabled) {
     const alreadyHasAgent = opencodeHasAgent();
+    opencodeAgentActive = alreadyHasAgent;
 
     if (alreadyHasAgent) {
       p.note(
@@ -174,6 +180,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
       if (shouldRegister) {
         const agentResult = writeOpencodeAgent();
+        opencodeAgentActive = true;
         const verb = agentResult.action === "created" ? "Created" : "Updated";
         p.note(
           [
@@ -190,6 +197,50 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
           "OpenCode Agent"
         );
       }
+    }
+  }
+
+  if (selectedOpenCode && !orchestrateEnabled) {
+    p.note(
+      `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because SPOC Orchestrator is disabled`,
+      "OpenCode Superpowers"
+    );
+  }
+
+  if (selectedOpenCode && orchestrateEnabled && !opencodeAgentActive) {
+    p.note(
+      `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because the user declined SPOC Orchestrator registration`,
+      "OpenCode Superpowers"
+    );
+  }
+
+  if (selectedOpenCode && orchestrateEnabled && opencodeAgentActive) {
+    const detection = detectOpencodeSuperpowersInstall();
+
+    if (detection.state === "foreign-existing") {
+      const shouldReplace = await p.confirm({
+        message:
+          "Replace the active OpenCode superpowers setup with the bundled SPOC-customized version? Future spoc config runs will keep it synced.",
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldReplace)) {
+        p.cancel("Setup cancelled.");
+        process.exit(0);
+      }
+
+      if (shouldReplace) {
+        const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: true });
+        p.note(result.summary, "OpenCode Superpowers");
+      } else {
+        p.note(
+          `${color.yellow("⊘")} Skipped OpenCode bundled Superpowers install`,
+          "OpenCode Superpowers"
+        );
+      }
+    } else {
+      const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: false });
+      p.note(result.summary, "OpenCode Superpowers");
     }
   }
 
