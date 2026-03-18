@@ -246,6 +246,8 @@ The `init` wizard can auto-configure these IDEs/tools:
 | Claude Code | `~/.claude/claude_desktop_config.json` |
 | OpenCode | `~/.config/opencode/opencode.json` |
 
+When OpenCode agent registration is enabled, SPOC appears in the agent switcher as `SPOC - (Orchestrator)`.
+
 ---
 
 ## MCP Tools

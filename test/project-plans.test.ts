@@ -257,7 +257,7 @@ describe("prompt and agent text — plan/knowledge references", () => {
     expect(defaultConfig().agents["sync-knowledge"].enabled).toBe(true);
   });
 
-  it("SPOC_AGENT_ENTRY description mentions structured project memory", () => {
-    expect(SPOC_AGENT_ENTRY.description).toContain("structured project memory");
+  it("SPOC_AGENT_ENTRY description uses the short OpenCode label", () => {
+    expect(SPOC_AGENT_ENTRY.description).toBe("SPOC - (Orchestrator)");
   });
 });

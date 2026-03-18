@@ -158,12 +158,12 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
     if (alreadyHasAgent) {
       p.note(
-        `${color.dim("⊘")} SPOC orchestrator agent already registered in OpenCode`,
+        `${color.dim("⊘")} OpenCode agent ${color.cyan("SPOC - (Orchestrator)")} already registered`,
         "OpenCode Agent"
       );
     } else {
       const shouldRegister = await p.confirm({
-        message: `Register ${color.cyan("SPOC")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        message: `Register ${color.cyan("SPOC - (Orchestrator)")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
         initialValue: true,
       });
 
@@ -180,7 +180,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
             `${color.green("✔")} ${verb} agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
             `${color.green("✔")} Wrote prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
             "",
-            `Switch to the ${color.cyan("SPOC")} agent with ${color.bold("Tab")} in OpenCode.`,
+            `Switch to ${color.cyan("SPOC - (Orchestrator)")} with ${color.bold("Tab")} in OpenCode.`,
           ].join("\n"),
           "OpenCode Agent"
         );
@@ -200,10 +200,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   p.note(slashList, "Enabled Slash Commands");
 
   p.outro(
-    color.green("Done!") +
-      " Run " +
-      color.cyan("npx spoc") +
-      " to start the MCP server."
+    color.green("Done!") + " You can re-run this setup at any time with " + color.cyan("npm run init")
   );
 }
 

@@ -256,8 +256,7 @@ function opencodePromptPath(): string {
  * The OpenCode agent entry for SPOC orchestrator.
  */
 export const SPOC_AGENT_ENTRY = {
-  description:
-    "SPOC project orchestrator — routes init, planning, execution, sync, and structured project memory workflows",
+  description: "SPOC - (Orchestrator)",
   mode: "primary" as const,
   prompt: "{file:./prompts/spoc-orchestrate.txt}",
   color: "#00bcd4",
@@ -302,7 +301,7 @@ export function writeOpencodeAgent(): AgentWriteResult {
 
   // Merge agent entry into opencode.json
   const existing = readJsonFile(configFile);
-  deepSet(existing, ["agent", "spoc"], SPOC_AGENT_ENTRY);
+  deepSet(existing, ["agent", "SPOC Orchestrator"], SPOC_AGENT_ENTRY);
   writeJsonFile(configFile, existing);
 
   return {
