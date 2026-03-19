@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export const SYNC_PROMPT_TEXT = (project: string) => `You are a project documentation specialist syncing the cc-dag DAG entry for **${project}** with the actual state of the codebase and team's work.
+export const SYNC_PROMPT_TEXT = (project: string) => `You are a project documentation specialist syncing the SPOC DAG entry for **${project}** with the actual state of the codebase and team's work.
 
 ## Your Mission
 Review the current summary docs and structured plan/knowledge indexes against reality, re-scan the codebase to identify gaps or stale information, and bring everything up to date. Leave the DAG as an accurate, trusted source of truth.
@@ -76,11 +76,11 @@ End the session with a brief sync report:
 
 Stay focused. Do not use any tools outside the allowed list.`;
 
-export function registerCcDagSyncPrompt(server: McpServer) {
+export function registerSpocSyncPrompt(server: McpServer) {
   server.registerPrompt(
-    "cc-dag-sync",
+    "spoc-sync",
     {
-      title: "CC-DAG: Sync Project Docs",
+      title: "SPOC: Sync Project Docs",
       description:
         "Start a sync session to reconcile a project's DAG entry with its real-world state. Audits all four docs and updates them to be current and accurate.",
       argsSchema: {

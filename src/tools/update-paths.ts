@@ -13,7 +13,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 export function registerUpdatePaths(server: McpServer) {
   server.tool(
     "update_project_paths",
-    "Add, remove, or set workspace directory paths for a project. Used to map local directories to cc-dag projects for context resolution.",
+    "Add, remove, or set workspace directory paths for a project. Used to map local directories to SPOC projects for context resolution.",
     {
       slug: z.string().describe("Project slug"),
       action: z

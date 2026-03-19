@@ -29,7 +29,7 @@ async function withConnectedClient<T>(
   run: (client: Client) => Promise<T>
 ): Promise<T> {
   const client = new Client(
-    { name: "cc-dag-test-client", version: "1.0.0" },
+    { name: "spoc-test-client", version: "1.0.0" },
     { capabilities: {} }
   );
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -46,7 +46,7 @@ function createServerWithRegistrations(
   extraRegistrations: ToolRegistration[] = []
 ): McpServer {
   const server = new McpServer({
-    name: "cc-dag-test-server",
+    name: "spoc-test-server",
     version: "1.0.0",
   });
 

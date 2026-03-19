@@ -1,4 +1,4 @@
-# cc-dag
+# SPOC
 
 MCP server for agentic DAG-based project management. Tracks projects, their documentation, statuses, and inter-project dependencies as a directed acyclic graph.
 
@@ -12,7 +12,7 @@ npm run build
 node dist/index.js init
 ```
 
-The setup wizard writes the MCP server entry to your chosen IDE/platform, which will start the server automatically. On first run, cc-dag creates `~/.cc-dag/` to store project data and configuration.
+The setup wizard writes the MCP server entry to your chosen IDE/platform, which will start the server automatically. On first run, SPOC creates `~/.spoc/` to store project data and configuration.
 
 ### MCP Client Configuration
 
@@ -21,13 +21,29 @@ The `node dist/index.js init` wizard can automatically write the MCP entry for s
 ```json
 {
   "mcpServers": {
-    "cc-dag": {
+    "spoc": {
       "command": "node",
-      "args": ["/absolute/path/to/cc-dag/dist/index.js"]
+      "args": ["/absolute/path/to/spoc/dist/index.js"]
     }
   }
 }
 ```
+
+### OpenCode Managed Superpowers
+
+selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distribution.
+
+- SPOC becomes the manager of the active `superpowers` set for OpenCode.
+- existing generic Superpowers installs may be replaced after confirmation.
+- `spoc config` re-syncs SPOC-owned OpenCode Superpowers files automatically.
+- bundled install is skipped when the SPOC orchestrator agent is disabled or not registered.
+
+SPOC ships a curated OpenCode runtime bundle.
+
+- all Superpowers skills remain available in OpenCode.
+- all shipped Superpowers agent definitions are bundled.
+- non-runtime support files are intentionally excluded to keep the package lean.
+- `opencode/superpowers/bundle-runtime.json` defines the curated runtime payload.
 
 ## CLI Commands
 
@@ -38,12 +54,12 @@ The `node dist/index.js init` wizard can automatically write the MCP entry for s
 
 ## Data Directory
 
-By default, all project data is stored in `~/.cc-dag/`.
+By default, all project data is stored in `~/.spoc/`.
 
-Override with the `CC_DAG_DATA_DIR` environment variable:
+Override with the `SPOC_DATA_DIR` environment variable:
 
 ```bash
-CC_DAG_DATA_DIR=/path/to/custom/dir node dist/index.js
+SPOC_DATA_DIR=/path/to/custom/dir node dist/index.js
 ```
 
 Or in your MCP client config:
@@ -51,11 +67,11 @@ Or in your MCP client config:
 ```json
 {
   "mcpServers": {
-    "cc-dag": {
+    "spoc": {
       "command": "node",
-      "args": ["/absolute/path/to/cc-dag/dist/index.js"],
+      "args": ["/absolute/path/to/spoc/dist/index.js"],
       "env": {
-        "CC_DAG_DATA_DIR": "/path/to/custom/dir"
+        "SPOC_DATA_DIR": "/path/to/custom/dir"
       }
     }
   }
@@ -94,7 +110,7 @@ npm run test
 
 ### Projects and the DAG
 
-A **project** is the top-level unit in cc-dag. Each project has a unique slug, a lifecycle status, and four summary documents. Projects can declare **dependency edges** to other projects, forming a directed acyclic graph (DAG) with automatic cycle detection.
+A **project** is the top-level unit in SPOC. Each project has a unique slug, a lifecycle status, and four summary documents. Projects can declare **dependency edges** to other projects, forming a directed acyclic graph (DAG) with automatic cycle detection.
 
 ```
 Project A ──depends on──▶ Project B ──depends on──▶ Project C
@@ -154,15 +170,15 @@ Plans track the lifecycle of feature work:
 ```mermaid
 flowchart TD
     User([User Request])
-    Orch{"/cc-dag-orchestrate\n(intent classification)"}
-    Init["/cc-dag-init\nCreate project, scan codebase,\npopulate docs & knowledge"]
-    Brain["/cc-dag-brainstorm\nExplore approaches, create\nplans & task breakdowns"]
-    Exec["/cc-dag-execute\nPick highest-priority task,\nimplement, update docs"]
-    Sync["/cc-dag-sync\nRe-scan codebase, audit docs,\nreconcile with reality"]
+    Orch{"/spoc-orchestrate\n(intent classification)"}
+    Init["/spoc-init\nCreate project, scan codebase,\npopulate docs & knowledge"]
+    Brain["/spoc-brainstorm\nExplore approaches, create\nplans & task breakdowns"]
+    Exec["/spoc-execute\nPick highest-priority task,\nimplement, update docs"]
+    Sync["/spoc-sync\nRe-scan codebase, audit docs,\nreconcile with reality"]
     Explore["EXPLORE\n(read-only)\nList projects, inspect\nstatus & dependencies"]
     Multi["MULTI\nChain workflows\nin sequence"]
 
-    DAG[("~/.cc-dag/\nProjects, Docs,\nPlans, Knowledge")]
+    DAG[("~/.spoc/\nProjects, Docs,\nPlans, Knowledge")]
 
     User --> Orch
     Orch -- "new project" --> Init
@@ -187,7 +203,7 @@ flowchart TD
 
 ### Orchestrator Flow
 
-The orchestrator (`/cc-dag-orchestrate`) is the recommended entry point. Every request goes through three phases:
+The orchestrator (`/spoc-orchestrate`) is the recommended entry point. Every request goes through three phases:
 
 1. **Classify** — detect intent as one of six types (INIT, BRAINSTORM, EXECUTE, SYNC, EXPLORE, MULTI)
 2. **Route** — delegate to the appropriate specialist workflow with the right tool set
@@ -197,7 +213,7 @@ If intent is ambiguous, the orchestrator asks exactly one clarifying question be
 
 ## Agent Operating Model
 
-cc-dag presents three main surfaces to agents: **Queue / Plan / Memory**.
+SPOC presents three main surfaces to agents: **Queue / Plan / Memory**.
 
 - **Queue** — immediate execution state in `tasks.md`
 - **Plan** — multi-step work tracked in structured plans
@@ -215,15 +231,15 @@ Each specialist prompt can also be invoked directly:
 
 | Prompt | Argument | What It Does |
 |---|---|---|
-| `/cc-dag-orchestrate` | _(none)_ | Classifies intent and routes to the right workflow |
-| `/cc-dag-init` | _(none)_ | Creates a new project, performs a full codebase scan, populates docs and knowledge entries |
-| `/cc-dag-brainstorm` | `project` (slug) | Reviews existing state, collaboratively explores approaches, creates plans and tasks |
-| `/cc-dag-execute` | `project` (slug) | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
-| `/cc-dag-sync` | `project` (slug) | Re-scans codebase, audits all docs against reality, reconciles differences |
+| `/spoc-orchestrate` | _(none)_ | Classifies intent and routes to the right workflow |
+| `/spoc-init` | _(none)_ | Creates a new project, performs a full codebase scan, populates docs and knowledge entries |
+| `/spoc-brainstorm` | `project` (slug) | Reviews existing state, collaboratively explores approaches, creates plans and tasks |
+| `/spoc-execute` | `project` (slug) | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
+| `/spoc-sync` | `project` (slug) | Re-scans codebase, audits all docs against reality, reconciles differences |
 
 ### Workspace Integration
 
-Workspace paths connect local directories to cc-dag projects, enabling two features:
+Workspace paths connect local directories to SPOC projects, enabling two features:
 
 **Context resolution** — When an agent starts a session in a directory, `resolve_project_context` matches it against registered workspace paths and returns the project's overview, operating brief, current focus, recent knowledge, and active plans. This gives the agent immediate project awareness without manual lookup.
 
@@ -231,7 +247,7 @@ Workspace paths connect local directories to cc-dag projects, enabling two featu
 
 1. **Coding discipline rules** — 7 non-negotiable principles (DRY, Single Responsibility, etc.)
 2. **Codebase analysis** — provided by the calling LLM after scanning the project (tech stack, directory structure, naming conventions, code patterns)
-3. **Project context** — pulled from cc-dag (overview, current focus, dependencies, active plans)
+3. **Project context** — pulled from SPOC (overview, current focus, dependencies, active plans)
 
 Register workspace paths with `update_project_paths`. A project can have multiple paths (e.g., monorepo subdirectories).
 
@@ -245,6 +261,8 @@ The `init` wizard can auto-configure these IDEs/tools:
 | GitHub Copilot CLI | `~/.config/github-copilot/mcp.json` |
 | Claude Code | `~/.claude/claude_desktop_config.json` |
 | OpenCode | `~/.config/opencode/opencode.json` |
+
+When OpenCode agent registration is enabled, SPOC appears in the agent switcher as `SPOC - (Orchestrator)`.
 
 ---
 
@@ -285,7 +303,7 @@ The `init` wizard can auto-configure these IDEs/tools:
 
 | Tool | Description |
 |---|---|
-| `update_project_paths` | Add, remove, or set workspace directory paths for a project (maps local directories to cc-dag projects) |
+| `update_project_paths` | Add, remove, or set workspace directory paths for a project (maps local directories to SPOC projects) |
 | `resolve_project_context` | Resolve project context from a workspace directory path — returns assembled overview, active tasks, knowledge, and plans |
 | `sync_agents_md` | Generate and write an `AGENTS.md` file to a project's workspace directories (coding discipline rules + codebase analysis + project context) |
 
@@ -293,15 +311,15 @@ The `init` wizard can auto-configure these IDEs/tools:
 
 | Resource | Description |
 |---|---|
-| `cc-dag://projects` | List all tracked projects |
-| `cc-dag://projects/{slug}` | Get details for a specific project |
-| `cc-dag://projects/{slug}/plans` | List all plans for a project |
-| `cc-dag://projects/{slug}/plans/{planId}` | Get a plan's body content |
-| `cc-dag://projects/{slug}/plans/{planId}/meta` | Get a plan's metadata |
-| `cc-dag://projects/{slug}/knowledge` | List all knowledge entries for a project |
-| `cc-dag://projects/{slug}/knowledge/{entryId}` | Get a knowledge entry's body content |
-| `cc-dag://projects/{slug}/knowledge/{entryId}/meta` | Get a knowledge entry's metadata |
-| `cc-dag://skills/*` | Agent skill guides (init-project, update-docs, explore-dag, orchestrate) |
+| `spoc://projects` | List all tracked projects |
+| `spoc://projects/{slug}` | Get details for a specific project |
+| `spoc://projects/{slug}/plans` | List all plans for a project |
+| `spoc://projects/{slug}/plans/{planId}` | Get a plan's body content |
+| `spoc://projects/{slug}/plans/{planId}/meta` | Get a plan's metadata |
+| `spoc://projects/{slug}/knowledge` | List all knowledge entries for a project |
+| `spoc://projects/{slug}/knowledge/{entryId}` | Get a knowledge entry's body content |
+| `spoc://projects/{slug}/knowledge/{entryId}/meta` | Get a knowledge entry's metadata |
+| `spoc://skills/*` | Agent skill guides (init-project, update-docs, explore-dag, orchestrate) |
 
 ## MCP Prompts (Slash Commands)
 
@@ -321,7 +339,7 @@ Prompts are registered as slash commands and can be individually enabled/disable
 ├── templates/            # Mustache-style templates for new projects
 ├── skills/               # Agent skill markdown guides
 ├── test/                 # Vitest test suite
-└── ~/.cc-dag/            # Runtime data (created on first run)
+└── ~/.spoc/              # Runtime data (created on first run)
     ├── config.json       # Agent/IDE configuration
     ├── meta.json         # Root DAG graph
     └── projects/         # Per-project directories

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export const BRAINSTORM_PROMPT_TEXT = (project: string) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the cc-dag DAG.
+export const BRAINSTORM_PROMPT_TEXT = (project: string) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the SPOC DAG.
 
 ## Your Mission
 Help the user think through tasks, architecture decisions, dependencies, and next steps for this project. Update the project's documents with any conclusions reached.
@@ -41,11 +41,11 @@ You may ONLY use these tools in this session:
 
 Stay focused. Do not use any tools outside the allowed list.`;
 
-export function registerCcDagBrainstormPrompt(server: McpServer) {
+export function registerSpocBrainstormPrompt(server: McpServer) {
   server.registerPrompt(
-    "cc-dag-brainstorm",
+    "spoc-brainstorm",
     {
-      title: "CC-DAG: Brainstorm Project",
+      title: "SPOC: Brainstorm Project",
       description:
         "Start a guided brainstorm session for a project. Reads current state, facilitates planning, and saves outputs back to the project docs.",
       argsSchema: {

@@ -34,7 +34,7 @@ Use this skill when the user wants to:
 
 4. **Verify** by calling `get_project` with the new slug to confirm the project was created.
 
-5. **Populate knowledge** (optional) — If the repo already exists, read the skill `cc-dag://skills/update-docs` to learn how to populate the knowledge doc with structured information about the codebase.
+5. **Populate knowledge** (optional) — If the repo already exists, read the skill `spoc://skills/update-docs` to learn how to populate the knowledge doc with structured information about the codebase.
 
 ## Content Guidelines
 

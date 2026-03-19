@@ -5,7 +5,7 @@ import {
   writeConfig,
   configExists,
   AGENT_IDS,
-  type CcDagConfig,
+  type SpocConfig,
   type AgentId,
 } from "./config.js";
 import { AGENT_DEFINITIONS } from "../agents/definitions.js";
@@ -13,13 +13,17 @@ import {
   IDE_IDS,
   ideOption,
   ideConfigPath,
-  ideHasCcDag,
+  ideHasSpoc,
   writeIdeConfig,
   displayPath,
   opencodeHasAgent,
   writeOpencodeAgent,
   type IdeId,
 } from "./instructions.js";
+import {
+  detectOpencodeSuperpowersInstall,
+  installBundledOpencodeSuperpowers,
+} from "./opencode-superpowers.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -34,7 +38,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   const existing = configExists() ? readConfig() : null;
 
   console.clear();
-  p.intro(color.bgCyan(color.black(isInit ? " cc-dag setup " : " cc-dag config ")));
+  p.intro(color.bgCyan(color.black(isInit ? " SPOC setup " : " SPOC config ")));
 
   if (isInit && existing) {
     const overwrite = await p.confirm({
@@ -53,7 +57,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       // Step 1: IDE / tool selection
       ides: () =>
         p.multiselect<IdeId>({
-          message: "Which IDE / tools will you use with cc-dag?",
+          message: "Which IDE / tools will you use with SPOC?",
           options: IDE_IDS.map(ideOption),
           initialValues: existing?.ides as IdeId[] | undefined,
           required: true,
@@ -96,7 +100,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   // ── Build config ──────────────────────────────────────────────────────────
   const enabledAgents = new Set<string>(answers.agents);
-  const config: CcDagConfig = {
+  const config: SpocConfig = {
     version: "1",
     ides: answers.ides,
     agents: {
@@ -108,7 +112,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     },
   };
 
-  // ── Write cc-dag config ─────────────────────────────────────────────────
+  // ── Write SPOC config ───────────────────────────────────────────────────
   const s = p.spinner();
   s.start("Writing configuration…");
   writeConfig(config);
@@ -119,7 +123,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   for (const id of answers.ides) {
     const configFile = displayPath(ideConfigPath(id));
-    const already = ideHasCcDag(id);
+    const already = ideHasSpoc(id);
 
     if (already) {
       results.push(`${color.dim("⊘")} ${color.bold(IDE_MAP_LABEL[id])} — already configured in ${color.dim(configFile)}`);
@@ -127,7 +131,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     }
 
     const shouldWrite = await p.confirm({
-      message: `Write cc-dag MCP entry to ${color.cyan(configFile)}?`,
+      message: `Write SPOC MCP entry to ${color.cyan(configFile)}?`,
       initialValue: true,
     });
 
@@ -152,18 +156,20 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   // ── Register OpenCode agent (if OpenCode selected + orchestrate enabled) ──
   const selectedOpenCode = answers.ides.includes("opencode");
   const orchestrateEnabled = enabledAgents.has("orchestrate");
+  let opencodeAgentActive = false;
 
   if (selectedOpenCode && orchestrateEnabled) {
     const alreadyHasAgent = opencodeHasAgent();
+    opencodeAgentActive = alreadyHasAgent;
 
     if (alreadyHasAgent) {
       p.note(
-        `${color.dim("⊘")} cc-dag orchestrator agent already registered in OpenCode`,
+        `${color.dim("⊘")} OpenCode agent ${color.cyan("SPOC - (Orchestrator)")} already registered`,
         "OpenCode Agent"
       );
     } else {
       const shouldRegister = await p.confirm({
-        message: `Register ${color.cyan("cc-dag")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        message: `Register ${color.cyan("SPOC - (Orchestrator)")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
         initialValue: true,
       });
 
@@ -174,13 +180,14 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
       if (shouldRegister) {
         const agentResult = writeOpencodeAgent();
+        opencodeAgentActive = true;
         const verb = agentResult.action === "created" ? "Created" : "Updated";
         p.note(
           [
             `${color.green("✔")} ${verb} agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
             `${color.green("✔")} Wrote prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
             "",
-            `Switch to the ${color.cyan("cc-dag")} agent with ${color.bold("Tab")} in OpenCode.`,
+            `Switch to ${color.cyan("SPOC - (Orchestrator)")} with ${color.bold("Tab")} in OpenCode.`,
           ].join("\n"),
           "OpenCode Agent"
         );
@@ -193,6 +200,50 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     }
   }
 
+  if (selectedOpenCode && !orchestrateEnabled) {
+    p.note(
+      `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because SPOC Orchestrator is disabled`,
+      "OpenCode Superpowers"
+    );
+  }
+
+  if (selectedOpenCode && orchestrateEnabled && !opencodeAgentActive) {
+    p.note(
+      `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because the user declined SPOC Orchestrator registration`,
+      "OpenCode Superpowers"
+    );
+  }
+
+  if (selectedOpenCode && orchestrateEnabled && opencodeAgentActive) {
+    const detection = detectOpencodeSuperpowersInstall();
+
+    if (detection.state === "foreign-existing") {
+      const shouldReplace = await p.confirm({
+        message:
+          "Replace the active OpenCode superpowers setup with the bundled SPOC-customized version? Future spoc config runs will keep it synced.",
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldReplace)) {
+        p.cancel("Setup cancelled.");
+        process.exit(0);
+      }
+
+      if (shouldReplace) {
+        const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: true });
+        p.note(result.summary, "OpenCode Superpowers");
+      } else {
+        p.note(
+          `${color.yellow("⊘")} Skipped OpenCode bundled Superpowers install`,
+          "OpenCode Superpowers"
+        );
+      }
+    } else {
+      const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: false });
+      p.note(result.summary, "OpenCode Superpowers");
+    }
+  }
+
   // ── Print enabled slash commands ──────────────────────────────────────────
   const slashList = answers.agents
     .map((id) => `  /${AGENT_DEFINITIONS[id].promptName}`)
@@ -200,10 +251,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   p.note(slashList, "Enabled Slash Commands");
 
   p.outro(
-    color.green("Done!") +
-      " Run " +
-      color.cyan("npx cc-dag") +
-      " to start the MCP server."
+    color.green("Done!") + " You can re-run this setup at any time with " + color.cyan("npm run init")
   );
 }
 

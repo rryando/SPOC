@@ -1,0 +1,29 @@
+{
+  "bundleId": "spoc-opencode-superpowers",
+  "installMode": "opencode-superpowers",
+  "bundleVersionSource": "package.json",
+  "sourceRoot": "opencode/superpowers",
+  "skills": {
+    "source": "skills",
+    "destination": "skills/superpowers"
+  },
+  "agents": [
+    {
+      "source": "agents/code-reviewer.md",
+      "destination": "agent/code-reviewer.md"
+    }
+  ],
+  "ownedPaths": [
+    "skills/superpowers",
+    "plugins/superpowers.js",
+    "agent/code-reviewer.md"
+  ],
+  "plugin": {
+    "required": true,
+    "source": ".opencode/plugins/superpowers.js",
+    "destination": "plugins/superpowers.js"
+  },
+  "config": {
+    "requiredMerges": []
+  }
+}

@@ -5,7 +5,7 @@ import { runSetup } from "./setup.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Entry point for `npx cc-dag init` and `npx cc-dag config`.
+ * Entry point for `npx spoc init` and `npx spoc config`.
  * Returns true if a CLI subcommand was handled, false if the caller
  * should proceed with MCP server startup.
  */

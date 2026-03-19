@@ -10,7 +10,7 @@ export interface AgentConfig {
   enabled: boolean;
 }
 
-export interface CcDagConfig {
+export interface SpocConfig {
   version: "1";
   ides: string[];
   agents: {
@@ -22,7 +22,7 @@ export interface CcDagConfig {
   };
 }
 
-export type AgentId = keyof CcDagConfig["agents"];
+export type AgentId = keyof SpocConfig["agents"];
 
 export const AGENT_IDS: AgentId[] = [
   "orchestrate",
@@ -36,7 +36,7 @@ export const AGENT_IDS: AgentId[] = [
 // Defaults
 // ---------------------------------------------------------------------------
 
-export function defaultConfig(): CcDagConfig {
+export function defaultConfig(): SpocConfig {
   return {
     version: "1",
     ides: [],
@@ -59,7 +59,7 @@ function configPath(): string {
 }
 
 /**
- * Returns true if ~/.cc-dag/config.json exists.
+ * Returns true if ~/.spoc/config.json exists.
  */
 export function configExists(): boolean {
   try {
@@ -73,10 +73,10 @@ export function configExists(): boolean {
 /**
  * Reads config from disk. Returns default config if file missing.
  */
-export function readConfig(): CcDagConfig {
+export function readConfig(): SpocConfig {
   try {
     const raw = readFileSync(configPath(), "utf-8");
-    return JSON.parse(raw) as CcDagConfig;
+     return JSON.parse(raw) as SpocConfig;
   } catch {
     return defaultConfig();
   }
@@ -85,7 +85,7 @@ export function readConfig(): CcDagConfig {
 /**
  * Writes config to disk. Ensures data dir exists first.
  */
-export function writeConfig(config: CcDagConfig): void {
+export function writeConfig(config: SpocConfig): void {
   ensureDataDir();
   writeFileSync(configPath(), JSON.stringify(config, null, 2) + "\n", "utf-8");
 }

@@ -111,7 +111,7 @@ Use `tasks.md` for execution queue state, not full feature planning narratives. 
 
 #### Plan Keyword Conventions
 
-External agent workflows (e.g. superpowers skills) store documents in cc-dag as plans with specific keywords:
+External agent workflows (e.g. superpowers skills) store documents in SPOC as plans with specific keywords:
 
 | Keywords | Status | Origin |
 |----------|--------|--------|
@@ -122,6 +122,6 @@ Use `list_project_plans` with keyword filters to discover these:
 - `list_project_plans(slug, keywords: ["spec"])` — find design specs
 - `list_project_plans(slug, keywords: ["implementation-plan"])` — find implementation plans
 
-When creating plans through cc-dag workflows, you don't need to follow these conventions — they're specific to external agent integration.
+When creating plans through SPOC workflows, you don't need to follow these conventions — they're specific to external agent integration.
 
 > **Tip**: When analyzing a new repo, start with Key Files and Tech Stack — they give you the scaffolding to fill the rest.

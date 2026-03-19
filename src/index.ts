@@ -20,7 +20,7 @@ import { registerAllPrompts } from "./prompts/index.js";
 import { ensureDataDir, getDataDir } from "./utils/paths.js";
 
 // ---------------------------------------------------------------------------
-// CLI subcommand routing: `npx cc-dag init` / `npx cc-dag config`
+// CLI subcommand routing: `npx spoc init` / `npx spoc config`
 // If a subcommand is handled, exit. Otherwise, start the MCP server.
 // ---------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ async function run(): Promise<void> {
 
   // Create MCP server
   const server = new McpServer({
-    name: "cc-dag",
+    name: "spoc",
     version: "1.0.0",
   });
 
@@ -71,7 +71,7 @@ async function run(): Promise<void> {
   // Connect via stdio
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`cc-dag MCP server running on stdio (data: ${getDataDir()})`);
+  console.error(`SPOC MCP server running on stdio (data: ${getDataDir()})`);
 }
 
 run().catch((err) => {

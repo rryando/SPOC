@@ -10,14 +10,14 @@ import { homedir } from "node:os";
 const __filename = fileURLToPath(import.meta.url);
 export const PACKAGE_ROOT = resolve(dirname(__filename), "../..");
 
-const DEFAULT_DATA_DIR_NAME = ".cc-dag";
+const DEFAULT_DATA_DIR_NAME = ".spoc";
 
 /**
  * Returns the data directory path.
- * Priority: CC_DAG_DATA_DIR env var > ~/.cc-dag
+ * Priority: SPOC_DATA_DIR env var > ~/.spoc
  */
 export function getDataDir(): string {
-  const envDir = process.env["CC_DAG_DATA_DIR"];
+  const envDir = process.env["SPOC_DATA_DIR"];
   if (envDir) {
     return resolve(envDir);
   }
@@ -32,13 +32,13 @@ function assertWritable(dir: string): void {
   try {
     accessSync(dir, constants.W_OK);
   } catch {
-    const source = process.env["CC_DAG_DATA_DIR"]
-      ? `CC_DAG_DATA_DIR="${process.env["CC_DAG_DATA_DIR"]}"`
+      const source = process.env["SPOC_DATA_DIR"]
+      ? `SPOC_DATA_DIR="${process.env["SPOC_DATA_DIR"]}"`
       : `~/${DEFAULT_DATA_DIR_NAME}`;
     throw new Error(
       `Data directory "${dir}" is not writable.\n` +
         `Source: ${source}\n` +
-        `Fix: check permissions, or set CC_DAG_DATA_DIR to a writable path.`
+        `Fix: check permissions, or set SPOC_DATA_DIR to a writable path.`
     );
   }
 }

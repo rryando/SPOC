@@ -1,12 +1,12 @@
 ---
 name: orchestrate
-description: Classify intent and route work across all cc-dag workflows
+description: Classify intent and route work across all SPOC workflows
 ---
 
 ## When to Use
 
 Use this skill when:
-- The user request could map to multiple cc-dag workflows
+- The user request could map to multiple SPOC workflows
 - You want one default entry point that decides init vs brainstorm vs execute vs sync vs explore
 - The user asks for a multi-step flow like "create it, plan it, then start"
 

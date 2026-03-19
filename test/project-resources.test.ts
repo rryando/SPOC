@@ -30,35 +30,35 @@ describe("project-resources", () => {
         });
 
         // Plans index
-        const plans = await readResourceText(server, "cc-dag://projects/my-project/plans");
+        const plans = await readResourceText(server, "spoc://projects/my-project/plans");
         const plansData = JSON.parse(plans);
         expect(plansData).toHaveProperty("plans");
         expect(plansData.plans).toHaveLength(1);
         expect(plansData.plans[0].id).toBe("reduce-token-cost");
 
         // Knowledge index
-        const knowledge = await readResourceText(server, "cc-dag://projects/my-project/knowledge");
+        const knowledge = await readResourceText(server, "spoc://projects/my-project/knowledge");
         const knowledgeData = JSON.parse(knowledge);
         expect(knowledgeData).toHaveProperty("entries");
         expect(knowledgeData.entries).toHaveLength(1);
         expect(knowledgeData.entries[0].id).toBe("auth-flow-module");
 
         // Plan body
-        const planBody = await readResourceText(server, "cc-dag://projects/my-project/plans/reduce-token-cost");
+        const planBody = await readResourceText(server, "spoc://projects/my-project/plans/reduce-token-cost");
         expect(planBody).toContain("# Reduce token cost");
 
         // Plan meta
-        const planMeta = await readResourceText(server, "cc-dag://projects/my-project/plans/reduce-token-cost/meta");
+        const planMeta = await readResourceText(server, "spoc://projects/my-project/plans/reduce-token-cost/meta");
         const planMetaData = JSON.parse(planMeta);
         expect(planMetaData.id).toBe("reduce-token-cost");
         expect(planMetaData.status).toBe("planned");
 
         // Knowledge body
-        const knowledgeBody = await readResourceText(server, "cc-dag://projects/my-project/knowledge/auth-flow-module");
+        const knowledgeBody = await readResourceText(server, "spoc://projects/my-project/knowledge/auth-flow-module");
         expect(knowledgeBody).toContain("# Auth flow module");
 
         // Knowledge meta
-        const knowledgeMeta = await readResourceText(server, "cc-dag://projects/my-project/knowledge/auth-flow-module/meta");
+        const knowledgeMeta = await readResourceText(server, "spoc://projects/my-project/knowledge/auth-flow-module/meta");
         const knowledgeMetaData = JSON.parse(knowledgeMeta);
         expect(knowledgeMetaData.id).toBe("auth-flow-module");
         expect(knowledgeMetaData.kind).toBe("module");
@@ -78,19 +78,19 @@ describe("project-resources", () => {
         });
 
         // overview falls through to the generic {slug}/{doc} template
-        const overview = await readResourceText(server, "cc-dag://projects/my-project/overview");
+        const overview = await readResourceText(server, "spoc://projects/my-project/overview");
         expect(overview).toContain("# My Project");
 
         // tasks also falls through
-        const tasks = await readResourceText(server, "cc-dag://projects/my-project/tasks");
+        const tasks = await readResourceText(server, "spoc://projects/my-project/tasks");
         expect(tasks).toContain("# Tasks");
 
         // dependencies also falls through
-        const deps = await readResourceText(server, "cc-dag://projects/my-project/dependencies");
+        const deps = await readResourceText(server, "spoc://projects/my-project/dependencies");
         expect(deps).toContain("# Dependencies");
 
         // project meta (static resource)
-        const meta = await readResourceText(server, "cc-dag://projects/my-project");
+        const meta = await readResourceText(server, "spoc://projects/my-project");
         const metaData = JSON.parse(meta);
         expect(metaData.name).toBe("My Project");
       } finally {
@@ -108,11 +108,11 @@ describe("project-resources", () => {
           description: "No plans or knowledge",
         });
 
-        const plans = await readResourceText(server, "cc-dag://projects/empty-project/plans");
+        const plans = await readResourceText(server, "spoc://projects/empty-project/plans");
         const plansData = JSON.parse(plans);
         expect(plansData.plans).toEqual([]);
 
-        const knowledge = await readResourceText(server, "cc-dag://projects/empty-project/knowledge");
+        const knowledge = await readResourceText(server, "spoc://projects/empty-project/knowledge");
         const knowledgeData = JSON.parse(knowledge);
         expect(knowledgeData.entries).toEqual([]);
       } finally {
