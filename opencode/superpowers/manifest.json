@@ -7,16 +7,10 @@
     "source": "skills",
     "destination": "skills/superpowers"
   },
-  "agents": [
-    {
-      "source": "agents/code-reviewer.md",
-      "destination": "agent/code-reviewer.md"
-    }
-  ],
+  "agents": [],
   "ownedPaths": [
     "skills/superpowers",
-    "plugins/superpowers.js",
-    "agent/code-reviewer.md"
+    "plugins/superpowers.js"
   ],
   "plugin": {
     "required": true,

@@ -262,6 +262,9 @@ export const SPOC_AGENT_ENTRY = {
   color: "#00bcd4",
 };
 
+/** The key used for the SPOC agent entry in opencode.json → agent.<key>. */
+const SPOC_AGENT_KEY = "SPOC Orchestrator";
+
 /**
  * Checks whether the SPOC agent is already registered in opencode.json.
  */
@@ -272,7 +275,7 @@ export function opencodeHasAgent(): boolean {
     const raw = readFileSync(configFile, "utf-8");
     const config = JSON.parse(raw) as Record<string, unknown>;
     const agents = config.agent as Record<string, unknown> | undefined;
-    return agents != null && "spoc" in agents;
+    return agents != null && SPOC_AGENT_KEY in agents;
   } catch {
     return false;
   }
@@ -301,7 +304,7 @@ export function writeOpencodeAgent(): AgentWriteResult {
 
   // Merge agent entry into opencode.json
   const existing = readJsonFile(configFile);
-  deepSet(existing, ["agent", "SPOC Orchestrator"], SPOC_AGENT_ENTRY);
+  deepSet(existing, ["agent", SPOC_AGENT_KEY], SPOC_AGENT_ENTRY);
   writeJsonFile(configFile, existing);
 
   return {

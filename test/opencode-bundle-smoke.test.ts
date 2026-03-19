@@ -87,12 +87,7 @@ describe("opencode superpowers bundle", () => {
     expect(manifest.skills.destination).toBe("skills/superpowers");
     expect(manifest.plugin.required).toBe(true);
     expect(manifest.plugin.source).toBe(".opencode/plugins/superpowers.js");
-    expect(manifest.agents).toEqual([
-      {
-        source: "agents/code-reviewer.md",
-        destination: "agent/code-reviewer.md",
-      },
-    ]);
+    expect(manifest.agents).toEqual([]);
   });
 
   it("ships bundle-runtime.json alongside manifest.json", () => {
@@ -150,11 +145,13 @@ describe("opencode superpowers bundle", () => {
         }
       }
 
-      expect(listRelativeFiles(resolve(outputRoot, "agents")).sort()).toEqual(
-        runtimeManifest.agents
-          .map((agentPath) => agentPath.replace(/^agents\//, ""))
-          .sort(),
-      );
+      if (runtimeManifest.agents.length > 0) {
+        expect(listRelativeFiles(resolve(outputRoot, "agents")).sort()).toEqual(
+          runtimeManifest.agents
+            .map((agentPath) => agentPath.replace(/^agents\//, ""))
+            .sort(),
+        );
+      }
 
       for (const agentPath of runtimeManifest.agents) {
         expect(existsSync(resolve(outputRoot, agentPath))).toBe(true);

@@ -116,10 +116,8 @@ const sourceManifestWithConfigOnly: SourceOpencodeSuperpowersManifest = {
   bundleVersionSource: "package.json",
   sourceRoot: "opencode/superpowers",
   skills: { source: "skills", destination: "skills/superpowers" },
-  agents: [
-    { source: "agents/code-reviewer.md", destination: "agent/code-reviewer.md" },
-  ],
-  ownedPaths: ["skills/superpowers", "plugins/superpowers.js", "agent/code-reviewer.md"],
+  agents: [],
+  ownedPaths: ["skills/superpowers", "plugins/superpowers.js"],
   plugin: {
     required: true,
     source: ".opencode/plugins/superpowers.js",
@@ -141,7 +139,7 @@ const ownedManifest = {
   sourceBundleVersion: expectedSourceBundleVersion,
   sourceBundleHash: "abc",
   installedAt: "2026-03-18T00:00:00.000Z",
-  ownedPaths: ["skills/superpowers", "plugins/superpowers.js", "agent/code-reviewer.md"],
+  ownedPaths: ["skills/superpowers", "plugins/superpowers.js"],
 };
 
 describe("opencode superpowers install detection", () => {
@@ -188,15 +186,9 @@ describe("opencode superpowers install detection", () => {
         recursive: true,
       });
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
-      mkdirSync(resolve(homeDir, ".config", "opencode", "agent"), { recursive: true });
       writeFileSync(
         resolve(homeDir, ".config", "opencode", "plugins", "superpowers.js"),
         "plugin",
-        "utf-8",
-      );
-      writeFileSync(
-        resolve(homeDir, ".config", "opencode", "agent", "code-reviewer.md"),
-        "agent",
         "utf-8",
       );
       writeInstalledOpencodeSuperpowersManifest(ownedManifest);
@@ -243,7 +235,7 @@ describe("opencode superpowers bundle identity", () => {
       expect(plan.pathsToRemove).toContain("plugins/old-superpowers.js");
       expect(plan.pathsToWrite).toContain("skills/superpowers");
       expect(plan.pathsToWrite).toContain("plugins/superpowers.js");
-      expect(plan.pathsToWrite).toContain("agent/code-reviewer.md");
+      expect(plan.pathsToWrite).not.toContain("agent/code-reviewer.md");
     });
   });
 });
