@@ -500,9 +500,11 @@ describe("opencode bundle runtime manifest", () => {
           "scripts/start-server.sh",
           "scripts/stop-server.sh",
         ],
+        "code-agent": ["SKILL.md"],
         "dispatching-parallel-agents": ["SKILL.md"],
         "executing-plans": ["SKILL.md"],
         "finishing-a-development-branch": ["SKILL.md"],
+        "quick-dev": ["SKILL.md"],
         "receiving-code-review": ["SKILL.md"],
         "requesting-code-review": ["SKILL.md", "code-reviewer.md"],
         "subagent-driven-development": [
@@ -532,7 +534,7 @@ describe("opencode bundle runtime manifest", () => {
           "testing-skills-with-subagents.md",
         ],
       },
-      agents: ["agents/code-reviewer.md"],
+      agents: [],
       plugin: [".opencode/plugins/superpowers.js"],
       excludePatterns: [
         "**/references/**",

@@ -92,15 +92,23 @@ These thoughts mean STOP—you're rationalizing:
 | "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
 | "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
 
-## Skill Priority
+## Work-Mode Routing
 
-When multiple skills could apply, use this order:
+Once you've confirmed a task needs handling, pick the work mode from this table first:
 
-1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
-2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+| Task characteristics | Skill |
+|---------------------|-------|
+| Fully bounded, no open decisions: rename / refactor / extract / multi-var change / API shape already known / trivial bugfix / copy update / config nudge | `quick-dev` |
+| Mostly clear (50–90%), intent understood, 1-2 open decisions likely resolvable from repo inspection | `code-agent` |
+| New non-trivial feature or bugfix where success criteria are known and test-first discipline is worth the overhead | `test-driven-development` |
+| Design, UX, or architecture genuinely open; product direction unclear; multiple valid implementation directions exist | `brainstorming` |
 
-"Let's build X" → brainstorming first, then implementation skills.
-"Fix this bug" → debugging first, then domain-specific skills.
+**Boundary guidance:**
+- "90% clear but not quite fully bounded" → `code-agent` (inspect repo, proceed on defaults)
+- "New feature, 60% clear, decisions resolvable from repo" → `code-agent`, not `brainstorming`
+- `brainstorming` only when the product direction itself is unclear, not just when the task touches new code
+
+**Support skills** (`systematic-debugging`, `requesting-code-review`, `finishing-a-development-branch`, `using-git-worktrees`, etc.) layer on top of the work mode — the 1% rule applies normally to these.
 
 ## Skill Types
 
