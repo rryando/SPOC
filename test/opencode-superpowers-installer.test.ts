@@ -51,8 +51,10 @@ function curatedBundlePayloadFiles(): string[] {
   const runtimeManifest = readRuntimeManifest();
 
   return [
+    // Repo-authored preserved files included in bundle identity
     "bundle-runtime.json",
     "manifest.json",
+    ".opencode/plugins/superpowers.js",
     ...Object.entries(runtimeManifest.skills).flatMap(([skillName, files]) =>
       files.map((relativePath) => `skills/${skillName}/${relativePath}`),
     ),
@@ -85,8 +87,8 @@ function expectRuntimePayloadInstalled(homeDir: string): void {
             homeDir,
             ".config",
             "opencode",
-            "skills",
             "superpowers",
+            "skills",
             skillName,
             relativePath,
           ),
@@ -115,9 +117,9 @@ const sourceManifestWithConfigOnly: SourceOpencodeSuperpowersManifest = {
   installMode: "opencode-superpowers",
   bundleVersionSource: "package.json",
   sourceRoot: "opencode/superpowers",
-  skills: { source: "skills", destination: "skills/superpowers" },
+  skills: { source: "skills", destination: "superpowers/skills" },
   agents: [],
-  ownedPaths: ["skills/superpowers", "plugins/superpowers.js"],
+  ownedPaths: ["superpowers/skills", "plugins/superpowers.js"],
   plugin: {
     required: true,
     source: ".opencode/plugins/superpowers.js",
@@ -139,7 +141,7 @@ const ownedManifest = {
   sourceBundleVersion: expectedSourceBundleVersion,
   sourceBundleHash: "abc",
   installedAt: "2026-03-18T00:00:00.000Z",
-  ownedPaths: ["skills/superpowers", "plugins/superpowers.js"],
+  ownedPaths: ["superpowers/skills", "plugins/superpowers.js"],
 };
 
 describe("opencode superpowers install detection", () => {
@@ -151,7 +153,7 @@ describe("opencode superpowers install detection", () => {
 
   it("returns foreign-existing when destination paths exist without SPOC manifest", async () => {
     await withTempHomeDir(async (homeDir) => {
-      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "superpowers"), {
+      mkdirSync(resolve(homeDir, ".config", "opencode", "superpowers", "skills"), {
         recursive: true,
       });
 
@@ -182,7 +184,7 @@ describe("opencode superpowers install detection", () => {
 
   it("reports spoc-managed when the installed manifest exists and all declared owned paths exist", async () => {
     await withTempHomeDir(async (homeDir) => {
-      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "superpowers"), {
+      mkdirSync(resolve(homeDir, ".config", "opencode", "superpowers", "skills"), {
         recursive: true,
       });
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
@@ -227,13 +229,13 @@ describe("opencode superpowers bundle identity", () => {
       writeInstalledOpencodeSuperpowersManifest({
         ...ownedManifest,
         sourceBundleHash: "old-hash",
-        ownedPaths: ["skills/superpowers", "plugins/old-superpowers.js"],
+        ownedPaths: ["superpowers/skills", "plugins/old-superpowers.js"],
       });
 
       const plan = buildOpencodeSuperpowersInstallPlan();
 
       expect(plan.pathsToRemove).toContain("plugins/old-superpowers.js");
-      expect(plan.pathsToWrite).toContain("skills/superpowers");
+      expect(plan.pathsToWrite).toContain("superpowers/skills");
       expect(plan.pathsToWrite).toContain("plugins/superpowers.js");
       expect(plan.pathsToWrite).not.toContain("agent/code-reviewer.md");
     });
@@ -281,7 +283,7 @@ describe("opencode superpowers installer", () => {
       expect(
         JSON.parse(readFileSync(resolve(homeDir, ".config", "opencode", "opencode.json"), "utf-8")),
       ).not.toHaveProperty("plugin");
-      expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain("skills/superpowers");
+      expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain("superpowers/skills");
     });
   });
 
@@ -292,7 +294,7 @@ describe("opencode superpowers installer", () => {
       writeFileSync(stalePath, "stale", "utf-8");
       writeInstalledOpencodeSuperpowersManifest({
         ...ownedManifest,
-        ownedPaths: ["skills/superpowers", "plugins/old-superpowers.js"],
+        ownedPaths: ["superpowers/skills", "plugins/old-superpowers.js"],
       });
 
       installBundledOpencodeSuperpowers({ autoConfirmReplacement: true });

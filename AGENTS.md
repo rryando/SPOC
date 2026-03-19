@@ -1,0 +1,1 @@
+/tmp/spoc-test-f7qdBZ/projects/no-paths/AGENTS.md

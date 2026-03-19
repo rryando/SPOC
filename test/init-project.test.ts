@@ -74,7 +74,7 @@ describe("init_project", () => {
     });
   });
 
-  it("defaults workspacePaths to empty array when not provided", async () => {
+  it("defaults workspacePaths to process.cwd() when not provided", async () => {
     await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
       try {
@@ -86,7 +86,9 @@ describe("init_project", () => {
         const meta = JSON.parse(
           readFileSync(resolve(dataDir, "projects", "no-paths", "meta.json"), "utf-8")
         );
-        expect(meta.workspacePaths).toEqual([]);
+        // When no workspacePaths are provided, the tool falls back to process.cwd()
+        // so the project is immediately resolvable by the MCP client's working directory.
+        expect(meta.workspacePaths).toEqual([process.cwd()]);
       } finally {
         await server.close();
       }

@@ -535,7 +535,7 @@ describe("opencode bundle runtime manifest", () => {
         ],
       },
       agents: [],
-      plugin: [".opencode/plugins/superpowers.js"],
+      plugin: [],
       excludePatterns: [
         "**/references/**",
         "**/examples/**",

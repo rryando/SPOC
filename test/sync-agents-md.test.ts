@@ -257,6 +257,13 @@ describe("sync_agents_md", () => {
           description: "test",
         });
 
+        // init_project now seeds process.cwd() — explicitly clear paths to test the error case
+        await invokeJsonTool(server, "update_project_paths", {
+          slug: "no-paths",
+          action: "set",
+          paths: [],
+        });
+
         await expect(
           invokeJsonTool(server, "sync_agents_md", {
             slug: "no-paths",

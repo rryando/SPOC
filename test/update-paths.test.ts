@@ -18,6 +18,7 @@ describe("update_project_paths", () => {
         await invokeJsonTool(server, "init_project", {
           name: "Test Project",
           description: "A test project",
+          workspacePaths: [],
         });
 
         await invokeJsonTool(server, "update_project_paths", {
@@ -41,6 +42,7 @@ describe("update_project_paths", () => {
         await invokeJsonTool(server, "init_project", {
           name: "Dedup Test",
           description: "test",
+          workspacePaths: [],
         });
 
         await invokeJsonTool(server, "update_project_paths", {
@@ -69,6 +71,7 @@ describe("update_project_paths", () => {
         await invokeJsonTool(server, "init_project", {
           name: "Trailing Test",
           description: "test",
+          workspacePaths: [],
         });
 
         await invokeJsonTool(server, "update_project_paths", {
@@ -92,6 +95,7 @@ describe("update_project_paths", () => {
         await invokeJsonTool(server, "init_project", {
           name: "Remove Test",
           description: "test",
+          workspacePaths: [],
         });
 
         await invokeJsonTool(server, "update_project_paths", {

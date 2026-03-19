@@ -31,7 +31,7 @@ export const InitProjectSchema = {
 export function registerInitProject(server: McpServer) {
   server.tool(
     "init_project",
-    "Initialize a new project in the DAG. Creates project directory, renders all templates, and updates the root meta.",
+    "Initialize a new project in the DAG. Creates project directory, renders all templates, and updates the root meta. If workspacePaths is omitted, defaults to the current working directory (process.cwd()) so the project is always resolvable by path.",
     InitProjectSchema,
     async (params) => {
       try {
@@ -103,7 +103,14 @@ export function registerInitProject(server: McpServer) {
 
         // Post-render: inject workspacePaths into meta.json
         // (array type not supported by {{var}} template engine)
-        const rawWorkspacePaths = params.workspacePaths ?? [];
+        // If workspacePaths was not provided at all (undefined), fall back to
+        // process.cwd() — the directory OpenCode (or any MCP client) was launched
+        // from, which is the project root. An explicit empty array ([]) is respected
+        // as-is so callers can intentionally register a path-less project.
+        const rawWorkspacePaths =
+          params.workspacePaths !== undefined
+            ? params.workspacePaths
+            : [process.cwd()];
         const normalizedPaths = rawWorkspacePaths.map(normalizeWorkspacePath);
         const metaJsonPath = resolve(projectDir, "meta.json");
         const metaObj = JSON.parse(readFileSync(metaJsonPath, "utf-8")) as Record<string, unknown>;

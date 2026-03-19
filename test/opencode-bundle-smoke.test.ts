@@ -84,7 +84,7 @@ describe("opencode superpowers bundle", () => {
     expect(manifest.installMode).toBe("opencode-superpowers");
     expect(manifest.sourceRoot).toBe("opencode/superpowers");
     expect(manifest.skills.source).toBe("skills");
-    expect(manifest.skills.destination).toBe("skills/superpowers");
+    expect(manifest.skills.destination).toBe("superpowers/skills");
     expect(manifest.plugin.required).toBe(true);
     expect(manifest.plugin.source).toBe(".opencode/plugins/superpowers.js");
     expect(manifest.agents).toEqual([]);
@@ -157,7 +157,11 @@ describe("opencode superpowers bundle", () => {
         expect(existsSync(resolve(outputRoot, agentPath))).toBe(true);
       }
 
-      expect(listRelativeFiles(resolve(outputRoot, ".opencode", "plugins")).sort()).toEqual(
+      const pluginsDir = resolve(outputRoot, ".opencode", "plugins");
+      const actualPluginFiles = existsSync(pluginsDir)
+        ? listRelativeFiles(pluginsDir).sort()
+        : [];
+      expect(actualPluginFiles).toEqual(
         runtimeManifest.plugin
           .map((pluginPath) => pluginPath.replace(/^\.opencode\/plugins\//, ""))
           .sort(),

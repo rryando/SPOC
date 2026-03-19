@@ -69,7 +69,7 @@ When skills reference tools you don't have, substitute OpenCode equivalents:
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
 
 **Skills location:**
-Superpowers skills are in \`${configDir}/skills/superpowers/\`
+Superpowers skills are in \`${configDir}/superpowers/skills/\`
 Use OpenCode's native \`skill\` tool to list and load skills.`;
 
     return `<EXTREMELY_IMPORTANT>
@@ -89,6 +89,15 @@ ${toolMapping}
       const bootstrap = getBootstrapContent();
       if (bootstrap) {
         (output.system ||= []).push(bootstrap);
+      }
+
+      // Inject the workspace directory so SPOC and other agents always know
+      // which project directory OpenCode was opened in. This is the reliable
+      // source of truth — process.cwd() of MCP servers may differ.
+      if (directory) {
+        (output.system ||= []).push(
+          `<env>\n  Working directory: ${directory}\n</env>`
+        );
       }
     }
   };

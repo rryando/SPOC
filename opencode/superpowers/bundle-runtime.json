@@ -73,9 +73,7 @@
     ]
   },
   "agents": [],
-  "plugin": [
-    ".opencode/plugins/superpowers.js"
-  ],
+  "plugin": [],
   "excludePatterns": [
     "**/references/**",
     "**/examples/**",

@@ -34,8 +34,10 @@ describe("checked-in opencode bundle pruning", () => {
   it("matches the runtime manifest exactly", () => {
     const runtimeManifest = readJsonFile<RuntimeManifest>(runtimeManifestPath);
     const expectedBundleFiles = [
+      // Repo-authored preserved files (not sourced from installed location)
       "bundle-runtime.json",
       "manifest.json",
+      ".opencode/plugins/superpowers.js",
       ...Object.entries(runtimeManifest.skills).flatMap(([skillName, skillFiles]) =>
         skillFiles.map((relativeFilePath) => `skills/${skillName}/${relativeFilePath}`),
       ),

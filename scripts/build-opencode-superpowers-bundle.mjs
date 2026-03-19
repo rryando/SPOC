@@ -12,7 +12,13 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 const repoRoot = resolve(import.meta.dirname, "..");
 const defaultManifestPath = resolve(repoRoot, "opencode/superpowers/bundle-runtime.json");
 const defaultOutputRoot = resolve(repoRoot, "opencode/superpowers");
-const preservedOutputFiles = new Set(["manifest.json", "bundle-runtime.json"]);
+// Files that are repo-authored and must not be pruned, but are NOT sourced
+// from the user's installed location — they live in the repo bundle itself.
+const preservedOutputFiles = new Set([
+  "manifest.json",
+  "bundle-runtime.json",
+  ".opencode/plugins/superpowers.js",
+]);
 
 function normalizeRelativePath(filePath) {
   return filePath.replace(/\\/g, "/");
