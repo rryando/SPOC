@@ -5,6 +5,7 @@ import {
   existsSync,
 } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import color from "picocolors";
 import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
@@ -71,16 +72,28 @@ function deepSet(
 // MCP server entry per IDE
 // ---------------------------------------------------------------------------
 
-const SPOC_STDIO_ENTRY = {
-  command: "npx",
-  args: ["-y", "spoc"],
-};
+/**
+ * Resolves the absolute path to the SPOC entry point (dist/index.js).
+ * Used so that MCP registrations always point at the local install
+ * rather than relying on `npx -y spoc` (the npm name is taken by an
+ * unrelated package).
+ */
+function getEntryPath(): string {
+  // import.meta.url → file:///…/dist/cli/instructions.js
+  // Walk up two levels (cli/ → dist/) to reach dist/index.js
+  const thisFile = fileURLToPath(import.meta.url);
+  return resolve(dirname(thisFile), "..", "index.js");
+}
 
-const SPOC_OPENCODE_ENTRY = {
-  type: "local" as const,
-  command: ["npx", "-y", "spoc"],
-  enabled: true,
-};
+function makeStdioEntry() {
+  const entry = getEntryPath();
+  return { command: "node", args: [entry] };
+}
+
+function makeOpencodeEntry() {
+  const entry = getEntryPath();
+  return { type: "local" as const, command: ["node", entry], enabled: true };
+}
 
 // ---------------------------------------------------------------------------
 // IDE Map
@@ -95,7 +108,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcp", "spoc"], SPOC_OPENCODE_ENTRY);
+      deepSet(existing, ["mcp", "spoc"], makeOpencodeEntry());
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -108,7 +121,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["servers", "spoc"], SPOC_STDIO_ENTRY);
+      deepSet(existing, ["servers", "spoc"], makeStdioEntry());
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -122,7 +135,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcpServers", "spoc"], SPOC_STDIO_ENTRY);
+      deepSet(existing, ["mcpServers", "spoc"], makeStdioEntry());
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },
@@ -135,7 +148,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
-      deepSet(existing, ["mcpServers", "spoc"], SPOC_STDIO_ENTRY);
+      deepSet(existing, ["mcpServers", "spoc"], makeStdioEntry());
       return JSON.stringify(existing, null, 2) + "\n";
     },
   },

@@ -20,7 +20,7 @@ import { registerAllPrompts } from "./prompts/index.js";
 import { ensureDataDir, getDataDir } from "./utils/paths.js";
 
 // ---------------------------------------------------------------------------
-// CLI subcommand routing: `npx spoc init` / `npx spoc config`
+// CLI subcommand routing: `spoc init` / `spoc config`
 // If a subcommand is handled, exit. Otherwise, start the MCP server.
 // ---------------------------------------------------------------------------
 
