@@ -182,16 +182,16 @@ function ensureParentDirectory(filePath) {
 }
 
 function listSourceSkillNames(sourceRoot) {
-  const skillsDirectory = resolve(sourceRoot, "skills");
-
-  if (!existsSync(skillsDirectory)) {
+  // sourceRoot IS the skills root — skill dirs live directly inside it
+  // (e.g. ~/.config/opencode/skills/superpowers/<skill>/SKILL.md)
+  if (!existsSync(sourceRoot)) {
     return [];
   }
 
-  return readdirSync(skillsDirectory, { withFileTypes: true })
+  return readdirSync(sourceRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-    .filter((skillName) => existsSync(resolve(skillsDirectory, skillName, "SKILL.md")));
+    .filter((skillName) => existsSync(resolve(sourceRoot, skillName, "SKILL.md")));
 }
 
 function listSourceAgentPaths(sourceRoot) {
@@ -269,7 +269,12 @@ function main() {
 
   for (const { declaredPath, validationRoot } of declaredFiles) {
     const relativePath = validateDeclaredPath(declaredPath, outputRoot, validationRoot);
-    const sourcePath = resolve(sourceRoot, relativePath);
+    // Skills are declared as "skills/<skill>/<file>" for output structure, but
+    // sourceRoot IS the skills directory — strip the leading "skills/" when reading source.
+    const sourceRelativePath = relativePath.startsWith("skills/")
+      ? relativePath.slice("skills/".length)
+      : relativePath;
+    const sourcePath = resolve(sourceRoot, sourceRelativePath);
     if (!existsSync(sourcePath)) {
       throw new Error(`Missing declared runtime file: ${relativePath} (${sourcePath})`);
     }

@@ -65,16 +65,15 @@ function expandHome(filePath: string) {
 }
 
 function listSourceSkillNames(sourceRoot: string) {
-  const sourceSkillsRoot = resolve(sourceRoot, "skills");
-
-  if (!existsSync(sourceSkillsRoot)) {
+  // sourceRoot IS the skills root — skill dirs live directly inside it
+  if (!existsSync(sourceRoot)) {
     return [];
   }
 
-  return readdirSync(sourceSkillsRoot, { withFileTypes: true })
+  return readdirSync(sourceRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-    .filter((skillName) => existsSync(resolve(sourceSkillsRoot, skillName, "SKILL.md")))
+    .filter((skillName) => existsSync(resolve(sourceRoot, skillName, "SKILL.md")))
     .sort();
 }
 
@@ -109,9 +108,10 @@ describe("opencode bundle builder", () => {
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "skills/planner/SKILL.md", "skill");
-      writeRuntimeFile(sourceRoot, "skills/planner/notes.md", "notes");
-      writeRuntimeFile(sourceRoot, "skills/planner/ignored.md", "ignore me");
+      // sourceRoot IS the skills directory — write skill dirs directly into it
+      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "skill");
+      writeRuntimeFile(sourceRoot, "planner/notes.md", "notes");
+      writeRuntimeFile(sourceRoot, "planner/ignored.md", "ignore me");
       writeRuntimeFile(sourceRoot, "agents/helper.md", "agent");
       writeRuntimeFile(sourceRoot, ".opencode/plugins/runtime.js", "plugin");
 
@@ -163,7 +163,7 @@ describe("opencode bundle builder", () => {
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "skills/planner/SKILL.md", "skill");
+      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "skill");
 
       const result = runBundleBuild({
         SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
@@ -196,8 +196,8 @@ describe("opencode bundle builder", () => {
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "skills/planner/SKILL.md", "planner");
-      writeRuntimeFile(sourceRoot, "skills/reviewer/SKILL.md", "reviewer");
+      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "planner");
+      writeRuntimeFile(sourceRoot, "reviewer/SKILL.md", "reviewer");
 
       const result = runBundleBuild({
         SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
@@ -488,7 +488,7 @@ describe("opencode bundle runtime manifest", () => {
     const runtimeManifest = JSON.parse(readFileSync(runtimeManifestPath, "utf-8"));
 
     expect(runtimeManifest).toEqual({
-      sourceRoot: "~/.config/opencode/superpowers",
+      sourceRoot: "~/.config/opencode/skills/superpowers",
       skills: {
         brainstorming: [
           "SKILL.md",

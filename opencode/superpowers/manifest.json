@@ -5,11 +5,11 @@
   "sourceRoot": "opencode/superpowers",
   "skills": {
     "source": "skills",
-    "destination": "superpowers/skills"
+    "destination": "skills/superpowers"
   },
   "agents": [],
   "ownedPaths": [
-    "superpowers/skills",
+    "skills/superpowers",
     "plugins/superpowers.js"
   ],
   "plugin": {

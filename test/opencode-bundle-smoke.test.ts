@@ -16,7 +16,8 @@ const bundleRoot = resolve(root, "opencode/superpowers");
 const manifestPath = resolve(bundleRoot, "manifest.json");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 const skillsDir = resolve(bundleRoot, "skills");
-const repoLocalSourceRoot = bundleRoot;
+// sourceRoot IS the skills directory — point at the skills/ subdir within the bundle
+const repoLocalSourceRoot = resolve(bundleRoot, "skills");
 
 type InstallerManifest = {
   bundleId: string;
@@ -84,7 +85,7 @@ describe("opencode superpowers bundle", () => {
     expect(manifest.installMode).toBe("opencode-superpowers");
     expect(manifest.sourceRoot).toBe("opencode/superpowers");
     expect(manifest.skills.source).toBe("skills");
-    expect(manifest.skills.destination).toBe("superpowers/skills");
+    expect(manifest.skills.destination).toBe("skills/superpowers");
     expect(manifest.plugin.required).toBe(true);
     expect(manifest.plugin.source).toBe(".opencode/plugins/superpowers.js");
     expect(manifest.agents).toEqual([]);
@@ -103,7 +104,7 @@ describe("opencode superpowers bundle", () => {
       "skills",
       "sourceRoot",
     ]);
-    expect(runtimeManifest.sourceRoot).toBe("~/.config/opencode/superpowers");
+    expect(runtimeManifest.sourceRoot).toBe("~/.config/opencode/skills/superpowers");
     expect(runtimeManifest.excludePatterns).toEqual([
       "**/references/**",
       "**/examples/**",
