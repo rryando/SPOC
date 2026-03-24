@@ -315,9 +315,26 @@ export function writeOpencodeAgent(): AgentWriteResult {
   mkdirSync(opencodePromptsDir(), { recursive: true });
   writeFileSync(promptFile, ORCHESTRATE_PROMPT_TEXT + "\n", "utf-8");
 
-  // Merge agent entry into opencode.json
+  // Merge agent entry into opencode.json with controlled key order:
+  // 1. SPOC Orchestrator (always first — controls Tab-cycle position in OpenCode)
+  // 2. build (second, if already present in config)
+  // 3. all other existing agents in their original order
   const existing = readJsonFile(configFile);
-  deepSet(existing, ["agent", SPOC_AGENT_KEY], SPOC_AGENT_ENTRY);
+  const existingAgents = (existing["agent"] ?? {}) as Record<string, unknown>;
+
+  const orderedAgents: Record<string, unknown> = {
+    [SPOC_AGENT_KEY]: SPOC_AGENT_ENTRY,
+  };
+  if ("build" in existingAgents) {
+    orderedAgents["build"] = existingAgents["build"];
+  }
+  for (const [key, value] of Object.entries(existingAgents)) {
+    if (key !== SPOC_AGENT_KEY && key !== "build") {
+      orderedAgents[key] = value;
+    }
+  }
+
+  existing["agent"] = orderedAgents;
   writeJsonFile(configFile, existing);
 
   return {
