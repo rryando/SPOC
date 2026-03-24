@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { runSetup } from "../src/cli/setup.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
@@ -162,6 +164,61 @@ describe("OpenCode setup flow", () => {
         expect.stringContaining("Skipped OpenCode bundled Superpowers install"),
         "OpenCode Superpowers",
       );
+    });
+  });
+
+  it("re-applies MCP entry even when already configured (config mode)", async () => {
+    const prompts = await import("@clack/prompts");
+    const { readFileSync } = await import("node:fs");
+
+    vi.mocked((prompts as any).__confirm)
+      .mockResolvedValueOnce(true); // setup confirm only — MCP and agent already present, no prompts
+
+    await withTempHomeDir(async (homeDir) => {
+      const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
+      // Pre-populate config: MCP and agent already present, but missing default_agent
+      writeFileSync(configFile, JSON.stringify({
+        mcp: { spoc: { type: "local", command: ["node", "/old/path/index.js"], enabled: true } },
+        agent: { "SPOC Orchestrator": { mode: "primary", prompt: "old-prompt" } },
+      }, null, 2));
+
+      await runSetup("config");
+
+      const updated = JSON.parse(readFileSync(configFile, "utf-8")) as Record<string, unknown>;
+      // default_agent must now be set even though it was absent before
+      expect(updated["default_agent"]).toBe("SPOC Orchestrator");
+      // MCP command should be updated to current dist path (not old stale path)
+      const mcp = updated["mcp"] as Record<string, unknown>;
+      const spoc = mcp?.["spoc"] as Record<string, unknown>;
+      const cmd = spoc?.["command"] as string[];
+      expect(cmd?.[1]).not.toBe("/old/path/index.js");
+    });
+  });
+
+  it("re-applies agent entry even when already configured (config mode, stale prompt)", async () => {
+    const prompts = await import("@clack/prompts");
+    const { readFileSync } = await import("node:fs");
+
+    vi.mocked((prompts as any).__confirm)
+      .mockResolvedValueOnce(true); // setup confirm only — both already present, no extra prompts
+
+    await withTempHomeDir(async (homeDir) => {
+      const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
+      // Pre-populate: agent already registered with stale prompt, no default_agent
+      writeFileSync(configFile, JSON.stringify({
+        mcp: { spoc: { type: "local", command: ["node", "/some/path/index.js"], enabled: true } },
+        agent: { "SPOC Orchestrator": { mode: "primary", prompt: "stale-prompt-text" } },
+      }, null, 2));
+
+      await runSetup("config");
+
+      const updated = JSON.parse(readFileSync(configFile, "utf-8")) as Record<string, unknown>;
+      // default_agent must now be set
+      expect(updated["default_agent"]).toBe("SPOC Orchestrator");
+      // Agent prompt should be updated to the current template value
+      const agents = updated["agent"] as Record<string, unknown>;
+      const spocAgent = agents?.["SPOC Orchestrator"] as Record<string, unknown>;
+      expect(spocAgent?.["prompt"]).not.toBe("stale-prompt-text");
     });
   });
 });

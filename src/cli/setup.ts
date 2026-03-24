@@ -87,7 +87,10 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   const results: string[] = [];
 
   if (already) {
-    results.push(`${color.dim("⊘")} ${color.bold("OpenCode")} — already configured in ${color.dim(configFile)}`);
+    // Already configured — re-apply silently to keep the entry up to date
+    const result = writeIdeConfig(opencodeId);
+    const verb = result.action === "created" ? "Created" : "Updated";
+    results.push(`${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`);
   } else {
     const shouldWrite = await p.confirm({
       message: `Write SPOC MCP entry to ${color.cyan(configFile)}?`,
@@ -122,8 +125,14 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     opencodeAgentActive = alreadyHasAgent;
 
     if (alreadyHasAgent) {
+      // Already registered — re-apply silently to keep the entry and prompt up to date
+      const agentResult = writeOpencodeAgent();
+      opencodeAgentActive = true;
       p.note(
-        `${color.dim("⊘")} OpenCode agent ${color.cyan("SPOC - (Orchestrator)")} already registered`,
+        [
+          `${color.green("✔")} Updated agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
+          `${color.green("✔")} Refreshed prompt at ${color.dim(displayPath(agentResult.promptPath))}`,
+        ].join("\n"),
         "OpenCode Agent"
       );
     } else {

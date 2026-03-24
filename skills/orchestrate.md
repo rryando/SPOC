@@ -23,29 +23,78 @@ Classify each request into one intent:
 
 If ambiguous, ask one clarifying question. If clear, proceed directly.
 
-### 2) Routing to workflow
-Run the matching tool sequence:
-- **INIT**: `list_projects` → `init_project` → optional `update_project_doc`
-- **BRAINSTORM**: `get_project` (all docs) → `list_project_plans` → planning → `create_project_plan` or `update_project_plan_body` → `update_project_doc` (tasks)
-- **EXECUTE**: `get_project` (tasks + context) → `get_project_plan` (active plan) → choose highest-priority task → execute → `update_project_doc` → optional `update_project_status`
-- **SYNC**: `get_project` (all docs) → `list_project_plans` + `list_project_knowledge_entries` → audit → propose fixes → `update_project_doc` → optional `update_project_status`
-- **EXPLORE**: `list_projects` → `get_project` as needed → `list_project_plans` + `list_project_knowledge_entries` → report
-- **MULTI**: run ordered phases, passing context from each phase to the next
+### 2) Context loading tiers
+Load only what each step needs. Do NOT front-load all docs for every request.
+The orchestrator must NEVER read codebase files directly — use the DAG, then
+delegate to explore sub-agents only when the DAG lacks the answer.
 
-### 3) Completion contract
+| Tier | What | When |
+|------|------|------|
+| **T0** | `resolve_project_context` | Always — session start. Contains overview, brief, focus, top knowledge, active plans. |
+| **T1** | Single doc fetch (`get_project` with specific `doc`) | When a workflow step needs one specific doc |
+| **T2** | Index listings (`list_project_plans`, `list_project_knowledge_entries`) | When discovering what plans/knowledge exist — metadata only |
+| **T3** | Full body (`get_project_plan(includeBody)`, `get_project_knowledge_entry(includeBody)`) | Only when actively working with a specific plan or entry |
+| **T4** | Multi-doc read | Only for SYNC or when cross-referencing docs — prefer delegating to sub-agents |
+
+**Key principle:** T0 is usually sufficient for routing and task selection.
+Escalate tiers on-demand. Never jump to codebase exploration before exhausting
+DAG tiers T0–T3.
+
+### 3) Information resolution order (Non-Negotiable)
+
+Before any codebase exploration, follow this strict resolution order:
+
+1. **DAG context (T0–T3)** — Project overview, knowledge entries, plans, tasks,
+   dependencies. This is the primary source of truth and costs no context.
+2. **Dispatch explore sub-agent** — ONLY when DAG lacks the needed information.
+   Give the sub-agent a precise question, file scope, and expected output format.
+   The orchestrator receives a concise summary, not raw file contents.
+3. **Capture to DAG** — If the explore sub-agent returns durable information,
+   persist it via `create_project_knowledge_entry` so the next session skips
+   the exploration entirely.
+
+**The orchestrator reads the DAG. Sub-agents read the codebase. Never the reverse.**
+
+### 4) Sub-agent delegation
+When the host has sub-agent capabilities (Task tool), **always** delegate
+context-heavy work. The orchestrator must stay lean — its job is routing and
+coordination, not holding implementation or exploration context.
+
+| Situation | Delegate | Orchestrator keeps |
+|-----------|----------|-------------------|
+| **Any codebase read** (file contents, grep, git log) | Explore sub-agent with precise question | DAG context, routing decision |
+| **Reference lookup** (how does X work, what pattern does Y use) | Explore sub-agent — check DAG knowledge first | Summary from sub-agent, persist if durable |
+| EXPLORE across multiple projects | One sub-agent per project | Routing, aggregation, presentation |
+| SYNC codebase re-scan | Explore sub-agent scans repo | Doc reconciliation, write operations |
+| INIT codebase analysis | Analysis sub-agent reads code | Project creation, doc writes |
+| EXECUTE implementation | Implementer sub-agent via skills | Task selection, status updates |
+| MULTI independent phases | Dispatch in parallel | Sequencing, consolidated summary |
+
+**Fallback (no sub-agents):** Proceed inline but rely on T0, fetch docs on-demand (T1), avoid full body reads (T3) unless actively executing.
+
+### 5) Routing to workflow
+Run the matching tool sequence:
+- **INIT**: T0 context → `list_projects` → `init_project` → `update_project_doc` → delegate codebase analysis to sub-agent
+- **BRAINSTORM**: T0 context → `list_project_plans` (T2) → planning → `create_project_plan` or `update_project_plan_body` → `update_project_doc` (tasks)
+- **EXECUTE**: T0 context (operating brief) → select task → delegate implementation to sub-agent via work-mode skill → `update_project_doc`
+- **SYNC**: T0 context → delegate codebase scan to explore sub-agent → audit docs on-demand → propose fixes → `update_project_doc`
+- **EXPLORE**: T0 context (DAG first) → answer from DAG if possible → delegate codebase deep dives to explore sub-agents only if DAG insufficient → report
+- **MULTI**: decompose → dispatch independent phases in parallel → consolidate
+
+### 6) Work mode hints (EXECUTE only)
+When routing to EXECUTE, annotate the selected task with a suggested work mode for the host agent:
+- Fully bounded, no open decisions → `quick-dev`
+- Mostly clear, 1-2 decisions resolvable from repo → `code-agent`
+- New non-trivial feature with known criteria → `tdd`
+- Design direction unclear → reclassify as BRAINSTORM
+
+This is informational — the host agent makes the final skill decision.
+
+### 7) Completion contract
 Always end with:
 1. What was done
 2. Current project state
 3. Suggested next steps
-
-## Example Scenarios
-
-- "Track repo X and add initial docs" → **INIT**
-- "What should we build next for api-gateway?" → **BRAINSTORM**
-- "Do the next task in mobile-app" → **EXECUTE**
-- "Sync docs for billing-service" → **SYNC**
-- "Show all active projects and blockers" → **EXPLORE**
-- "Create project A, plan tasks, then start execution" → **MULTI**
 
 ## Tips
 
