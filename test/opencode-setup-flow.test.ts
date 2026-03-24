@@ -5,7 +5,6 @@ import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 vi.mock("@clack/prompts", () => {
   const confirm = vi.fn();
   const note = vi.fn();
-  const group = vi.fn();
 
   return {
     intro: vi.fn(),
@@ -14,11 +13,9 @@ vi.mock("@clack/prompts", () => {
     cancel: vi.fn(),
     isCancel: () => false,
     spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
-    group,
     confirm,
     __confirm: confirm,
     __note: note,
-    __group: group,
   };
 });
 
@@ -37,7 +34,6 @@ describe("OpenCode setup flow", () => {
 
     vi.mocked((prompts as any).__confirm).mockReset();
     vi.mocked((prompts as any).__note).mockReset();
-    vi.mocked((prompts as any).__group).mockReset();
     vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReset();
     vi.mocked(installer.installBundledOpencodeSuperpowers).mockReset();
     vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({ state: "absent" } as any);
@@ -47,19 +43,14 @@ describe("OpenCode setup flow", () => {
     } as any);
   });
 
-  it("installs bundled superpowers during init when OpenCode and orchestrate are enabled", async () => {
+  it("installs bundled superpowers during init when user confirms setup", async () => {
     const prompts = await import("@clack/prompts");
     const installer = await import("../src/cli/opencode-superpowers.js");
 
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce(true)  // setup confirm
+      .mockResolvedValueOnce(true)  // write MCP
+      .mockResolvedValueOnce(true); // register agent
 
     await withTempHomeDir(async () => {
       await runSetup("init");
@@ -73,18 +64,14 @@ describe("OpenCode setup flow", () => {
     });
   });
 
-  it("re-syncs bundled superpowers during config when OpenCode and orchestrate remain enabled", async () => {
+  it("re-syncs bundled superpowers during config when user confirms setup", async () => {
     const prompts = await import("@clack/prompts");
     const installer = await import("../src/cli/opencode-superpowers.js");
 
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce(true)  // setup confirm
+      .mockResolvedValueOnce(true)  // write MCP
+      .mockResolvedValueOnce(true); // register agent
 
     await withTempHomeDir(async () => {
       await runSetup("config");
@@ -94,39 +81,14 @@ describe("OpenCode setup flow", () => {
     });
   });
 
-  it("skips bundled superpowers install when orchestrate is disabled", async () => {
-    const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
-
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: [],
-      confirmed: true,
-    });
-    vi.mocked((prompts as any).__confirm).mockResolvedValueOnce(true);
-
-    await withTempHomeDir(async () => {
-      await runSetup("config");
-      expect(installer.installBundledOpencodeSuperpowers).not.toHaveBeenCalled();
-      expect((prompts as any).__note).toHaveBeenCalledWith(
-        expect.stringContaining("SPOC Orchestrator is disabled"),
-        "OpenCode Superpowers",
-      );
-    });
-  });
-
   it("skips bundled superpowers install when the user declines OpenCode agent registration", async () => {
     const prompts = await import("@clack/prompts");
     const installer = await import("../src/cli/opencode-superpowers.js");
 
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce(true)   // setup confirm
+      .mockResolvedValueOnce(true)   // write MCP
+      .mockResolvedValueOnce(false); // decline agent registration
 
     await withTempHomeDir(async () => {
       await runSetup("init");
@@ -145,15 +107,11 @@ describe("OpenCode setup flow", () => {
     vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce(true)  // setup confirm
+      .mockResolvedValueOnce(true)  // write MCP
+      .mockResolvedValueOnce(true)  // register agent
+      .mockResolvedValueOnce(true); // replace Superpowers
 
     await withTempHomeDir(async () => {
       await runSetup("init");
@@ -170,15 +128,11 @@ describe("OpenCode setup flow", () => {
     vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
+      .mockResolvedValueOnce(true)  // setup confirm
+      .mockResolvedValueOnce(true)  // write MCP
+      .mockResolvedValueOnce(true)  // register agent
+      .mockResolvedValueOnce(true); // replace Superpowers
 
     await withTempHomeDir(async () => {
       await runSetup("config");
@@ -195,15 +149,11 @@ describe("OpenCode setup flow", () => {
     vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
-    vi.mocked((prompts as any).__group).mockResolvedValue({
-      ides: ["opencode"],
-      agents: ["orchestrate"],
-      confirmed: true,
-    });
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce(true)   // setup confirm
+      .mockResolvedValueOnce(true)   // write MCP
+      .mockResolvedValueOnce(true)   // register agent
+      .mockResolvedValueOnce(false); // decline Superpowers
 
     await withTempHomeDir(async () => {
       await runSetup("init");
