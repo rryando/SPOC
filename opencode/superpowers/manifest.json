@@ -18,6 +18,72 @@
     "destination": "plugins/superpowers.js"
   },
   "config": {
-    "requiredMerges": []
+    "requiredMerges": [
+      {
+        "path": ["model"],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": ["agent", "build", "model"],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": ["agent", "plan", "model"],
+        "value": "github-copilot/claude-opus-4.6"
+      },
+      {
+        "path": ["agent", "general", "model"],
+        "value": "github-copilot/gemini-3.1-pro-preview"
+      },
+      {
+        "path": ["agent", "explore", "model"],
+        "value": "github-copilot/claude-haiku-4.6"
+      },
+      {
+        "path": ["agent", "code-reviewer"],
+        "value": {
+          "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
+          "mode": "subagent",
+          "model": "github-copilot/gpt-5.4",
+          "prompt": "You are a code review specialist. Review code like a thoughtful teammate, focusing on correctness, edge cases, maintainability, architecture, and test quality. Prefer concrete, evidence-backed findings over generic style commentary.",
+          "permission": {
+            "edit": "deny",
+            "webfetch": "deny"
+          }
+        }
+      },
+      {
+        "path": ["agent", "docs-researcher"],
+        "value": {
+          "description": "Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks.",
+          "mode": "subagent",
+          "model": "github-copilot/gemini-3.1-pro-preview",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "allow"
+          },
+          "prompt": "You are a documentation and research specialist. Focus on producing clear documentation, synthesizing external information, and handling document-heavy tasks carefully. Prefer preserving source meaning over clever rewriting."
+        }
+      },
+      {
+        "path": ["agent", "analyzer"],
+        "value": {
+          "description": "Performs deep code analysis, refactoring guidance, and architecture-level reasoning without making hasty edits.",
+          "mode": "subagent",
+          "model": "github-copilot/gpt-5.4",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "deny"
+          },
+          "prompt": "You are a code analysis specialist. Focus on root-cause reasoning, refactor guidance, edge cases, and architecture trade-offs. Default to explanation and evidence-backed recommendations."
+        }
+      },
+      {
+        "path": ["small_model"],
+        "value": "github-copilot/claude-haiku-4.6"
+      }
+    ]
   }
 }

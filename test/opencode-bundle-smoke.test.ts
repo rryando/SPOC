@@ -35,6 +35,12 @@ type InstallerManifest = {
     source: string;
     destination: string;
   }>;
+  config: {
+    requiredMerges: Array<{
+      path: string[];
+      value: unknown;
+    }>;
+  };
 };
 
 type RuntimeManifest = {
@@ -89,6 +95,51 @@ describe("opencode superpowers bundle", () => {
     expect(manifest.plugin.required).toBe(true);
     expect(manifest.plugin.source).toBe(".opencode/plugins/superpowers.js");
     expect(manifest.agents).toEqual([]);
+    expect(manifest.config.requiredMerges).toEqual(
+      expect.arrayContaining([
+        {
+          path: ["model"],
+          value: "github-copilot/claude-sonnet-4.6",
+        },
+        {
+          path: ["agent", "build", "model"],
+          value: "github-copilot/claude-sonnet-4.6",
+        },
+        {
+          path: ["agent", "plan", "model"],
+          value: "github-copilot/claude-opus-4.6",
+        },
+        {
+          path: ["agent", "general", "model"],
+          value: "github-copilot/gemini-3.1-pro-preview",
+        },
+        {
+          path: ["agent", "explore", "model"],
+          value: "github-copilot/claude-haiku-4.6",
+        },
+        {
+          path: ["agent", "code-reviewer"],
+          value: expect.objectContaining({
+            mode: "subagent",
+            model: "github-copilot/gpt-5.4",
+          }),
+        },
+        {
+          path: ["agent", "docs-researcher"],
+          value: expect.objectContaining({
+            mode: "subagent",
+            model: "github-copilot/gemini-3.1-pro-preview",
+          }),
+        },
+        {
+          path: ["agent", "analyzer"],
+          value: expect.objectContaining({
+            mode: "subagent",
+            model: "github-copilot/gpt-5.4",
+          }),
+        },
+      ]),
+    );
   });
 
   it("ships bundle-runtime.json alongside manifest.json", () => {
