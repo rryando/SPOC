@@ -335,6 +335,8 @@ export function writeOpencodeAgent(): AgentWriteResult {
   }
 
   existing["agent"] = orderedAgents;
+  // Set SPOC Orchestrator as the startup default agent
+  existing["default_agent"] = SPOC_AGENT_KEY;
   writeJsonFile(configFile, existing);
 
   return {

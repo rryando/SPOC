@@ -80,4 +80,16 @@ describe("writeOpencodeAgent — agent key order", () => {
       expect(agentKeys[0]).toBe("SPOC Orchestrator");
     });
   });
+
+  it("sets default_agent to SPOC Orchestrator", async () => {
+    await withTempHomeDir(async (homeDir) => {
+      writeOpencodeAgent();
+
+      const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
+      const raw = readFileSync(configFile, "utf-8");
+      const config = JSON.parse(raw) as Record<string, unknown>;
+
+      expect(config["default_agent"]).toBe("SPOC Orchestrator");
+    });
+  });
 });
