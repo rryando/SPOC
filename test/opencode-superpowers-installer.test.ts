@@ -273,16 +273,46 @@ describe("opencode superpowers installer", () => {
     });
   });
 
-  it("installs bundled runtime payload and writes the installed manifest without plugin config merges", async () => {
+  it("installs bundled runtime payload and writes the bundled model presets into opencode.json", async () => {
     await withTempHomeDir(async (homeDir) => {
       const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: true });
+      const opencodeConfig = JSON.parse(
+        readFileSync(resolve(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
+      );
 
       expect(result.status).toBe("installed");
       expectRuntimePayloadInstalled(homeDir);
 
-      expect(
-        JSON.parse(readFileSync(resolve(homeDir, ".config", "opencode", "opencode.json"), "utf-8")),
-      ).not.toHaveProperty("plugin");
+      expect(opencodeConfig).toMatchObject({
+        model: "github-copilot/claude-sonnet-4.6",
+        agent: {
+          build: {
+            model: "github-copilot/claude-sonnet-4.6",
+          },
+          plan: {
+            model: "github-copilot/claude-opus-4.6",
+          },
+          general: {
+            model: "github-copilot/gemini-3.1-pro-preview",
+          },
+          explore: {
+            model: "github-copilot/claude-haiku-4.6",
+          },
+          "code-reviewer": {
+            mode: "subagent",
+            model: "github-copilot/gpt-5.4",
+          },
+          "docs-researcher": {
+            mode: "subagent",
+            model: "github-copilot/gemini-3.1-pro-preview",
+          },
+          analyzer: {
+            mode: "subagent",
+            model: "github-copilot/gpt-5.4",
+          },
+        },
+      });
+      expect(opencodeConfig).not.toHaveProperty("plugin");
       expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain("skills/superpowers");
     });
   });
