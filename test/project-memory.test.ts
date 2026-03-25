@@ -13,11 +13,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createKnowledgeEntry,
   createPlan,
+  createTask,
   readKnowledgeIndex,
   readPlanIndex,
   sanitizeFileRefs,
   updateKnowledgeEntry,
   updatePlan,
+  updateTask,
 } from "../src/utils/project-memory.js";
 
 const tempDirs: string[] = [];
@@ -361,5 +363,258 @@ describe("sanitizeFileRefs", () => {
   it("accepts dotted anchor paths", () => {
     const result = sanitizeFileRefs([{ path: "src/a.ts", anchor: "AuthService.login" }]);
     expect(result).toEqual([{ path: "src/a.ts", anchor: "AuthService.login" }]);
+  });
+});
+
+describe("sourceFiles on plans", () => {
+  it("stores sourceFiles when provided on create", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "src/auth.ts", anchor: "login" }, { path: "src/utils/hash.ts" }];
+
+    const meta = await createPlan(projectDir, {
+      id: "plan-with-refs",
+      title: "Plan With Refs",
+      status: "proposed",
+      keywords: ["auth"],
+      sourceFiles: refs,
+    });
+
+    expect(meta.sourceFiles).toEqual(refs);
+
+    const persisted = readJson(resolve(projectDir, "plans", `${meta.normalizedId}.meta.json`)) as {
+      sourceFiles?: unknown;
+    };
+    expect(persisted.sourceFiles).toEqual(refs);
+  });
+
+  it("omits sourceFiles when not provided on create", async () => {
+    const projectDir = makeProjectDir();
+
+    const meta = await createPlan(projectDir, {
+      id: "plan-no-refs",
+      title: "Plan No Refs",
+      status: "proposed",
+      keywords: ["clean"],
+    });
+
+    expect(meta.sourceFiles).toBeUndefined();
+
+    const persisted = readJson(resolve(projectDir, "plans", `${meta.normalizedId}.meta.json`)) as {
+      sourceFiles?: unknown;
+    };
+    expect(persisted.sourceFiles).toBeUndefined();
+  });
+
+  it("replaces sourceFiles on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createPlan(projectDir, {
+      id: "plan-replace-refs",
+      title: "Plan Replace Refs",
+      status: "proposed",
+      keywords: ["test"],
+      sourceFiles: [{ path: "src/old.ts" }],
+    });
+
+    const updated = await updatePlan(projectDir, {
+      id: created.id,
+      sourceFiles: [{ path: "src/new.ts", anchor: "handler" }],
+    });
+
+    expect(updated.sourceFiles).toEqual([{ path: "src/new.ts", anchor: "handler" }]);
+  });
+
+  it("clears sourceFiles when empty array passed on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createPlan(projectDir, {
+      id: "plan-clear-refs",
+      title: "Plan Clear Refs",
+      status: "proposed",
+      keywords: ["test"],
+      sourceFiles: [{ path: "src/old.ts" }],
+    });
+
+    const updated = await updatePlan(projectDir, {
+      id: created.id,
+      sourceFiles: [],
+    });
+
+    expect(updated.sourceFiles).toBeUndefined();
+  });
+
+  it("preserves sourceFiles when not provided on update", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "src/keep.ts" }];
+
+    const created = await createPlan(projectDir, {
+      id: "plan-preserve-refs",
+      title: "Plan Preserve Refs",
+      status: "proposed",
+      keywords: ["test"],
+      sourceFiles: refs,
+    });
+
+    const updated = await updatePlan(projectDir, {
+      id: created.id,
+      summary: "Updated summary only",
+    });
+
+    expect(updated.sourceFiles).toEqual(refs);
+  });
+
+  it("validates sourceFiles on create", async () => {
+    const projectDir = makeProjectDir();
+
+    await expect(
+      createPlan(projectDir, {
+        id: "plan-invalid-refs",
+        title: "Plan Invalid Refs",
+        status: "proposed",
+        keywords: ["test"],
+        sourceFiles: [{ path: "/absolute/path.ts" }],
+      }),
+    ).rejects.toThrow(/must be relative/i);
+  });
+});
+
+describe("sourceFiles on knowledge entries", () => {
+  it("stores sourceFiles when provided on create", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "docs/api.md", anchor: "endpoints" }];
+
+    const meta = await createKnowledgeEntry(projectDir, {
+      id: "ke-with-refs",
+      title: "KE With Refs",
+      kind: "reference",
+      keywords: ["api"],
+      sourceFiles: refs,
+    });
+
+    expect(meta.sourceFiles).toEqual(refs);
+
+    const persisted = readJson(
+      resolve(projectDir, "knowledge", `${meta.normalizedId}.meta.json`),
+    ) as { sourceFiles?: unknown };
+    expect(persisted.sourceFiles).toEqual(refs);
+  });
+
+  it("clears sourceFiles when empty array passed on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createKnowledgeEntry(projectDir, {
+      id: "ke-clear-refs",
+      title: "KE Clear Refs",
+      kind: "pattern",
+      keywords: ["test"],
+      sourceFiles: [{ path: "src/pattern.ts" }],
+    });
+
+    const updated = await updateKnowledgeEntry(projectDir, {
+      id: created.id,
+      sourceFiles: [],
+    });
+
+    expect(updated.sourceFiles).toBeUndefined();
+  });
+
+  it("preserves sourceFiles when not provided on update", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "src/keep.ts" }];
+
+    const created = await createKnowledgeEntry(projectDir, {
+      id: "ke-preserve-refs",
+      title: "KE Preserve Refs",
+      kind: "lesson",
+      keywords: ["test"],
+      sourceFiles: refs,
+    });
+
+    const updated = await updateKnowledgeEntry(projectDir, {
+      id: created.id,
+      summary: "Updated summary only",
+    });
+
+    expect(updated.sourceFiles).toEqual(refs);
+  });
+
+  it("validates sourceFiles on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createKnowledgeEntry(projectDir, {
+      id: "ke-invalid-update",
+      title: "KE Invalid Update",
+      kind: "gotcha",
+      keywords: ["test"],
+    });
+
+    await expect(
+      updateKnowledgeEntry(projectDir, {
+        id: created.id,
+        sourceFiles: [{ path: "/absolute/path.ts" }],
+      }),
+    ).rejects.toThrow(/must be relative/i);
+  });
+});
+
+describe("sourceFiles on tasks", () => {
+  it("stores sourceFiles when provided on create", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "src/task-file.ts", anchor: "doWork" }];
+
+    const meta = await createTask(projectDir, {
+      title: "Task With Refs",
+      sourceFiles: refs,
+    });
+
+    expect(meta.sourceFiles).toEqual(refs);
+  });
+
+  it("clears sourceFiles when empty array passed on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createTask(projectDir, {
+      title: "Task Clear Refs",
+      sourceFiles: [{ path: "src/old.ts" }],
+    });
+
+    const updated = await updateTask(projectDir, {
+      id: created.id,
+      sourceFiles: [],
+    });
+
+    expect(updated.sourceFiles).toBeUndefined();
+  });
+
+  it("preserves sourceFiles when not provided on update", async () => {
+    const projectDir = makeProjectDir();
+    const refs = [{ path: "src/keep.ts" }];
+
+    const created = await createTask(projectDir, {
+      title: "Task Preserve Refs",
+      sourceFiles: refs,
+    });
+
+    const updated = await updateTask(projectDir, {
+      id: created.id,
+      priority: "high",
+    });
+
+    expect(updated.sourceFiles).toEqual(refs);
+  });
+
+  it("validates sourceFiles on update", async () => {
+    const projectDir = makeProjectDir();
+
+    const created = await createTask(projectDir, {
+      title: "Task Invalid Update",
+    });
+
+    await expect(
+      updateTask(projectDir, {
+        id: created.id,
+        sourceFiles: [{ path: "../escape/path" }],
+      }),
+    ).rejects.toThrow(/must not contain "\.\."/i);
   });
 });

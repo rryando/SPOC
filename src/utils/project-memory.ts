@@ -107,6 +107,7 @@ export interface PlanMeta {
   status: PlanStatus;
   keywords: string[];
   summary: string;
+  sourceFiles?: FileRef[];
   file: string;
   createdAt: string;
   updatedAt: string;
@@ -119,6 +120,7 @@ export interface KnowledgeMeta {
   kind: KnowledgeKind;
   keywords: string[];
   summary: string;
+  sourceFiles?: FileRef[];
   file: string;
   createdAt: string;
   updatedAt: string;
@@ -143,6 +145,7 @@ export interface CreatePlanInput {
   keywords: string[];
   summary?: string;
   content?: string;
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -152,6 +155,7 @@ export interface UpdatePlanInput {
   title?: string;
   summary?: string;
   keywords?: string[];
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -162,6 +166,7 @@ export interface CreateKnowledgeInput {
   keywords: string[];
   summary?: string;
   content?: string;
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -171,6 +176,7 @@ export interface UpdateKnowledgeInput {
   kind?: KnowledgeKind;
   summary?: string;
   keywords?: string[];
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -390,6 +396,7 @@ async function writeKnowledgeIndex(knowledgeDir: string, index: KnowledgeIndex):
 export async function createPlan(projectDir: string, input: CreatePlanInput): Promise<PlanMeta> {
   validatePlanStatus(input.status);
   const keywords = sanitizeKeywords(input.keywords);
+  const sourceFiles = input.sourceFiles ? sanitizeFileRefs(input.sourceFiles) : undefined;
   const normalizedId = normalizeIdentifier(input.id);
 
   const plansDir = join(projectDir, "plans");
@@ -411,6 +418,7 @@ export async function createPlan(projectDir: string, input: CreatePlanInput): Pr
     status: input.status,
     keywords,
     summary: input.summary ?? "",
+    ...(sourceFiles && { sourceFiles }),
     file: bodyFile,
     createdAt: ts,
     updatedAt: ts,
@@ -454,6 +462,13 @@ export async function updatePlan(projectDir: string, input: UpdatePlanInput): Pr
   }
   if (input.summary !== undefined) meta.summary = input.summary;
   if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
+  if (input.sourceFiles !== undefined) {
+    if (input.sourceFiles.length === 0) {
+      delete meta.sourceFiles;
+    } else {
+      meta.sourceFiles = sanitizeFileRefs(input.sourceFiles);
+    }
+  }
   meta.updatedAt = ts;
 
   await writeJson(metaPath, meta);
@@ -529,6 +544,7 @@ export async function createKnowledgeEntry(
 ): Promise<KnowledgeMeta> {
   validateKnowledgeKind(input.kind);
   const keywords = sanitizeKeywords(input.keywords);
+  const sourceFiles = input.sourceFiles ? sanitizeFileRefs(input.sourceFiles) : undefined;
   const normalizedId = normalizeIdentifier(input.id);
 
   const knowledgeDir = join(projectDir, "knowledge");
@@ -550,6 +566,7 @@ export async function createKnowledgeEntry(
     kind: input.kind,
     keywords,
     summary: input.summary ?? "",
+    ...(sourceFiles && { sourceFiles }),
     file: bodyFile,
     createdAt: ts,
     updatedAt: ts,
@@ -593,6 +610,13 @@ export async function updateKnowledgeEntry(
   }
   if (input.summary !== undefined) meta.summary = input.summary;
   if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
+  if (input.sourceFiles !== undefined) {
+    if (input.sourceFiles.length === 0) {
+      delete meta.sourceFiles;
+    } else {
+      meta.sourceFiles = sanitizeFileRefs(input.sourceFiles);
+    }
+  }
   meta.updatedAt = nowISO(input.now);
 
   await writeJson(metaPath, meta);
@@ -676,6 +700,7 @@ export interface TaskMeta {
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
+  sourceFiles?: FileRef[];
   createdAt: string;
   updatedAt: string;
 }
@@ -692,6 +717,7 @@ export interface CreateTaskInput {
   title: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -700,6 +726,7 @@ export interface UpdateTaskInput {
   title?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  sourceFiles?: FileRef[];
   now?: string;
 }
 
@@ -798,6 +825,7 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
   const priority = input.priority ?? "medium";
   validateTaskStatus(status);
   validateTaskPriority(priority);
+  const sourceFiles = input.sourceFiles ? sanitizeFileRefs(input.sourceFiles) : undefined;
 
   const normalizedId = normalizeIdentifier(input.title);
   const index = await readTaskIndex(projectDir);
@@ -815,6 +843,7 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
     title: input.title,
     status,
     priority,
+    ...(sourceFiles && { sourceFiles }),
     createdAt: ts,
     updatedAt: ts,
   };
@@ -871,6 +900,13 @@ export async function updateTask(projectDir: string, input: UpdateTaskInput): Pr
   if (input.title !== undefined) task.title = input.title;
   if (input.status !== undefined) task.status = input.status;
   if (input.priority !== undefined) task.priority = input.priority;
+  if (input.sourceFiles !== undefined) {
+    if (input.sourceFiles.length === 0) {
+      delete task.sourceFiles;
+    } else {
+      task.sourceFiles = sanitizeFileRefs(input.sourceFiles);
+    }
+  }
   task.updatedAt = nowISO(input.now);
 
   await writeTaskIndex(projectDir, index);
