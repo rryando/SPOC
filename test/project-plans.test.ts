@@ -269,6 +269,65 @@ describe("project-plans tools", () => {
       }
     });
   });
+
+  it("creates plan with sourceFiles and returns them", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Ref Test",
+          description: "Test sourceFiles",
+        });
+
+        const result = await invokeJsonTool(server, "create_project_plan", {
+          slug: "ref-test",
+          title: "Plan with refs",
+          sourceFiles: [{ path: "src/auth.ts", anchor: "validate" }, { path: "src/utils.ts" }],
+        });
+        const parsed = JSON.parse((result as any).content.find((c: any) => c.type === "text").text);
+        expect(parsed.meta.sourceFiles).toEqual([
+          { path: "src/auth.ts", anchor: "validate" },
+          { path: "src/utils.ts" },
+        ]);
+
+        // Verify list returns sourceFiles
+        const listResult = await invokeJsonTool(server, "list_project_plans", {
+          slug: "ref-test",
+        });
+        const listParsed = JSON.parse(
+          (listResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(listParsed.plans[0].sourceFiles).toEqual([
+          { path: "src/auth.ts", anchor: "validate" },
+          { path: "src/utils.ts" },
+        ]);
+
+        // Verify update can replace sourceFiles
+        const updateResult = await invokeJsonTool(server, "update_project_plan_meta", {
+          slug: "ref-test",
+          planId: "plan-with-refs",
+          sourceFiles: [{ path: "src/new.ts" }],
+        });
+        const updateParsed = JSON.parse(
+          (updateResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(updateParsed.meta.sourceFiles).toEqual([{ path: "src/new.ts" }]);
+
+        // Verify update with empty array clears sourceFiles
+        const clearResult = await invokeJsonTool(server, "update_project_plan_meta", {
+          slug: "ref-test",
+          planId: "plan-with-refs",
+          sourceFiles: [],
+        });
+        const clearParsed = JSON.parse(
+          (clearResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(clearParsed.meta.sourceFiles).toBeUndefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });
 
 describe("prompt and agent text — plan/knowledge references", () => {
