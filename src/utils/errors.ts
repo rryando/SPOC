@@ -58,6 +58,10 @@ export function invalidKeyword(keyword: string): DagError {
   return new DagError("INVALID_KEYWORD", `Invalid keyword "${keyword}".`);
 }
 
+export function invalidFileRef(detail: string): DagError {
+  return new DagError("INVALID_FILE_REF", `Invalid file reference: ${detail}`);
+}
+
 export function normalizedIdCollision(
   kind: "plan" | "knowledge entry" | "task",
   requestedId: string,

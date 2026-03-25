@@ -15,6 +15,7 @@ import {
   createPlan,
   readKnowledgeIndex,
   readPlanIndex,
+  sanitizeFileRefs,
   updateKnowledgeEntry,
   updatePlan,
 } from "../src/utils/project-memory.js";
@@ -273,5 +274,92 @@ describe("project memory utilities", () => {
 
     expect(existsSync(resolve(projectDir, "plans", "index.json"))).toBe(true);
     expect(existsSync(resolve(projectDir, "knowledge", "index.json"))).toBe(true);
+  });
+});
+
+describe("sanitizeFileRefs", () => {
+  it("accepts valid file refs with path only", () => {
+    const result = sanitizeFileRefs([{ path: "src/utils/auth.ts" }]);
+    expect(result).toEqual([{ path: "src/utils/auth.ts" }]);
+  });
+
+  it("accepts valid file refs with path and anchor", () => {
+    const result = sanitizeFileRefs([{ path: "src/utils/auth.ts", anchor: "validateToken" }]);
+    expect(result).toEqual([{ path: "src/utils/auth.ts", anchor: "validateToken" }]);
+  });
+
+  it("normalizes backslashes to forward slashes", () => {
+    const result = sanitizeFileRefs([{ path: "src\\utils\\auth.ts" }]);
+    expect(result).toEqual([{ path: "src/utils/auth.ts" }]);
+  });
+
+  it("strips trailing slashes", () => {
+    const result = sanitizeFileRefs([{ path: "src/utils/" }]);
+    expect(result).toEqual([{ path: "src/utils" }]);
+  });
+
+  it("rejects empty path", () => {
+    expect(() => sanitizeFileRefs([{ path: "" }])).toThrow(/path must not be empty/i);
+  });
+
+  it("rejects whitespace-only path", () => {
+    expect(() => sanitizeFileRefs([{ path: "   " }])).toThrow(/path must not be empty/i);
+  });
+
+  it("rejects absolute path", () => {
+    expect(() => sanitizeFileRefs([{ path: "/etc/passwd" }])).toThrow(/must be relative/i);
+  });
+
+  it("rejects .. segments", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/../secret" }])).toThrow(/must not contain "\.\."/i);
+  });
+
+  it("rejects path with # character", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/file#name.ts" }])).toThrow(/must not contain/i);
+  });
+
+  it("rejects path with comma", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/a,b.ts" }])).toThrow(/must not contain/i);
+  });
+
+  it("rejects path with colon (Windows absolute)", () => {
+    expect(() => sanitizeFileRefs([{ path: "C:/foo/bar" }])).toThrow(/must not contain/i);
+  });
+
+  it("normalizes backslash then rejects colon (Windows path)", () => {
+    expect(() => sanitizeFileRefs([{ path: "C:\\foo\\bar" }])).toThrow(/must not contain/i);
+  });
+
+  it("rejects empty anchor", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/a.ts", anchor: "" }])).toThrow(
+      /anchor must not be empty/i,
+    );
+  });
+
+  it("rejects whitespace-only anchor", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/a.ts", anchor: "   " }])).toThrow(
+      /anchor must not be empty/i,
+    );
+  });
+
+  it("rejects anchor with # character", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/a.ts", anchor: "foo#bar" }])).toThrow(
+      /anchor must not contain/i,
+    );
+  });
+
+  it("rejects anchor with comma", () => {
+    expect(() => sanitizeFileRefs([{ path: "src/a.ts", anchor: "foo,bar" }])).toThrow(
+      /anchor must not contain/i,
+    );
+  });
+
+  it("handles empty array", () => {
+    expect(sanitizeFileRefs([])).toEqual([]);
+  });
+
+  it("accepts dotted anchor paths", () => {
+    const result = sanitizeFileRefs([{ path: "src/a.ts", anchor: "AuthService.login" }]);
+    expect(result).toEqual([{ path: "src/a.ts", anchor: "AuthService.login" }]);
   });
 });

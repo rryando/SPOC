@@ -10,6 +10,7 @@ import { access, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/pro
 import { join } from "node:path";
 import {
   indexRebuildFailed,
+  invalidFileRef,
   invalidKeyword,
   invalidKnowledgeKind,
   invalidPlanStatus,
@@ -47,6 +48,53 @@ export const KNOWLEDGE_KINDS = [
 ] as const;
 
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];
+
+// ---------------------------------------------------------------------------
+// FileRef type
+// ---------------------------------------------------------------------------
+
+export interface FileRef {
+  path: string;
+  anchor?: string;
+}
+
+/**
+ * Validates and normalizes an array of FileRef objects.
+ * - path: backslashes normalized to forward slashes first, then validated.
+ *   Must be relative (no leading /), no .., no empty, no #, comma, or colon.
+ * - anchor: if provided, must be non-empty/non-whitespace, no # or comma.
+ * Returns a new array with normalized paths. Throws on invalid input.
+ */
+export function sanitizeFileRefs(refs: FileRef[]): FileRef[] {
+  return refs.map((ref) => {
+    // Normalize backslashes to forward slashes first (Windows path compat)
+    const path = ref.path.replace(/\\/g, "/").replace(/\/+$/, "");
+    if (!path || !path.trim()) {
+      throw invalidFileRef("path must not be empty");
+    }
+    if (path.startsWith("/")) {
+      throw invalidFileRef(`path must be relative, got "${path}"`);
+    }
+    if (/(^|\/)\.\.($|\/)/.test(path)) {
+      throw invalidFileRef(`path must not contain ".." segments, got "${path}"`);
+    }
+    // Note: backslash already normalized above, so only check #, comma, colon
+    if (/[#,:]/.test(path)) {
+      throw invalidFileRef(`path must not contain #, comma, or colon, got "${path}"`);
+    }
+    const result: FileRef = { path };
+    if (ref.anchor !== undefined) {
+      if (!ref.anchor || !ref.anchor.trim()) {
+        throw invalidFileRef("anchor must not be empty or whitespace-only");
+      }
+      if (/[#,]/.test(ref.anchor)) {
+        throw invalidFileRef(`anchor must not contain # or comma, got "${ref.anchor}"`);
+      }
+      result.anchor = ref.anchor;
+    }
+    return result;
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Meta types
