@@ -184,4 +184,54 @@ describe("project-tasks tools", () => {
       }
     });
   });
+
+  it("creates task with sourceFiles and returns them", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Task Ref Test",
+          description: "Test sourceFiles on tasks",
+        });
+
+        const result = await invokeJsonTool(server, "create_project_task", {
+          slug: "task-ref-test",
+          title: "Fix auth bug",
+          sourceFiles: [{ path: "src/auth.ts", anchor: "validateToken" }],
+        });
+        const parsed = parseResult(result);
+        expect(parsed.meta.sourceFiles).toEqual([{ path: "src/auth.ts", anchor: "validateToken" }]);
+
+        // List returns sourceFiles
+        const listResult = await invokeJsonTool(server, "list_project_tasks", {
+          slug: "task-ref-test",
+        });
+        const listParsed = parseResult(listResult);
+        expect(listParsed.tasks[0].sourceFiles).toEqual([
+          { path: "src/auth.ts", anchor: "validateToken" },
+        ]);
+
+        // Update replaces sourceFiles
+        const taskId = parsed.meta.id;
+        const updateResult = await invokeJsonTool(server, "update_project_task", {
+          slug: "task-ref-test",
+          taskId,
+          sourceFiles: [{ path: "src/new-auth.ts" }],
+        });
+        const updateParsed = parseResult(updateResult);
+        expect(updateParsed.meta.sourceFiles).toEqual([{ path: "src/new-auth.ts" }]);
+
+        // Update with empty array clears sourceFiles
+        const clearResult = await invokeJsonTool(server, "update_project_task", {
+          slug: "task-ref-test",
+          taskId,
+          sourceFiles: [],
+        });
+        const clearParsed = parseResult(clearResult);
+        expect(clearParsed.meta.sourceFiles).toBeUndefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });

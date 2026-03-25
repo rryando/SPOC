@@ -14,6 +14,11 @@ import {
 } from "../utils/project-memory.js";
 import { errorResult, jsonResult } from "../utils/tool-response.js";
 
+const fileRefSchema = z.object({
+  path: z.string().describe("Relative path from workspace root"),
+  anchor: z.string().optional().describe("Stable identifier: function/class/export name"),
+});
+
 export function registerProjectTaskTools(server: McpServer) {
   // ---- create_project_task ----
   server.tool(
@@ -32,6 +37,10 @@ export function registerProjectTaskTools(server: McpServer) {
         .optional()
         .default("backlog")
         .describe("Task status (default: backlog)"),
+      sourceFiles: z
+        .array(fileRefSchema)
+        .optional()
+        .describe("Source file references (path + optional anchor)"),
     },
     async (params) => {
       try {
@@ -44,6 +53,7 @@ export function registerProjectTaskTools(server: McpServer) {
           title: params.title,
           status: params.status,
           priority: params.priority,
+          sourceFiles: params.sourceFiles,
         });
 
         return jsonResult({ meta });
@@ -118,6 +128,10 @@ export function registerProjectTaskTools(server: McpServer) {
       title: z.string().optional().describe("New title"),
       status: z.enum(TASK_STATUSES).optional().describe("New status"),
       priority: z.enum(TASK_PRIORITIES).optional().describe("New priority"),
+      sourceFiles: z
+        .array(fileRefSchema)
+        .optional()
+        .describe("New source file references (replaces existing; empty array clears)"),
     },
     async (params) => {
       try {
@@ -131,6 +145,7 @@ export function registerProjectTaskTools(server: McpServer) {
           title: params.title,
           status: params.status,
           priority: params.priority,
+          sourceFiles: params.sourceFiles,
         });
 
         return jsonResult({ meta });
