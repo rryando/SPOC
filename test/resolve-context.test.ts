@@ -294,6 +294,85 @@ describe("resolve_project_context", () => {
     });
   });
 
+  it("includes sourceFiles in knowledge and plan entries", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "FileRef Context Test",
+          description: "Test sourceFiles in context",
+          workspacePaths: ["/tmp/fileref-context-test"],
+        });
+
+        // Create knowledge entry with sourceFiles
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "fileref-context-test",
+          title: "Auth pattern",
+          kind: "pattern",
+          summary: "How auth works",
+          sourceFiles: [
+            { path: "src/auth.ts", anchor: "validateToken" },
+            { path: "src/utils/jwt.ts" },
+          ],
+        });
+
+        // Create plan with sourceFiles
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "fileref-context-test",
+          title: "Auth Refactor",
+          status: "planned",
+          summary: "Refactor auth layer",
+          sourceFiles: [{ path: "src/auth.ts" }],
+        });
+
+        // Resolve context
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/tmp/fileref-context-test",
+        });
+        const text = resultText(result);
+
+        // Knowledge entry should show file refs with anchor format
+        expect(text).toContain("src/auth.ts#validateToken");
+        expect(text).toContain("src/utils/jwt.ts");
+
+        // Plan should show file refs
+        expect(text).toMatch(/Auth Refactor[\s\S]*Files:[\s\S]*src\/auth\.ts/);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("omits Files line when no sourceFiles present", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "No Refs Test",
+          description: "Test without sourceFiles",
+          workspacePaths: ["/tmp/no-refs-test"],
+        });
+
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "no-refs-test",
+          title: "Simple note",
+          kind: "reference",
+          summary: "Just a note",
+        });
+
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/tmp/no-refs-test",
+        });
+        const text = resultText(result);
+
+        expect(text).toContain("Simple note");
+        expect(text).not.toContain("Files:");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
   it("handles projects without workspacePaths field (backward compat)", async () => {
     await withTempDataDir(async () => {
       const server = createTestServer();

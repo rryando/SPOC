@@ -17,9 +17,22 @@ import {
 } from "../utils/errors.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import type { ProjectMeta } from "../utils/project-documents.js";
+import type { FileRef } from "../utils/project-memory.js";
 import { readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import { findBestMatch, type WorkspaceProject } from "../utils/workspace-match.js";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatFileRefs(sourceFiles?: FileRef[]): string {
+  if (!sourceFiles || sourceFiles.length === 0) return "";
+  const formatted = sourceFiles
+    .map((f) => (f.anchor ? `${f.path}#${f.anchor}` : f.path))
+    .join(", ");
+  return `\n  Files: ${formatted}`;
+}
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -113,7 +126,7 @@ export function registerResolveContext(server: McpServer) {
           const bullets = top
             .map((e) => {
               const summary = e.summary ? `: ${e.summary}` : "";
-              return `- **${e.title}**${summary}`;
+              return `- **${e.title}**${summary}${formatFileRefs(e.sourceFiles)}`;
             })
             .join("\n");
           sections.push(`\n## Key Knowledge\n\n${bullets}`);
@@ -150,7 +163,7 @@ export function registerResolveContext(server: McpServer) {
           const bullets = activePlans
             .map((p) => {
               const summary = p.summary ? `: ${p.summary}` : "";
-              return `- **${p.title}** (${p.status})${summary}`;
+              return `- **${p.title}** (${p.status})${summary}${formatFileRefs(p.sourceFiles)}`;
             })
             .join("\n");
           sections.push(`\n## Active Plans\n\n${bullets}`);
