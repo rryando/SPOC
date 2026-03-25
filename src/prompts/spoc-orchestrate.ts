@@ -232,9 +232,10 @@ Before taking action, explicitly state:
    structured diff of what's changed. Do not scan the codebase inline.
 3. If no sub-agents available: call \`get_project\` to read docs on-demand as you audit each surface. Call \`list_project_plans\` and \`list_project_knowledge_entries\` (T2) for index-level audit. Do not read codebase files directly.
 4. Audit for stale/incorrect content and missing details across summary docs and structured plan/knowledge indexes.
-5. Propose corrections clearly.
-6. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
-7. If needed, update lifecycle status with \`update_project_status\`.
+5. Audit \`sourceFiles\` references on knowledge entries and plans: check that referenced paths still exist in the codebase. Update or remove stale references.
+6. Propose corrections clearly.
+7. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
+8. If needed, update lifecycle status with \`update_project_status\`.
 
 ### EXPLORE Workflow
 **Context:** T0 + \`list_projects\` for DAG-wide view. DAG-first resolution applies.
@@ -264,6 +265,7 @@ Before taking action, explicitly state:
   - after each completed phase in MULTI.
 - Prefer accuracy over speed; verify context before writing.
 - Keep updates concrete and minimal; do not invent unknown facts.
+- **File Reference Discipline:** When creating or updating knowledge entries, plans, or tasks via SPOC tools, include \`sourceFiles\` whenever the entry relates to specific codebase files. Each entry is \`{path, anchor?}\` where path is relative from workspace root and anchor is an optional stable identifier (function name, class name, export name). This enables future agents to skip codebase scanning for information already captured in the DAG.
 
 ## Phase 3 — Completion (MANDATORY)
 Always end with:
