@@ -1,18 +1,21 @@
-import { readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
-import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
 
 describe("project-knowledge tools", () => {
   it("full knowledge lifecycle: create, list, get, update meta, update body", async () => {
     await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
       try {
-        await invokeJsonTool(server, "init_project", { name: "My Project", description: "Test project" });
+        await invokeJsonTool(server, "init_project", {
+          name: "My Project",
+          description: "Test project",
+        });
 
         // create_project_knowledge_entry
         const createResult = await invokeJsonTool(server, "create_project_knowledge_entry", {
@@ -24,7 +27,9 @@ describe("project-knowledge tools", () => {
           keywords: ["auth", "session"],
           body: "# Auth flow module\n",
         });
-        const created = JSON.parse((createResult as any).content.find((c: any) => c.type === "text").text);
+        const created = JSON.parse(
+          (createResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(created.meta.kind).toBe("module");
         expect(created.meta.id).toBe("auth-flow-module");
         expect(created.meta.summary).toBe("Explains auth boundaries and state transitions.");
@@ -36,7 +41,9 @@ describe("project-knowledge tools", () => {
           kind: "module",
           keywords: ["auth", "missing"],
         });
-        const listed = JSON.parse((listResult as any).content.find((c: any) => c.type === "text").text);
+        const listed = JSON.parse(
+          (listResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(listed.entries).toHaveLength(1);
         expect(listed.entries[0].kind).toBe("module");
 
@@ -45,7 +52,9 @@ describe("project-knowledge tools", () => {
           slug: "my-project",
           entryId: "auth-flow-module",
         });
-        const gotMeta = JSON.parse((getMetaResult as any).content.find((c: any) => c.type === "text").text);
+        const gotMeta = JSON.parse(
+          (getMetaResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(gotMeta.meta.id).toBe("auth-flow-module");
         expect(gotMeta.body).toBeUndefined();
 
@@ -55,7 +64,9 @@ describe("project-knowledge tools", () => {
           entryId: "auth-flow-module",
           includeBody: true,
         });
-        const gotFull = JSON.parse((getFullResult as any).content.find((c: any) => c.type === "text").text);
+        const gotFull = JSON.parse(
+          (getFullResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(gotFull.meta.id).toBe("auth-flow-module");
         expect(gotFull.body).toContain("# Auth flow module");
 
@@ -68,7 +79,9 @@ describe("project-knowledge tools", () => {
           summary: "Updated summary",
           keywords: ["auth", "feature"],
         });
-        const updatedMeta = JSON.parse((updateMetaResult as any).content.find((c: any) => c.type === "text").text);
+        const updatedMeta = JSON.parse(
+          (updateMetaResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(updatedMeta.meta.title).toBe("Authentication flow module");
         expect(updatedMeta.meta.kind).toBe("feature");
         expect(updatedMeta.meta.summary).toBe("Updated summary");
@@ -80,13 +93,18 @@ describe("project-knowledge tools", () => {
           entryId: "auth-flow-module",
           body: "# Authentication flow module\n\nUpdated body",
         });
-        const updatedBody = JSON.parse((updateBodyResult as any).content.find((c: any) => c.type === "text").text);
+        const updatedBody = JSON.parse(
+          (updateBodyResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(updatedBody.meta.id).toBe("auth-flow-module");
         expect(updatedBody.body).toContain("Updated body");
 
         // Verify disk
         const projectDir = resolve(dataDir, "projects", "my-project");
-        const bodyOnDisk = readFileSync(resolve(projectDir, "knowledge", "auth-flow-module.md"), "utf-8");
+        const bodyOnDisk = readFileSync(
+          resolve(projectDir, "knowledge", "auth-flow-module.md"),
+          "utf-8",
+        );
         expect(bodyOnDisk).toContain("Updated body");
       } finally {
         await server.close();
@@ -98,9 +116,16 @@ describe("project-knowledge tools", () => {
     await withTempDataDir(async () => {
       const server = createTestServer();
       try {
-        await invokeJsonTool(server, "init_project", { name: "Legacy Project", description: "Old project" });
-        const listResult = await invokeJsonTool(server, "list_project_knowledge_entries", { slug: "legacy-project" });
-        const listed = JSON.parse((listResult as any).content.find((c: any) => c.type === "text").text);
+        await invokeJsonTool(server, "init_project", {
+          name: "Legacy Project",
+          description: "Old project",
+        });
+        const listResult = await invokeJsonTool(server, "list_project_knowledge_entries", {
+          slug: "legacy-project",
+        });
+        const listed = JSON.parse(
+          (listResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(listed).toEqual({ entries: [] });
       } finally {
         await server.close();
@@ -143,8 +168,12 @@ describe("project-knowledge tools", () => {
         const indexPath = resolve(dataDir, "projects", "my-project", "knowledge", "index.json");
         unlinkSync(indexPath);
 
-        const listResult = await invokeJsonTool(server, "list_project_knowledge_entries", { slug: "my-project" });
-        const listed = JSON.parse((listResult as any).content.find((c: any) => c.type === "text").text);
+        const listResult = await invokeJsonTool(server, "list_project_knowledge_entries", {
+          slug: "my-project",
+        });
+        const listed = JSON.parse(
+          (listResult as any).content.find((c: any) => c.type === "text").text,
+        );
         expect(listed.entries[0]?.id).toBe("auth-flow-module");
 
         const getResult = await invokeJsonTool(server, "get_project_knowledge_entry", {
@@ -154,6 +183,76 @@ describe("project-knowledge tools", () => {
         });
         const got = JSON.parse((getResult as any).content.find((c: any) => c.type === "text").text);
         expect(got.body).toContain("# Auth flow module");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("delete_project_knowledge_entry removes meta, body, and index entry", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "My Project",
+          description: "Test project",
+        });
+
+        // Create a knowledge entry
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "my-project",
+          title: "Entry to delete",
+          kind: "reference",
+          entryId: "entry-to-delete",
+          keywords: ["cleanup"],
+          body: "# Entry to delete\n\nSome content.",
+        });
+
+        const projectDir = resolve(dataDir, "projects", "my-project");
+        // Verify files exist before delete
+        expect(existsSync(resolve(projectDir, "knowledge", "entry-to-delete.meta.json"))).toBe(
+          true,
+        );
+        expect(existsSync(resolve(projectDir, "knowledge", "entry-to-delete.md"))).toBe(true);
+
+        // Delete the entry
+        await invokeJsonTool(server, "delete_project_knowledge_entry", {
+          slug: "my-project",
+          entryId: "entry-to-delete",
+        });
+
+        // Verify files are removed
+        expect(existsSync(resolve(projectDir, "knowledge", "entry-to-delete.meta.json"))).toBe(
+          false,
+        );
+        expect(existsSync(resolve(projectDir, "knowledge", "entry-to-delete.md"))).toBe(false);
+
+        // Verify index is updated (empty)
+        const index = JSON.parse(
+          readFileSync(resolve(projectDir, "knowledge", "index.json"), "utf-8"),
+        );
+        expect(index.entries).toHaveLength(0);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("delete_project_knowledge_entry returns ITEM_NOT_FOUND for non-existent entry", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "My Project",
+          description: "Test project",
+        });
+
+        await expect(
+          invokeJsonTool(server, "delete_project_knowledge_entry", {
+            slug: "my-project",
+            entryId: "non-existent",
+          }),
+        ).rejects.toThrow("ITEM_NOT_FOUND");
       } finally {
         await server.close();
       }

@@ -1,7 +1,8 @@
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
-  mkdtempSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -9,7 +10,6 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
@@ -553,10 +553,9 @@ describe("opencode bundle runtime manifest", () => {
         const skillPath = resolve(skillsRoot, skillName, skillFile);
 
         expectBundledPath(skillPath, resolve(skillsRoot, skillName), `${skillName}/${skillFile}`);
-        expect(
-          existsSync(skillPath),
-          `missing skill runtime file: ${skillName}/${skillFile}`,
-        ).toBe(true);
+        expect(existsSync(skillPath), `missing skill runtime file: ${skillName}/${skillFile}`).toBe(
+          true,
+        );
       }
     }
 
@@ -564,26 +563,23 @@ describe("opencode bundle runtime manifest", () => {
       const agentPath = resolve(bundleRoot, agentFile);
 
       expectBundledPath(agentPath, bundleRoot, agentFile);
-      expect(
-        existsSync(agentPath),
-        `missing runtime agent file: ${agentFile}`,
-      ).toBe(true);
+      expect(existsSync(agentPath), `missing runtime agent file: ${agentFile}`).toBe(true);
     }
 
     for (const pluginFile of runtimeManifest.plugin) {
       const pluginPath = resolve(bundleRoot, pluginFile);
 
       expectBundledPath(pluginPath, bundleRoot, pluginFile);
-      expect(
-        existsSync(pluginPath),
-        `missing runtime plugin file: ${pluginFile}`,
-      ).toBe(true);
+      expect(existsSync(pluginPath), `missing runtime plugin file: ${pluginFile}`).toBe(true);
     }
   });
 
   it("explicitly lists every upstream skill and top-level agent", () => {
     const runtimeManifest = JSON.parse(readFileSync(runtimeManifestPath, "utf-8"));
-    const sourceRoot = resolve(dirname(runtimeManifestPath), expandHome(runtimeManifest.sourceRoot));
+    const sourceRoot = resolve(
+      dirname(runtimeManifestPath),
+      expandHome(runtimeManifest.sourceRoot),
+    );
 
     expect(Object.keys(runtimeManifest.skills).sort()).toEqual(listSourceSkillNames(sourceRoot));
     expect([...runtimeManifest.agents].sort()).toEqual(listTopLevelAgentPaths(sourceRoot));

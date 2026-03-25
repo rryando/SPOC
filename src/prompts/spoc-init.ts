@@ -85,6 +85,6 @@ export function registerSpocInitPrompt(server: McpServer) {
           },
         },
       ],
-    })
+    }),
   );
 }

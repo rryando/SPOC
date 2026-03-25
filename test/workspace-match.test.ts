@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  normalizeWorkspacePath,
-  matchWorkspace,
   findBestMatch,
+  matchWorkspace,
+  normalizeWorkspacePath,
 } from "../src/utils/workspace-match.js";
 
 describe("normalizeWorkspacePath", () => {
@@ -94,9 +94,7 @@ describe("findBestMatch", () => {
   });
 
   it("returns match when same project has multiple paths at same depth", () => {
-    const multiPath = [
-      { slug: "mono", workspacePaths: ["/same/path", "/same/path"] },
-    ];
+    const multiPath = [{ slug: "mono", workspacePaths: ["/same/path", "/same/path"] }];
     const result = findBestMatch("/same/path/sub", multiPath);
     expect(result).toEqual({
       kind: "match",

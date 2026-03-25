@@ -1,5 +1,5 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
@@ -152,10 +152,7 @@ describe("sync_agents_md", () => {
           codebaseAnalysis: minimalAnalysis,
         });
 
-        const fileContent = readFileSync(
-          join(wsDir, "AGENTS.md"),
-          "utf-8"
-        );
+        const fileContent = readFileSync(join(wsDir, "AGENTS.md"), "utf-8");
 
         // Required sections present
         expect(fileContent).toContain("## Tech Stack");
@@ -191,10 +188,7 @@ describe("sync_agents_md", () => {
           codebaseAnalysis: minimalAnalysis,
         });
 
-        const fileContent = readFileSync(
-          join(wsDir, "AGENTS.md"),
-          "utf-8"
-        );
+        const fileContent = readFileSync(join(wsDir, "AGENTS.md"), "utf-8");
 
         // Preamble + analysis present
         expect(fileContent).toContain("# AGENTS.md — Empty Docs");
@@ -268,7 +262,7 @@ describe("sync_agents_md", () => {
           invokeJsonTool(server, "sync_agents_md", {
             slug: "no-paths",
             codebaseAnalysis: minimalAnalysis,
-          })
+          }),
         ).rejects.toThrow("NO_WORKSPACE_PATHS");
       } finally {
         await server.close();

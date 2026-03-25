@@ -1,23 +1,27 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { handleCli } from "./cli/index.js";
-import { registerInitProject } from "./tools/init-project.js";
-import { registerUpdateDoc } from "./tools/update-doc.js";
-import { registerUpdateStatus } from "./tools/update-status.js";
-import { registerManageDependency } from "./tools/manage-dependency.js";
-import { registerListProjects } from "./tools/list-projects.js";
-import { registerGetProject } from "./tools/get-project.js";
-import { registerProjectPlanTools } from "./tools/project-plans.js";
-import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
-import { registerUpdatePaths } from "./tools/update-paths.js";
-import { registerResolveContext } from "./tools/resolve-context.js";
-import { registerSyncAgentsMd } from "./tools/sync-agents-md.js";
+import { registerAllPrompts } from "./prompts/index.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
-import { registerAllPrompts } from "./prompts/index.js";
-import { ensureDataDir, getDataDir } from "./utils/paths.js";
+import { registerDeleteProject } from "./tools/delete-project.js";
+import { registerGetProject } from "./tools/get-project.js";
+import { registerInitProject } from "./tools/init-project.js";
+import { registerListProjects } from "./tools/list-projects.js";
+import { registerManageDependency } from "./tools/manage-dependency.js";
+import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
+import { registerProjectPlanTools } from "./tools/project-plans.js";
+import { registerProjectTaskTools } from "./tools/project-tasks.js";
+import { registerResolveContext } from "./tools/resolve-context.js";
+import { registerSyncAgentsMd } from "./tools/sync-agents-md.js";
+import { registerUpdateDoc } from "./tools/update-doc.js";
+import { registerUpdatePaths } from "./tools/update-paths.js";
+import { registerUpdateStatus } from "./tools/update-status.js";
+import { ensureDataDir, getDataDir, PACKAGE_ROOT } from "./utils/paths.js";
 
 // ---------------------------------------------------------------------------
 // CLI subcommand routing: `spoc init` / `spoc config`
@@ -43,9 +47,12 @@ async function run(): Promise<void> {
   }
 
   // Create MCP server
+  const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as {
+    version: string;
+  };
   const server = new McpServer({
     name: "spoc",
-    version: "1.0.0",
+    version: pkg.version,
   });
 
   // Register tools
@@ -57,9 +64,11 @@ async function run(): Promise<void> {
   registerGetProject(server);
   registerProjectPlanTools(server);
   registerProjectKnowledgeTools(server);
+  registerProjectTaskTools(server);
   registerUpdatePaths(server);
   registerResolveContext(server);
   registerSyncAgentsMd(server);
+  registerDeleteProject(server);
 
   // Register resources
   registerProjectResources(server);

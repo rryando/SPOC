@@ -1,17 +1,13 @@
-import { z } from "zod";
-import { writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { projectNotFound, invalidDocType, formatError } from "../utils/errors.js";
-import { getDataDir } from "../utils/paths.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { formatError, invalidDocType, projectNotFound } from "../utils/errors.js";
+import { getProjectDir } from "../utils/paths.js";
+import { PROJECT_DOC_FILES, type ProjectDocType } from "../utils/project-documents.js";
 
-const VALID_DOCS = ["overview", "tasks", "dependencies", "knowledge"] as const;
-const DOC_FILES: Record<string, string> = {
-  overview: "overview.md",
-  tasks: "tasks.md",
-  dependencies: "dependencies.md",
-  knowledge: "knowledge.md",
-};
+const VALID_DOCS = Object.keys(PROJECT_DOC_FILES) as [ProjectDocType, ...ProjectDocType[]];
 
 export const UpdateDocSchema = {
   slug: z.string().describe("Project slug"),
@@ -26,19 +22,19 @@ export function registerUpdateDoc(server: McpServer) {
     UpdateDocSchema,
     async (params) => {
       try {
-        const projectDir = resolve(getDataDir(), "projects", params.slug);
+        const projectDir = getProjectDir(params.slug);
 
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
         }
 
-        const fileName = DOC_FILES[params.doc];
+        const fileName = PROJECT_DOC_FILES[params.doc];
         if (!fileName) {
           return formatError(invalidDocType(params.doc));
         }
 
         const filePath = resolve(projectDir, fileName);
-        writeFileSync(filePath, params.content, "utf-8");
+        await writeFile(filePath, params.content, "utf-8");
 
         return {
           content: [
@@ -59,6 +55,6 @@ export function registerUpdateDoc(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

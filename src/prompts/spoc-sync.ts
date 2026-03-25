@@ -1,7 +1,9 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
-export const SYNC_PROMPT_TEXT = (project: string) => `You are a project documentation specialist syncing the SPOC DAG entry for **${project}** with the actual state of the codebase and team's work.
+export const SYNC_PROMPT_TEXT = (
+  project: string,
+) => `You are a project documentation specialist syncing the SPOC DAG entry for **${project}** with the actual state of the codebase and team's work.
 
 ## Your Mission
 Review the current summary docs and structured plan/knowledge indexes against reality, re-scan the codebase to identify gaps or stale information, and bring everything up to date. Leave the DAG as an accurate, trusted source of truth.
@@ -86,9 +88,7 @@ export function registerSpocSyncPrompt(server: McpServer) {
       argsSchema: {
         project: z
           .string()
-          .describe(
-            "The project slug to sync (e.g. my-project). Find slugs via list_projects."
-          ),
+          .describe("The project slug to sync (e.g. my-project). Find slugs via list_projects."),
       },
     },
     ({ project }) => ({
@@ -101,6 +101,6 @@ export function registerSpocSyncPrompt(server: McpServer) {
           },
         },
       ],
-    })
+    }),
   );
 }

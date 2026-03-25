@@ -1,10 +1,8 @@
-import { z } from "zod";
-import { writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { readRootMeta } from "../utils/dag.js";
-import { projectNotFound, formatError } from "../utils/errors.js";
-import { getDataDir } from "../utils/paths.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { readRootMeta, writeRootMeta } from "../utils/dag.js";
+import { formatError, projectNotFound } from "../utils/errors.js";
+import { getDataDir } from "../utils/paths.js";
 
 const VALID_STATUSES = ["draft", "active", "completed", "archived"] as const;
 
@@ -21,8 +19,7 @@ export function registerUpdateStatus(server: McpServer) {
     async (params) => {
       try {
         const dataDir = getDataDir();
-        const metaPath = resolve(dataDir, "meta.json");
-        const rootMeta = readRootMeta(dataDir);
+        const rootMeta = await readRootMeta(dataDir);
 
         const project = rootMeta.projects.find((p) => p.id === params.slug);
         if (!project) {
@@ -31,7 +28,7 @@ export function registerUpdateStatus(server: McpServer) {
 
         const oldStatus = project.status;
         project.status = params.status;
-        writeFileSync(metaPath, JSON.stringify(rootMeta, null, 2), "utf-8");
+        await writeRootMeta(dataDir, rootMeta);
 
         return {
           content: [
@@ -52,6 +49,6 @@ export function registerUpdateStatus(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

@@ -5,23 +5,21 @@
  * maintenance, and rebuild-on-read resilience.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
-import { join, relative } from "node:path";
-import { normalizeIdentifier } from "./slug.js";
+import { constants } from "node:fs";
+import { access, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   indexRebuildFailed,
   invalidKeyword,
   invalidKnowledgeKind,
   invalidPlanStatus,
-  normalizedIdCollision,
+  invalidTaskPriority,
+  invalidTaskStatus,
   itemNotFound,
+  normalizedIdCollision,
 } from "./errors.js";
+import { withLock } from "./file-lock.js";
+import { normalizeIdentifier } from "./slug.js";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -166,20 +164,29 @@ function sanitizeKeywords(raw: string[]): string[] {
 // Filesystem helpers
 // ---------------------------------------------------------------------------
 
-function ensureDir(dir: string): void {
-  mkdirSync(dir, { recursive: true });
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function readJsonSafe<T>(filePath: string): T | undefined {
+async function ensureDir(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true });
+}
+
+async function readJsonSafe<T>(filePath: string): Promise<T | undefined> {
   try {
-    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
+    return JSON.parse(await readFile(filePath, "utf-8")) as T;
   } catch {
     return undefined;
   }
 }
 
-function writeJson(filePath: string, data: unknown): void {
-  writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+async function writeJson(filePath: string, data: unknown): Promise<void> {
+  await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
 function nowISO(override?: string): string {
@@ -213,13 +220,13 @@ function buildBody(title: string, content?: string): string {
 /**
  * Rewrite the leading H1 in an existing body file.
  */
-function rewriteH1(filePath: string, newTitle: string): void {
-  const body = readFileSync(filePath, "utf-8");
+async function rewriteH1(filePath: string, newTitle: string): Promise<void> {
+  const body = await readFile(filePath, "utf-8");
   if (body.startsWith("# ")) {
     const rest = body.slice(body.indexOf("\n"));
-    writeFileSync(filePath, `# ${newTitle}${rest}`, "utf-8");
+    await writeFile(filePath, `# ${newTitle}${rest}`, "utf-8");
   } else {
-    writeFileSync(filePath, `# ${newTitle}\n\n${body}`, "utf-8");
+    await writeFile(filePath, `# ${newTitle}\n\n${body}`, "utf-8");
   }
 }
 
@@ -227,16 +234,14 @@ function rewriteH1(filePath: string, newTitle: string): void {
 // Index maintenance
 // ---------------------------------------------------------------------------
 
-function rebuildPlanIndex(plansDir: string): PlanIndex {
-  const files = readdirSync(plansDir).filter((f) => f.endsWith(".meta.json"));
+async function rebuildPlanIndex(plansDir: string): Promise<PlanIndex> {
+  const files = (await readdir(plansDir)).filter((f) => f.endsWith(".meta.json"));
   const plans: PlanMeta[] = [];
   const errors: string[] = [];
 
   for (const file of files) {
     try {
-      const meta = JSON.parse(
-        readFileSync(join(plansDir, file), "utf-8")
-      ) as PlanMeta;
+      const meta = JSON.parse(await readFile(join(plansDir, file), "utf-8")) as PlanMeta;
       plans.push(meta);
     } catch {
       errors.push(file);
@@ -248,22 +253,18 @@ function rebuildPlanIndex(plansDir: string): PlanIndex {
   }
 
   const index: PlanIndex = { plans };
-  writeJson(join(plansDir, "index.json"), index);
+  await writeJson(join(plansDir, "index.json"), index);
   return index;
 }
 
-function rebuildKnowledgeIndex(knowledgeDir: string): KnowledgeIndex {
-  const files = readdirSync(knowledgeDir).filter((f) =>
-    f.endsWith(".meta.json")
-  );
+async function rebuildKnowledgeIndex(knowledgeDir: string): Promise<KnowledgeIndex> {
+  const files = (await readdir(knowledgeDir)).filter((f) => f.endsWith(".meta.json"));
   const entries: KnowledgeMeta[] = [];
   const errors: string[] = [];
 
   for (const file of files) {
     try {
-      const meta = JSON.parse(
-        readFileSync(join(knowledgeDir, file), "utf-8")
-      ) as KnowledgeMeta;
+      const meta = JSON.parse(await readFile(join(knowledgeDir, file), "utf-8")) as KnowledgeMeta;
       entries.push(meta);
     } catch {
       errors.push(file);
@@ -271,14 +272,11 @@ function rebuildKnowledgeIndex(knowledgeDir: string): KnowledgeIndex {
   }
 
   if (errors.length > 0) {
-    throw indexRebuildFailed(
-      "knowledge",
-      `corrupt meta files: ${errors.join(", ")}`
-    );
+    throw indexRebuildFailed("knowledge", `corrupt meta files: ${errors.join(", ")}`);
   }
 
   const index: KnowledgeIndex = { entries };
-  writeJson(join(knowledgeDir, "index.json"), index);
+  await writeJson(join(knowledgeDir, "index.json"), index);
   return index;
 }
 
@@ -286,14 +284,14 @@ function rebuildKnowledgeIndex(knowledgeDir: string): KnowledgeIndex {
  * Detect staleness: compare index entries against the on-disk meta files.
  * Returns true if any meta file updatedAt differs from its index entry.
  */
-function isPlanIndexStale(plansDir: string, index: PlanIndex): boolean {
+async function isPlanIndexStale(plansDir: string, index: PlanIndex): Promise<boolean> {
   // Check for orphaned meta files not yet in the index
-  const metaFiles = readdirSync(plansDir).filter((f) => f.endsWith(".meta.json"));
+  const metaFiles = (await readdir(plansDir)).filter((f) => f.endsWith(".meta.json"));
   if (metaFiles.length !== index.plans.length) return true;
 
   for (const entry of index.plans) {
     const metaPath = join(plansDir, `${entry.normalizedId}.meta.json`);
-    const diskMeta = readJsonSafe<PlanMeta>(metaPath);
+    const diskMeta = await readJsonSafe<PlanMeta>(metaPath);
     if (!diskMeta || diskMeta.updatedAt !== entry.updatedAt) {
       return true;
     }
@@ -301,17 +299,17 @@ function isPlanIndexStale(plansDir: string, index: PlanIndex): boolean {
   return false;
 }
 
-function isKnowledgeIndexStale(
+async function isKnowledgeIndexStale(
   knowledgeDir: string,
-  index: KnowledgeIndex
-): boolean {
+  index: KnowledgeIndex,
+): Promise<boolean> {
   // Check for orphaned meta files not yet in the index
-  const metaFiles = readdirSync(knowledgeDir).filter((f) => f.endsWith(".meta.json"));
+  const metaFiles = (await readdir(knowledgeDir)).filter((f) => f.endsWith(".meta.json"));
   if (metaFiles.length !== index.entries.length) return true;
 
   for (const entry of index.entries) {
     const metaPath = join(knowledgeDir, `${entry.normalizedId}.meta.json`);
-    const diskMeta = readJsonSafe<KnowledgeMeta>(metaPath);
+    const diskMeta = await readJsonSafe<KnowledgeMeta>(metaPath);
     if (!diskMeta || diskMeta.updatedAt !== entry.updatedAt) {
       return true;
     }
@@ -323,32 +321,35 @@ function isKnowledgeIndexStale(
 // Index writers (sync index.json after individual create/update)
 // ---------------------------------------------------------------------------
 
-function writePlanIndex(plansDir: string, index: PlanIndex): void {
-  writeJson(join(plansDir, "index.json"), index);
+async function writePlanIndex(plansDir: string, index: PlanIndex): Promise<void> {
+  const indexPath = join(plansDir, "index.json");
+  await withLock(indexPath, async () => {
+    await writeJson(indexPath, index);
+  });
 }
 
-function writeKnowledgeIndex(
-  knowledgeDir: string,
-  index: KnowledgeIndex
-): void {
-  writeJson(join(knowledgeDir, "index.json"), index);
+async function writeKnowledgeIndex(knowledgeDir: string, index: KnowledgeIndex): Promise<void> {
+  const indexPath = join(knowledgeDir, "index.json");
+  await withLock(indexPath, async () => {
+    await writeJson(indexPath, index);
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Public API — Plans
 // ---------------------------------------------------------------------------
 
-export function createPlan(projectDir: string, input: CreatePlanInput): PlanMeta {
+export async function createPlan(projectDir: string, input: CreatePlanInput): Promise<PlanMeta> {
   validatePlanStatus(input.status);
   const keywords = sanitizeKeywords(input.keywords);
   const normalizedId = normalizeIdentifier(input.id);
 
   const plansDir = join(projectDir, "plans");
-  ensureDir(plansDir);
+  await ensureDir(plansDir);
 
   // Check collision
   const metaPath = join(plansDir, `${normalizedId}.meta.json`);
-  if (existsSync(metaPath)) {
+  if (await fileExists(metaPath)) {
     throw normalizedIdCollision("plan", input.id, normalizedId);
   }
 
@@ -368,24 +369,20 @@ export function createPlan(projectDir: string, input: CreatePlanInput): PlanMeta
   };
 
   // Write meta + body
-  writeJson(metaPath, meta);
-  writeFileSync(
-    join(projectDir, bodyFile),
-    buildBody(input.title, input.content),
-    "utf-8"
-  );
+  await writeJson(metaPath, meta);
+  await writeFile(join(projectDir, bodyFile), buildBody(input.title, input.content), "utf-8");
 
   // Update index
-  const index = readJsonSafe<PlanIndex>(join(plansDir, "index.json")) ?? {
+  const index = (await readJsonSafe<PlanIndex>(join(plansDir, "index.json"))) ?? {
     plans: [],
   };
   index.plans.push(meta);
-  writePlanIndex(plansDir, index);
+  await writePlanIndex(plansDir, index);
 
   return meta;
 }
 
-export function updatePlan(projectDir: string, input: UpdatePlanInput): PlanMeta {
+export async function updatePlan(projectDir: string, input: UpdatePlanInput): Promise<PlanMeta> {
   if (input.status !== undefined) {
     validatePlanStatus(input.status);
   }
@@ -394,7 +391,7 @@ export function updatePlan(projectDir: string, input: UpdatePlanInput): PlanMeta
   const plansDir = join(projectDir, "plans");
   const metaPath = join(plansDir, `${normalizedId}.meta.json`);
 
-  const meta = readJsonSafe<PlanMeta>(metaPath);
+  const meta = await readJsonSafe<PlanMeta>(metaPath);
   if (!meta) {
     throw itemNotFound("plan", input.id);
   }
@@ -404,17 +401,17 @@ export function updatePlan(projectDir: string, input: UpdatePlanInput): PlanMeta
   if (input.status !== undefined) meta.status = input.status;
   if (input.title !== undefined && input.title !== meta.title) {
     const bodyPath = join(projectDir, meta.file);
-    rewriteH1(bodyPath, input.title);
+    await rewriteH1(bodyPath, input.title);
     meta.title = input.title;
   }
   if (input.summary !== undefined) meta.summary = input.summary;
   if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
   meta.updatedAt = ts;
 
-  writeJson(metaPath, meta);
+  await writeJson(metaPath, meta);
 
   // Sync index
-  const index = readJsonSafe<PlanIndex>(join(plansDir, "index.json")) ?? {
+  const index = (await readJsonSafe<PlanIndex>(join(plansDir, "index.json"))) ?? {
     plans: [],
   };
   const idx = index.plans.findIndex((p) => p.normalizedId === normalizedId);
@@ -423,20 +420,43 @@ export function updatePlan(projectDir: string, input: UpdatePlanInput): PlanMeta
   } else {
     index.plans.push(meta);
   }
-  writePlanIndex(plansDir, index);
+  await writePlanIndex(plansDir, index);
 
   return meta;
 }
 
-export function readPlanIndex(projectDir: string): PlanIndex {
+export async function deletePlan(projectDir: string, id: string): Promise<void> {
+  const normalizedId = normalizeIdentifier(id);
+  const plansDir = join(projectDir, "plans");
+  const metaPath = join(plansDir, `${normalizedId}.meta.json`);
+
+  const meta = await readJsonSafe<PlanMeta>(metaPath);
+  if (!meta) {
+    throw itemNotFound("plan", id);
+  }
+
+  // Delete meta and body files
+  const bodyPath = join(projectDir, meta.file);
+  await unlink(metaPath);
+  if (await fileExists(bodyPath)) {
+    await unlink(bodyPath);
+  }
+
+  // Update index
+  const index = (await readJsonSafe<PlanIndex>(join(plansDir, "index.json"))) ?? { plans: [] };
+  index.plans = index.plans.filter((p) => p.normalizedId !== normalizedId);
+  await writePlanIndex(plansDir, index);
+}
+
+export async function readPlanIndex(projectDir: string): Promise<PlanIndex> {
   const plansDir = join(projectDir, "plans");
 
-  if (!existsSync(plansDir)) {
+  if (!(await fileExists(plansDir))) {
     return { plans: [] };
   }
 
   const indexPath = join(plansDir, "index.json");
-  const index = readJsonSafe<PlanIndex>(indexPath);
+  const index = await readJsonSafe<PlanIndex>(indexPath);
 
   // Missing or corrupted → rebuild
   if (!index || !Array.isArray(index.plans)) {
@@ -444,7 +464,7 @@ export function readPlanIndex(projectDir: string): PlanIndex {
   }
 
   // Stale → rebuild
-  if (isPlanIndexStale(plansDir, index)) {
+  if (await isPlanIndexStale(plansDir, index)) {
     return rebuildPlanIndex(plansDir);
   }
 
@@ -455,20 +475,20 @@ export function readPlanIndex(projectDir: string): PlanIndex {
 // Public API — Knowledge
 // ---------------------------------------------------------------------------
 
-export function createKnowledgeEntry(
+export async function createKnowledgeEntry(
   projectDir: string,
-  input: CreateKnowledgeInput
-): KnowledgeMeta {
+  input: CreateKnowledgeInput,
+): Promise<KnowledgeMeta> {
   validateKnowledgeKind(input.kind);
   const keywords = sanitizeKeywords(input.keywords);
   const normalizedId = normalizeIdentifier(input.id);
 
   const knowledgeDir = join(projectDir, "knowledge");
-  ensureDir(knowledgeDir);
+  await ensureDir(knowledgeDir);
 
   // Check collision
   const metaPath = join(knowledgeDir, `${normalizedId}.meta.json`);
-  if (existsSync(metaPath)) {
+  if (await fileExists(metaPath)) {
     throw normalizedIdCollision("knowledge entry", input.id, normalizedId);
   }
 
@@ -487,27 +507,23 @@ export function createKnowledgeEntry(
     updatedAt: ts,
   };
 
-  writeJson(metaPath, meta);
-  writeFileSync(
-    join(projectDir, bodyFile),
-    buildBody(input.title, input.content),
-    "utf-8"
-  );
+  await writeJson(metaPath, meta);
+  await writeFile(join(projectDir, bodyFile), buildBody(input.title, input.content), "utf-8");
 
   // Update index
-  const index = readJsonSafe<KnowledgeIndex>(
-    join(knowledgeDir, "index.json")
-  ) ?? { entries: [] };
+  const index = (await readJsonSafe<KnowledgeIndex>(join(knowledgeDir, "index.json"))) ?? {
+    entries: [],
+  };
   index.entries.push(meta);
-  writeKnowledgeIndex(knowledgeDir, index);
+  await writeKnowledgeIndex(knowledgeDir, index);
 
   return meta;
 }
 
-export function updateKnowledgeEntry(
+export async function updateKnowledgeEntry(
   projectDir: string,
-  input: UpdateKnowledgeInput
-): KnowledgeMeta {
+  input: UpdateKnowledgeInput,
+): Promise<KnowledgeMeta> {
   if (input.kind !== undefined) {
     validateKnowledgeKind(input.kind);
   }
@@ -516,7 +532,7 @@ export function updateKnowledgeEntry(
   const knowledgeDir = join(projectDir, "knowledge");
   const metaPath = join(knowledgeDir, `${normalizedId}.meta.json`);
 
-  const meta = readJsonSafe<KnowledgeMeta>(metaPath);
+  const meta = await readJsonSafe<KnowledgeMeta>(metaPath);
   if (!meta) {
     throw itemNotFound("knowledge entry", input.id);
   }
@@ -524,49 +540,306 @@ export function updateKnowledgeEntry(
   if (input.kind !== undefined) meta.kind = input.kind;
   if (input.title !== undefined && input.title !== meta.title) {
     const bodyPath = join(projectDir, meta.file);
-    rewriteH1(bodyPath, input.title);
+    await rewriteH1(bodyPath, input.title);
     meta.title = input.title;
   }
   if (input.summary !== undefined) meta.summary = input.summary;
   if (input.keywords !== undefined) meta.keywords = sanitizeKeywords(input.keywords);
   meta.updatedAt = nowISO(input.now);
 
-  writeJson(metaPath, meta);
+  await writeJson(metaPath, meta);
 
   // Sync index
-  const index = readJsonSafe<KnowledgeIndex>(
-    join(knowledgeDir, "index.json")
-  ) ?? { entries: [] };
-  const idx = index.entries.findIndex(
-    (e) => e.normalizedId === normalizedId
-  );
+  const index = (await readJsonSafe<KnowledgeIndex>(join(knowledgeDir, "index.json"))) ?? {
+    entries: [],
+  };
+  const idx = index.entries.findIndex((e) => e.normalizedId === normalizedId);
   if (idx >= 0) {
     index.entries[idx] = meta;
   } else {
     index.entries.push(meta);
   }
-  writeKnowledgeIndex(knowledgeDir, index);
+  await writeKnowledgeIndex(knowledgeDir, index);
 
   return meta;
 }
 
-export function readKnowledgeIndex(projectDir: string): KnowledgeIndex {
+export async function deleteKnowledgeEntry(projectDir: string, id: string): Promise<void> {
+  const normalizedId = normalizeIdentifier(id);
+  const knowledgeDir = join(projectDir, "knowledge");
+  const metaPath = join(knowledgeDir, `${normalizedId}.meta.json`);
+
+  const meta = await readJsonSafe<KnowledgeMeta>(metaPath);
+  if (!meta) {
+    throw itemNotFound("knowledge entry", id);
+  }
+
+  const bodyPath = join(projectDir, meta.file);
+  await unlink(metaPath);
+  if (await fileExists(bodyPath)) {
+    await unlink(bodyPath);
+  }
+
+  const index = (await readJsonSafe<KnowledgeIndex>(join(knowledgeDir, "index.json"))) ?? {
+    entries: [],
+  };
+  index.entries = index.entries.filter((e) => e.normalizedId !== normalizedId);
+  await writeKnowledgeIndex(knowledgeDir, index);
+}
+
+export async function readKnowledgeIndex(projectDir: string): Promise<KnowledgeIndex> {
   const knowledgeDir = join(projectDir, "knowledge");
 
-  if (!existsSync(knowledgeDir)) {
+  if (!(await fileExists(knowledgeDir))) {
     return { entries: [] };
   }
 
   const indexPath = join(knowledgeDir, "index.json");
-  const index = readJsonSafe<KnowledgeIndex>(indexPath);
+  const index = await readJsonSafe<KnowledgeIndex>(indexPath);
 
   if (!index || !Array.isArray(index.entries)) {
     return rebuildKnowledgeIndex(knowledgeDir);
   }
 
-  if (isKnowledgeIndexStale(knowledgeDir, index)) {
+  if (await isKnowledgeIndexStale(knowledgeDir, index)) {
     return rebuildKnowledgeIndex(knowledgeDir);
   }
 
   return index;
+}
+
+// ---------------------------------------------------------------------------
+// Enums — Tasks
+// ---------------------------------------------------------------------------
+
+export const TASK_STATUSES = ["backlog", "in_progress", "done", "cancelled"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_PRIORITIES = ["high", "medium", "low"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+// ---------------------------------------------------------------------------
+// Meta types — Tasks
+// ---------------------------------------------------------------------------
+
+export interface TaskMeta {
+  id: string;
+  normalizedId: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TaskIndex {
+  tasks: TaskMeta[];
+}
+
+// ---------------------------------------------------------------------------
+// Input types — Tasks
+// ---------------------------------------------------------------------------
+
+export interface CreateTaskInput {
+  title: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  now?: string;
+}
+
+export interface UpdateTaskInput {
+  id: string;
+  title?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  now?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Validation helpers — Tasks
+// ---------------------------------------------------------------------------
+
+function validateTaskStatus(status: string): asserts status is TaskStatus {
+  if (!(TASK_STATUSES as readonly string[]).includes(status)) {
+    throw invalidTaskStatus(status);
+  }
+}
+
+function validateTaskPriority(priority: string): asserts priority is TaskPriority {
+  if (!(TASK_PRIORITIES as readonly string[]).includes(priority)) {
+    throw invalidTaskPriority(priority);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Task index helpers
+// ---------------------------------------------------------------------------
+
+async function readTaskIndex(projectDir: string): Promise<TaskIndex> {
+  const tasksDir = join(projectDir, "tasks");
+  if (!(await fileExists(tasksDir))) {
+    return { tasks: [] };
+  }
+  const indexPath = join(tasksDir, "index.json");
+  const index = await readJsonSafe<TaskIndex>(indexPath);
+  if (!index || !Array.isArray(index.tasks)) {
+    return { tasks: [] };
+  }
+  return index;
+}
+
+async function writeTaskIndex(projectDir: string, index: TaskIndex): Promise<void> {
+  const tasksDir = join(projectDir, "tasks");
+  await ensureDir(tasksDir);
+  const indexPath = join(tasksDir, "index.json");
+  await withLock(indexPath, async () => {
+    await writeJson(indexPath, index);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Render — Tasks
+// ---------------------------------------------------------------------------
+
+const PRIORITY_ORDER: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
+
+function sortByPriority(tasks: TaskMeta[]): TaskMeta[] {
+  return [...tasks].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+}
+
+export async function renderTasksMd(projectDir: string, index: TaskIndex): Promise<void> {
+  const metaPath = join(projectDir, "meta.json");
+  const meta = await readJsonSafe<{ name?: string }>(metaPath);
+  const name = meta?.name ?? "Unknown";
+
+  const sections: string[] = [`# Tasks — ${name}\n`];
+
+  const statusConfig: Array<{
+    status: TaskStatus;
+    heading: string;
+    marker: string;
+    showPriority: boolean;
+  }> = [
+    { status: "in_progress", heading: "In Progress", marker: "[/]", showPriority: true },
+    { status: "backlog", heading: "Backlog", marker: "[ ]", showPriority: true },
+    { status: "done", heading: "Done", marker: "[x]", showPriority: false },
+    { status: "cancelled", heading: "Cancelled", marker: "[~]", showPriority: false },
+  ];
+
+  for (const { status, heading, marker, showPriority } of statusConfig) {
+    const tasks = sortByPriority(index.tasks.filter((t) => t.status === status));
+    if (tasks.length === 0) continue;
+
+    sections.push(`## ${heading}`);
+    for (const task of tasks) {
+      const priorityTag = showPriority ? ` **[${task.priority}]**` : "";
+      sections.push(`- ${marker}${priorityTag} ${task.title}`);
+    }
+    sections.push("");
+  }
+
+  await writeFile(join(projectDir, "tasks.md"), sections.join("\n"), "utf-8");
+}
+
+// ---------------------------------------------------------------------------
+// Public API — Tasks
+// ---------------------------------------------------------------------------
+
+export async function createTask(projectDir: string, input: CreateTaskInput): Promise<TaskMeta> {
+  const status = input.status ?? "backlog";
+  const priority = input.priority ?? "medium";
+  validateTaskStatus(status);
+  validateTaskPriority(priority);
+
+  const normalizedId = normalizeIdentifier(input.title);
+  const index = await readTaskIndex(projectDir);
+
+  // Check collision
+  if (index.tasks.some((t) => t.normalizedId === normalizedId)) {
+    throw normalizedIdCollision("task", input.title, normalizedId);
+  }
+
+  const ts = nowISO(input.now);
+
+  const meta: TaskMeta = {
+    id: normalizedId,
+    normalizedId,
+    title: input.title,
+    status,
+    priority,
+    createdAt: ts,
+    updatedAt: ts,
+  };
+
+  index.tasks.push(meta);
+  await writeTaskIndex(projectDir, index);
+  await renderTasksMd(projectDir, index);
+
+  return meta;
+}
+
+export async function listTasks(
+  projectDir: string,
+  filters?: { status?: TaskStatus; priority?: TaskPriority },
+): Promise<TaskMeta[]> {
+  const index = await readTaskIndex(projectDir);
+  let tasks = index.tasks;
+
+  if (filters?.status) {
+    tasks = tasks.filter((t) => t.status === filters.status);
+  }
+  if (filters?.priority) {
+    tasks = tasks.filter((t) => t.priority === filters.priority);
+  }
+
+  return tasks;
+}
+
+export async function getTask(projectDir: string, taskId: string): Promise<TaskMeta> {
+  const normalizedId = normalizeIdentifier(taskId);
+  const index = await readTaskIndex(projectDir);
+  const task = index.tasks.find((t) => t.normalizedId === normalizedId);
+  if (!task) {
+    throw itemNotFound("task", taskId);
+  }
+  return task;
+}
+
+export async function updateTask(projectDir: string, input: UpdateTaskInput): Promise<TaskMeta> {
+  if (input.status !== undefined) {
+    validateTaskStatus(input.status);
+  }
+  if (input.priority !== undefined) {
+    validateTaskPriority(input.priority);
+  }
+
+  const normalizedId = normalizeIdentifier(input.id);
+  const index = await readTaskIndex(projectDir);
+  const task = index.tasks.find((t) => t.normalizedId === normalizedId);
+  if (!task) {
+    throw itemNotFound("task", input.id);
+  }
+
+  if (input.title !== undefined) task.title = input.title;
+  if (input.status !== undefined) task.status = input.status;
+  if (input.priority !== undefined) task.priority = input.priority;
+  task.updatedAt = nowISO(input.now);
+
+  await writeTaskIndex(projectDir, index);
+  await renderTasksMd(projectDir, index);
+
+  return task;
+}
+
+export async function deleteTask(projectDir: string, taskId: string): Promise<void> {
+  const normalizedId = normalizeIdentifier(taskId);
+  const index = await readTaskIndex(projectDir);
+  const task = index.tasks.find((t) => t.normalizedId === normalizedId);
+  if (!task) {
+    throw itemNotFound("task", taskId);
+  }
+
+  index.tasks = index.tasks.filter((t) => t.normalizedId !== normalizedId);
+  await writeTaskIndex(projectDir, index);
+  await renderTasksMd(projectDir, index);
 }

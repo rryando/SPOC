@@ -1,27 +1,18 @@
+import { existsSync } from "node:fs";
+import { lstat, readFile, symlink, unlink, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  readFileSync,
-  writeFileSync,
-  existsSync,
-  symlinkSync,
-  unlinkSync,
-  lstatSync,
-} from "node:fs";
-import { resolve, join } from "node:path";
-import { getDataDir } from "../utils/paths.js";
-import { readRootMeta } from "../utils/dag.js";
-import { readPlanIndex } from "../utils/project-memory.js";
-import {
-  extractOverviewContent,
-  extractInProgressTasks,
   extractDependenciesContent,
+  extractInProgressTasks,
+  extractOverviewContent,
 } from "../utils/content-assembly.js";
-import {
-  projectNotFound,
-  noWorkspacePaths,
-  formatError,
-} from "../utils/errors.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readRootMeta } from "../utils/dag.js";
+import { formatError, noWorkspacePaths, projectNotFound } from "../utils/errors.js";
+import { getDataDir, getProjectDir } from "../utils/paths.js";
+import type { ProjectMeta } from "../utils/project-documents.js";
+import { readPlanIndex } from "../utils/project-memory.js";
 
 // ---------------------------------------------------------------------------
 // Static preamble
@@ -144,13 +135,13 @@ function buildAnalysisSections(analysis: CodebaseAnalysis): string {
 // Project context assembly
 // ---------------------------------------------------------------------------
 
-function buildProjectContext(projectDir: string): string {
+async function buildProjectContext(projectDir: string): Promise<string> {
   const sections: string[] = [];
 
   // Overview
   const overviewPath = resolve(projectDir, "overview.md");
   if (existsSync(overviewPath)) {
-    const overviewRaw = readFileSync(overviewPath, "utf-8");
+    const overviewRaw = await readFile(overviewPath, "utf-8");
     const overviewContent = extractOverviewContent(overviewRaw);
     if (overviewContent) {
       sections.push(`\n## Project Overview\n\n${overviewContent}`);
@@ -160,7 +151,7 @@ function buildProjectContext(projectDir: string): string {
   // Current Focus (in-progress tasks)
   const tasksPath = resolve(projectDir, "tasks.md");
   if (existsSync(tasksPath)) {
-    const tasksRaw = readFileSync(tasksPath, "utf-8");
+    const tasksRaw = await readFile(tasksPath, "utf-8");
     const inProgress = extractInProgressTasks(tasksRaw);
     if (inProgress.length > 0) {
       sections.push(`\n## Current Focus\n\n${inProgress.join("\n")}`);
@@ -170,7 +161,7 @@ function buildProjectContext(projectDir: string): string {
   // Dependencies
   const depsPath = resolve(projectDir, "dependencies.md");
   if (existsSync(depsPath)) {
-    const depsRaw = readFileSync(depsPath, "utf-8");
+    const depsRaw = await readFile(depsPath, "utf-8");
     const depsContent = extractDependenciesContent(depsRaw);
     if (depsContent) {
       sections.push(`\n## Dependencies\n\n${depsContent}`);
@@ -178,9 +169,9 @@ function buildProjectContext(projectDir: string): string {
   }
 
   // Active Plans
-  const planIndex = readPlanIndex(projectDir);
+  const planIndex = await readPlanIndex(projectDir);
   const activePlans = planIndex.plans.filter(
-    (p) => p.status === "in_progress" || p.status === "planned"
+    (p) => p.status === "in_progress" || p.status === "planned",
   );
   if (activePlans.length > 0) {
     const bullets = activePlans
@@ -207,24 +198,12 @@ export function registerSyncAgentsMd(server: McpServer) {
       slug: z.string().describe("Project slug"),
       codebaseAnalysis: z
         .object({
-          directoryStructure: z
-            .string()
-            .describe("How the project organizes directories/modules"),
-          fileNaming: z
-            .string()
-            .describe("File naming conventions observed"),
+          directoryStructure: z.string().describe("How the project organizes directories/modules"),
+          fileNaming: z.string().describe("File naming conventions observed"),
           codePatterns: z.string().describe("Recurring code patterns"),
-          techStack: z
-            .string()
-            .describe("Languages, frameworks, key dependencies"),
-          testingPatterns: z
-            .string()
-            .optional()
-            .describe("How tests are organized and written"),
-          additionalNotes: z
-            .string()
-            .optional()
-            .describe("Anything else relevant"),
+          techStack: z.string().describe("Languages, frameworks, key dependencies"),
+          testingPatterns: z.string().optional().describe("How tests are organized and written"),
+          additionalNotes: z.string().optional().describe("Anything else relevant"),
         })
         .describe("LLM-provided analysis of the project codebase"),
       dryRun: z
@@ -236,28 +215,21 @@ export function registerSyncAgentsMd(server: McpServer) {
     async (params) => {
       try {
         const dataDir = getDataDir();
-        const rootMeta = readRootMeta(dataDir);
+        const rootMeta = await readRootMeta(dataDir);
 
         // Verify project exists
-        const projectNode = rootMeta.projects.find(
-          (p) => p.id === params.slug
-        );
+        const projectNode = rootMeta.projects.find((p) => p.id === params.slug);
         if (!projectNode) {
           return formatError(projectNotFound(params.slug));
         }
 
         // Read project meta
-        const projectDir = resolve(dataDir, "projects", params.slug);
+        const projectDir = getProjectDir(params.slug);
         const metaPath = resolve(projectDir, "meta.json");
-        const meta = JSON.parse(readFileSync(metaPath, "utf-8")) as Record<
-          string,
-          unknown
-        >;
+        const meta = JSON.parse(await readFile(metaPath, "utf-8")) as ProjectMeta;
 
-        const name = (meta.name as string) ?? params.slug;
-        const workspacePaths = Array.isArray(meta.workspacePaths)
-          ? (meta.workspacePaths as string[])
-          : [];
+        const name = meta.name ?? params.slug;
+        const workspacePaths = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
 
         if (workspacePaths.length === 0) {
           return formatError(noWorkspacePaths(params.slug));
@@ -269,13 +241,13 @@ export function registerSyncAgentsMd(server: McpServer) {
         parts.push("\n\n---");
         parts.push(buildAnalysisSections(params.codebaseAnalysis));
 
-        const projectContext = buildProjectContext(projectDir);
+        const projectContext = await buildProjectContext(projectDir);
         if (projectContext) {
           parts.push("\n\n---");
           parts.push(projectContext);
         }
 
-        const content = parts.join("") + "\n";
+        const content = `${parts.join("")}\n`;
 
         // Write source file to SPOC data dir and create symlinks
         const sourcePath = resolve(projectDir, "AGENTS.md");
@@ -284,14 +256,12 @@ export function registerSyncAgentsMd(server: McpServer) {
 
         if (!params.dryRun) {
           // Write source of truth to SPOC data dir
-          writeFileSync(sourcePath, content, "utf-8");
+          await writeFile(sourcePath, content, "utf-8");
 
           // Create symlinks from each workspace path
           for (const wsPath of workspacePaths) {
             if (!existsSync(wsPath)) {
-              warnings.push(
-                `Warning: workspace path "${wsPath}" does not exist, skipped.`
-              );
+              warnings.push(`Warning: workspace path "${wsPath}" does not exist, skipped.`);
               continue;
             }
 
@@ -299,13 +269,13 @@ export function registerSyncAgentsMd(server: McpServer) {
 
             // Remove existing file or symlink at the target
             try {
-              lstatSync(linkPath);
-              unlinkSync(linkPath);
+              await lstat(linkPath);
+              await unlink(linkPath);
             } catch {
               // Does not exist — nothing to remove
             }
 
-            symlinkSync(sourcePath, linkPath);
+            await symlink(sourcePath, linkPath);
             symlinked.push(linkPath);
           }
         }
@@ -317,19 +287,19 @@ export function registerSyncAgentsMd(server: McpServer) {
           responseParts.push("**Dry run** — content generated but not written.\n");
         } else if (symlinked.length > 0) {
           responseParts.push(
-            `✅ AGENTS.md written to \`${sourcePath}\`\nsymlink created at ${symlinked.length} path(s):\n${symlinked.map((p) => `- ${p}`).join("\n")}\n`
+            `✅ AGENTS.md written to \`${sourcePath}\`\nsymlink created at ${symlinked.length} path(s):\n${symlinked.map((p) => `- ${p}`).join("\n")}\n`,
           );
         } else {
           responseParts.push(
-            `⚠️ AGENTS.md written to \`${sourcePath}\` but no symlinks created — all workspace paths are non-existent.\n`
+            `⚠️ AGENTS.md written to \`${sourcePath}\` but no symlinks created — all workspace paths are non-existent.\n`,
           );
         }
 
         if (warnings.length > 0) {
-          responseParts.push(warnings.join("\n") + "\n");
+          responseParts.push(`${warnings.join("\n")}\n`);
         }
 
-        responseParts.push("\n---\n\n" + content);
+        responseParts.push(`\n---\n\n${content}`);
 
         return {
           content: [
@@ -350,6 +320,6 @@ export function registerSyncAgentsMd(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

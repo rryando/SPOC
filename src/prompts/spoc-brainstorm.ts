@@ -1,7 +1,9 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
-export const BRAINSTORM_PROMPT_TEXT = (project: string) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the SPOC DAG.
+export const BRAINSTORM_PROMPT_TEXT = (
+  project: string,
+) => `You are a senior engineering advisor helping brainstorm and plan work for the project **${project}** tracked in the SPOC DAG.
 
 ## Your Mission
 Help the user think through tasks, architecture decisions, dependencies, and next steps for this project. Update the project's documents with any conclusions reached.
@@ -52,7 +54,7 @@ export function registerSpocBrainstormPrompt(server: McpServer) {
         project: z
           .string()
           .describe(
-            "The project slug to brainstorm (e.g. my-project). Find slugs via list_projects."
+            "The project slug to brainstorm (e.g. my-project). Find slugs via list_projects.",
           ),
       },
     },
@@ -66,6 +68,6 @@ export function registerSpocBrainstormPrompt(server: McpServer) {
           },
         },
       ],
-    })
+    }),
   );
 }

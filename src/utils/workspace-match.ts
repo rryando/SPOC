@@ -17,7 +17,7 @@ export function normalizeWorkspacePath(p: string): string {
 export function matchWorkspace(queryPath: string, storedPath: string): boolean {
   const q = normalizeWorkspacePath(queryPath);
   const s = normalizeWorkspacePath(storedPath);
-  return q === s || q.startsWith(s + "/");
+  return q === s || q.startsWith(`${s}/`);
 }
 
 export interface WorkspaceProject {
@@ -37,10 +37,7 @@ export type FindMatchResult =
  * Returns { kind: "none" } if no match, { kind: "ambiguous", slugs } if multiple
  * projects match at the same prefix length.
  */
-export function findBestMatch(
-  queryPath: string,
-  projects: WorkspaceProject[]
-): FindMatchResult {
+export function findBestMatch(queryPath: string, projects: WorkspaceProject[]): FindMatchResult {
   let bestLength = -1;
   let bestSlug: string | null = null;
   let bestPath: string | null = null;

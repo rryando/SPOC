@@ -1,16 +1,16 @@
-import { readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { withTempDataDir } from "./helpers/temp-data-dir.js";
-import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
-import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
-import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
-import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
 import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
 import { defaultConfig } from "../src/cli/config.js";
 import { SPOC_AGENT_ENTRY } from "../src/cli/instructions.js";
+import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
+import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
+import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
+import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
+import { withTempDataDir } from "./helpers/temp-data-dir.js";
+import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
 
 describe("project-plans tools", () => {
   it("full plan lifecycle: create, list, get, update meta, update body", async () => {
@@ -36,7 +36,7 @@ describe("project-plans tools", () => {
         // createResult is the raw MCP result with content array
         // Parse the JSON from the text content
         const created = JSON.parse(
-          (createResult as any).content.find((c: any) => c.type === "text").text
+          (createResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(created.meta.id).toBe("reduce-token-cost");
         expect(created.meta.status).toBe("planned");
@@ -50,7 +50,7 @@ describe("project-plans tools", () => {
           keywords: ["templates", "missing"],
         });
         const listed = JSON.parse(
-          (listResult as any).content.find((c: any) => c.type === "text").text
+          (listResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(listed.plans).toHaveLength(1);
         expect(listed.plans[0].status).toBe("planned");
@@ -61,7 +61,7 @@ describe("project-plans tools", () => {
           planId: "reduce-token-cost",
         });
         const gotMeta = JSON.parse(
-          (getMetaResult as any).content.find((c: any) => c.type === "text").text
+          (getMetaResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(gotMeta.meta.id).toBe("reduce-token-cost");
         expect(gotMeta.body).toBeUndefined();
@@ -73,7 +73,7 @@ describe("project-plans tools", () => {
           includeBody: true,
         });
         const gotFull = JSON.parse(
-          (getFullResult as any).content.find((c: any) => c.type === "text").text
+          (getFullResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(gotFull.meta.id).toBe("reduce-token-cost");
         expect(gotFull.body).toContain("# Reduce token cost");
@@ -88,7 +88,7 @@ describe("project-plans tools", () => {
           keywords: ["templates", "token-efficiency"],
         });
         const updatedMeta = JSON.parse(
-          (updateMetaResult as any).content.find((c: any) => c.type === "text").text
+          (updateMetaResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(updatedMeta.meta.title).toBe("Reduce template token cost");
         expect(updatedMeta.meta.summary).toBe("Updated summary");
@@ -102,14 +102,17 @@ describe("project-plans tools", () => {
           body: "# Reduce template token cost\n\nUpdated body",
         });
         const updatedBody = JSON.parse(
-          (updateBodyResult as any).content.find((c: any) => c.type === "text").text
+          (updateBodyResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(updatedBody.meta.id).toBe("reduce-token-cost");
         expect(updatedBody.body).toContain("Updated body");
 
         // Verify the body file was actually updated on disk
         const projectDir = resolve(dataDir, "projects", "my-project");
-        const bodyOnDisk = readFileSync(resolve(projectDir, "plans", "reduce-token-cost.md"), "utf-8");
+        const bodyOnDisk = readFileSync(
+          resolve(projectDir, "plans", "reduce-token-cost.md"),
+          "utf-8",
+        );
         expect(bodyOnDisk).toContain("Updated body");
       } finally {
         await server.close();
@@ -118,7 +121,7 @@ describe("project-plans tools", () => {
   });
 
   it("returns empty list for legacy projects with no plans directory", async () => {
-    await withTempDataDir(async (dataDir) => {
+    await withTempDataDir(async (_dataDir) => {
       const server = createTestServer();
       try {
         // Create project, then we just list (plans dir exists but is empty)
@@ -130,7 +133,7 @@ describe("project-plans tools", () => {
           slug: "legacy-project",
         });
         const listed = JSON.parse(
-          (listResult as any).content.find((c: any) => c.type === "text").text
+          (listResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(listed).toEqual({ plans: [] });
       } finally {
@@ -185,7 +188,7 @@ describe("project-plans tools", () => {
           slug: "my-project",
         });
         const listed = JSON.parse(
-          (listResult as any).content.find((c: any) => c.type === "text").text
+          (listResult as any).content.find((c: any) => c.type === "text").text,
         );
         expect(listed.plans[0]?.id).toBe("reduce-token-cost");
 
@@ -195,10 +198,72 @@ describe("project-plans tools", () => {
           planId: "reduce-token-cost",
           includeBody: true,
         });
-        const got = JSON.parse(
-          (getResult as any).content.find((c: any) => c.type === "text").text
-        );
+        const got = JSON.parse((getResult as any).content.find((c: any) => c.type === "text").text);
         expect(got.body).toContain("# Reduce token cost");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("delete_project_plan removes meta, body, and index entry", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "My Project",
+          description: "Test project",
+        });
+
+        // Create a plan
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "my-project",
+          title: "Plan to delete",
+          status: "proposed",
+          planId: "plan-to-delete",
+          keywords: ["cleanup"],
+          body: "# Plan to delete\n\nSome content.",
+        });
+
+        const projectDir = resolve(dataDir, "projects", "my-project");
+        // Verify files exist before delete
+        expect(existsSync(resolve(projectDir, "plans", "plan-to-delete.meta.json"))).toBe(true);
+        expect(existsSync(resolve(projectDir, "plans", "plan-to-delete.md"))).toBe(true);
+
+        // Delete the plan
+        await invokeJsonTool(server, "delete_project_plan", {
+          slug: "my-project",
+          planId: "plan-to-delete",
+        });
+
+        // Verify files are removed
+        expect(existsSync(resolve(projectDir, "plans", "plan-to-delete.meta.json"))).toBe(false);
+        expect(existsSync(resolve(projectDir, "plans", "plan-to-delete.md"))).toBe(false);
+
+        // Verify index is updated (empty)
+        const index = JSON.parse(readFileSync(resolve(projectDir, "plans", "index.json"), "utf-8"));
+        expect(index.plans).toHaveLength(0);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("delete_project_plan returns ITEM_NOT_FOUND for non-existent plan", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "My Project",
+          description: "Test project",
+        });
+
+        await expect(
+          invokeJsonTool(server, "delete_project_plan", {
+            slug: "my-project",
+            planId: "non-existent",
+          }),
+        ).rejects.toThrow("ITEM_NOT_FOUND");
       } finally {
         await server.close();
       }
@@ -244,7 +309,9 @@ describe("prompt and agent text — plan/knowledge references", () => {
   });
 
   it("sync prompt mentions summary docs and structured plan/knowledge indexes", () => {
-    expect(SYNC_PROMPT_TEXT("my-project")).toContain("summary docs and structured plan/knowledge indexes");
+    expect(SYNC_PROMPT_TEXT("my-project")).toContain(
+      "summary docs and structured plan/knowledge indexes",
+    );
   });
 
   it("agent definitions have updated hints", () => {

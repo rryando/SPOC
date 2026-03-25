@@ -1,6 +1,6 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { readRootMeta } from "../utils/dag.js";
 import { getDataDir } from "../utils/paths.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerListProjects(server: McpServer) {
   server.tool(
@@ -9,7 +9,7 @@ export function registerListProjects(server: McpServer) {
     {},
     async () => {
       try {
-        const rootMeta = readRootMeta(getDataDir());
+        const rootMeta = await readRootMeta(getDataDir());
         return {
           content: [
             {
@@ -29,6 +29,6 @@ export function registerListProjects(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

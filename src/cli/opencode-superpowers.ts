@@ -1,17 +1,17 @@
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { PACKAGE_ROOT } from "../utils/paths.js";
 
 export type InstallState = "absent" | "spoc-managed" | "foreign-existing";
@@ -96,7 +96,7 @@ function readJsonFile(path: string): Record<string, unknown> {
 
 function writeJsonFile(path: string, data: Record<string, unknown>): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
 function deepSet(obj: Record<string, unknown>, pathParts: string[], value: unknown): void {
@@ -117,12 +117,12 @@ function deepSet(obj: Record<string, unknown>, pathParts: string[], value: unkno
 }
 
 export function opencodeRootDir(): string {
-  const envConfigDir = process.env["OPENCODE_CONFIG_DIR"];
+  const envConfigDir = process.env.OPENCODE_CONFIG_DIR;
   if (envConfigDir) {
     return resolve(envConfigDir);
   }
 
-  return resolve(process.env["HOME"] ?? homedir(), ".config", "opencode");
+  return resolve(process.env.HOME ?? homedir(), ".config", "opencode");
 }
 
 function sourceBundleRootDir(): string {
@@ -189,7 +189,10 @@ function hasAnyExistingInstallEvidence(sourceManifest: SourceOpencodeSuperpowers
     return true;
   }
 
-  if (sourceManifest.plugin.required && existsSync(opencodePath(sourceManifest.plugin.destination))) {
+  if (
+    sourceManifest.plugin.required &&
+    existsSync(opencodePath(sourceManifest.plugin.destination))
+  ) {
     return true;
   }
 
@@ -216,7 +219,8 @@ export function detectOpencodeSuperpowersInstall(
       installedManifest.installMode === sourceManifest.installMode &&
       installedManifest.bundleId === sourceManifest.bundleId &&
       allOwnedPathsExist(installedManifest) &&
-      (sourceManifest.config.requiredMerges.length === 0 || hasAnyExistingInstallEvidence(sourceManifest));
+      (sourceManifest.config.requiredMerges.length === 0 ||
+        hasAnyExistingInstallEvidence(sourceManifest));
 
     return {
       state: validManagedInstall ? "spoc-managed" : "foreign-existing",
@@ -252,7 +256,9 @@ function listBundleFiles(dir: string = sourceBundleRootDir()): string[] {
     }
   }
 
-  return files.sort((a, b) => relative(sourceBundleRootDir(), a).localeCompare(relative(sourceBundleRootDir(), b)));
+  return files.sort((a, b) =>
+    relative(sourceBundleRootDir(), a).localeCompare(relative(sourceBundleRootDir(), b)),
+  );
 }
 
 export function getSourceOpencodeSuperpowersBundleInfo(): SourceBundleInfo {
@@ -280,9 +286,12 @@ export function buildOpencodeSuperpowersInstallPlan(): InstallPlan {
 
   return {
     pathsToWrite: sourceManifest.ownedPaths,
-    pathsToRemove: installedManifest == null
-      ? []
-      : installedManifest.ownedPaths.filter((ownedPath) => !sourceManifest.ownedPaths.includes(ownedPath)),
+    pathsToRemove:
+      installedManifest == null
+        ? []
+        : installedManifest.ownedPaths.filter(
+            (ownedPath) => !sourceManifest.ownedPaths.includes(ownedPath),
+          ),
     sourceBundleVersion: bundleInfo.sourceBundleVersion,
     sourceBundleHash: bundleInfo.sourceBundleHash,
     requiredConfigMerges: sourceManifest.config.requiredMerges,
@@ -299,7 +308,7 @@ function removePathIfExists(path: string): void {
   }
 }
 
-function copySourceToDestination(sourceRelative: string, destinationRelative: string): void {
+function _copySourceToDestination(sourceRelative: string, destinationRelative: string): void {
   const source = sourceBundlePath(sourceRelative);
   const destination = opencodePath(destinationRelative);
   const sourceStat = statSync(source);
@@ -315,7 +324,7 @@ function copySourceToDestination(sourceRelative: string, destinationRelative: st
 }
 
 function createTempDir(prefix: string): string {
-  const tempDir = opencodePath(prefix + "-" + Date.now().toString(36));
+  const tempDir = opencodePath(`${prefix}-${Date.now().toString(36)}`);
   mkdirSync(tempDir, { recursive: true });
   return tempDir;
 }
@@ -367,7 +376,10 @@ function applyConfigMerges(
   return nextConfig;
 }
 
-function manifestFromPlan(plan: InstallPlan, sourceManifest: SourceOpencodeSuperpowersManifest): InstalledOpencodeSuperpowersManifest {
+function manifestFromPlan(
+  plan: InstallPlan,
+  sourceManifest: SourceOpencodeSuperpowersManifest,
+): InstalledOpencodeSuperpowersManifest {
   return {
     bundleId: sourceManifest.bundleId,
     installMode: sourceManifest.installMode,
@@ -378,15 +390,14 @@ function manifestFromPlan(plan: InstallPlan, sourceManifest: SourceOpencodeSuper
   };
 }
 
-function installInternal(
-  options: InstallOptions = {},
-  hooks: InstallHooks = {},
-): InstallResult {
+function installInternal(options: InstallOptions = {}, hooks: InstallHooks = {}): InstallResult {
   const sourceManifest = readSourceOpencodeSuperpowersManifest();
   const detection = detectOpencodeSuperpowersInstall(sourceManifest);
 
   if (detection.state === "foreign-existing" && !options.autoConfirmReplacement) {
-    throw new Error("Manual confirmation is required before replacing an existing OpenCode superpowers install.");
+    throw new Error(
+      "Manual confirmation is required before replacing an existing OpenCode superpowers install.",
+    );
   }
 
   mkdirSync(opencodeRootDir(), { recursive: true });
@@ -435,16 +446,20 @@ function installInternal(
       copyFileSync(agent.stagedPath, opencodePath(agent.destination));
     }
 
-    const preparedConfig = applyConfigMerges(readJsonFile(opencodeConfigPath()), plan.requiredConfigMerges);
+    const preparedConfig = applyConfigMerges(
+      readJsonFile(opencodeConfigPath()),
+      plan.requiredConfigMerges,
+    );
     hooks.afterConfigPreparedBeforeManifestWrite?.();
     writeJsonFile(opencodeConfigPath(), preparedConfig);
     writeInstalledOpencodeSuperpowersManifest(manifestFromPlan(plan, sourceManifest));
 
     return {
       status: "installed",
-      summary: detection.state === "spoc-managed"
-        ? "Re-synced bundled superpowers"
-        : "Installed bundled superpowers",
+      summary:
+        detection.state === "spoc-managed"
+          ? "Re-synced bundled superpowers"
+          : "Installed bundled superpowers",
     };
   } catch (error) {
     for (const [destinationRelative, backupPath] of backupMap.entries()) {

@@ -1,21 +1,15 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import {
-  readConfig,
-  writeConfig,
-  configExists,
-  AGENT_IDS,
-  type SpocConfig,
-} from "./config.js";
 import { AGENT_DEFINITIONS } from "../agents/definitions.js";
+import { AGENT_IDS, configExists, readConfig, type SpocConfig, writeConfig } from "./config.js";
 import {
+  displayPath,
+  type IdeId,
   ideConfigPath,
   ideHasSpoc,
-  writeIdeConfig,
-  displayPath,
   opencodeHasAgent,
+  writeIdeConfig,
   writeOpencodeAgent,
-  type IdeId,
 } from "./instructions.js";
 import {
   detectOpencodeSuperpowersInstall,
@@ -90,7 +84,9 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     // Already configured — re-apply silently to keep the entry up to date
     const result = writeIdeConfig(opencodeId);
     const verb = result.action === "created" ? "Created" : "Updated";
-    results.push(`${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`);
+    results.push(
+      `${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`,
+    );
   } else {
     const shouldWrite = await p.confirm({
       message: `Write SPOC MCP entry to ${color.cyan(configFile)}?`,
@@ -105,7 +101,9 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     if (shouldWrite) {
       const result = writeIdeConfig(opencodeId);
       const verb = result.action === "created" ? "Created" : "Updated";
-      results.push(`${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`);
+      results.push(
+        `${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`,
+      );
     } else {
       results.push(`${color.yellow("⊘")} ${color.bold("OpenCode")} — skipped`);
     }
@@ -133,7 +131,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
           `${color.green("✔")} Updated agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
           `${color.green("✔")} Refreshed prompt at ${color.dim(displayPath(agentResult.promptPath))}`,
         ].join("\n"),
-        "OpenCode Agent"
+        "OpenCode Agent",
       );
     } else {
       const shouldRegister = await p.confirm({
@@ -157,13 +155,10 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
             "",
             `Switch to ${color.cyan("SPOC - (Orchestrator)")} with ${color.bold("Tab")} in OpenCode.`,
           ].join("\n"),
-          "OpenCode Agent"
+          "OpenCode Agent",
         );
       } else {
-        p.note(
-          `${color.yellow("⊘")} Skipped OpenCode agent registration`,
-          "OpenCode Agent"
-        );
+        p.note(`${color.yellow("⊘")} Skipped OpenCode agent registration`, "OpenCode Agent");
       }
     }
   }
@@ -171,7 +166,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   if (selectedOpenCode && orchestrateEnabled && !opencodeAgentActive) {
     p.note(
       `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because the user declined SPOC Orchestrator registration`,
-      "OpenCode Superpowers"
+      "OpenCode Superpowers",
     );
   }
 
@@ -196,7 +191,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       } else {
         p.note(
           `${color.yellow("⊘")} Skipped OpenCode bundled Superpowers install`,
-          "OpenCode Superpowers"
+          "OpenCode Superpowers",
         );
       }
     } else {
@@ -206,12 +201,12 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   }
 
   // ── Print enabled slash commands ──────────────────────────────────────────
-  const slashList = AGENT_IDS
-    .map((id) => `  /${AGENT_DEFINITIONS[id].promptName}`)
-    .join("\n");
+  const slashList = AGENT_IDS.map((id) => `  /${AGENT_DEFINITIONS[id].promptName}`).join("\n");
   p.note(slashList, "Enabled Slash Commands");
 
   p.outro(
-    color.green("Done!") + " You can re-run this setup at any time with " + color.cyan("npm run init")
+    color.green("Done!") +
+      " You can re-run this setup at any time with " +
+      color.cyan("npm run init"),
   );
 }

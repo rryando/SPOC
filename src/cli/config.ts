@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, accessSync, constants } from "node:fs";
+import { accessSync, constants, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { getDataDir, ensureDataDir } from "../utils/paths.js";
+import { ensureDataDir, getDataDir } from "../utils/paths.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -76,7 +76,7 @@ export function configExists(): boolean {
 export function readConfig(): SpocConfig {
   try {
     const raw = readFileSync(configPath(), "utf-8");
-     return JSON.parse(raw) as SpocConfig;
+    return JSON.parse(raw) as SpocConfig;
   } catch {
     return defaultConfig();
   }
@@ -87,5 +87,5 @@ export function readConfig(): SpocConfig {
  */
 export function writeConfig(config: SpocConfig): void {
   ensureDataDir();
-  writeFileSync(configPath(), JSON.stringify(config, null, 2) + "\n", "utf-8");
+  writeFileSync(configPath(), `${JSON.stringify(config, null, 2)}\n`, "utf-8");
 }

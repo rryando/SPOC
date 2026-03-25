@@ -1,15 +1,11 @@
-import { z } from "zod";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { getDataDir } from "../utils/paths.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-const DOC_FILES: Record<string, string> = {
-  overview: "overview.md",
-  tasks: "tasks.md",
-  dependencies: "dependencies.md",
-  knowledge: "knowledge.md",
-};
+import { z } from "zod";
+import { formatError, invalidDocType, projectNotFound } from "../utils/errors.js";
+import { getProjectDir } from "../utils/paths.js";
+import { PROJECT_DOC_FILES } from "../utils/project-documents.js";
 
 export function registerGetProject(server: McpServer) {
   server.tool(
@@ -20,32 +16,24 @@ export function registerGetProject(server: McpServer) {
       doc: z
         .enum(["overview", "tasks", "dependencies", "knowledge"])
         .optional()
-        .describe(
-          "Optional: fetch a specific document instead of the project metadata"
-        ),
+        .describe("Optional: fetch a specific document instead of the project metadata"),
     },
     async (params) => {
       try {
-        const dataDir = getDataDir();
-        const projectDir = resolve(dataDir, "projects", params.slug);
+        const projectDir = getProjectDir(params.slug);
 
         if (params.doc) {
-          const fileName = DOC_FILES[params.doc];
+          const fileName = PROJECT_DOC_FILES[params.doc];
+          if (!fileName) {
+            return formatError(invalidDocType(params.doc));
+          }
           const filePath = resolve(projectDir, fileName);
 
           if (!existsSync(filePath)) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Error: Document "${params.doc}" not found for project "${params.slug}".`,
-                },
-              ],
-              isError: true,
-            };
+            return formatError(invalidDocType(params.doc));
           }
 
-          const content = readFileSync(filePath, "utf-8");
+          const content = await readFile(filePath, "utf-8");
           return {
             content: [
               {
@@ -60,18 +48,10 @@ export function registerGetProject(server: McpServer) {
         const metaPath = resolve(projectDir, "meta.json");
 
         if (!existsSync(metaPath)) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Error: Project "${params.slug}" not found.`,
-              },
-            ],
-            isError: true,
-          };
+          return formatError(projectNotFound(params.slug));
         }
 
-        const content = readFileSync(metaPath, "utf-8");
+        const content = await readFile(metaPath, "utf-8");
         return {
           content: [
             {
@@ -91,6 +71,6 @@ export function registerGetProject(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

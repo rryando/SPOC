@@ -32,11 +32,9 @@ describe("resolve_project_context", () => {
             "# My App\n\n> A great application\n\n## Summary\n\nThis app does great things.\n\n## Goals\n\n- Be great\n\n## Current Focus\n\nShipping v1",
         });
 
-        const result = await invokeJsonTool(
-          server,
-          "resolve_project_context",
-          { workspacePath: "/Users/ryan/my-app/src" }
-        );
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/Users/ryan/my-app/src",
+        });
 
         const text = resultText(result);
         expect(text).toContain("# Project Context: My App");
@@ -62,7 +60,7 @@ describe("resolve_project_context", () => {
         await expect(
           invokeJsonTool(server, "resolve_project_context", {
             workspacePath: "/Users/ryan/unregistered",
-          })
+          }),
         ).rejects.toThrow("NO_PROJECT_MATCH");
       } finally {
         await server.close();
@@ -88,7 +86,7 @@ describe("resolve_project_context", () => {
         await expect(
           invokeJsonTool(server, "resolve_project_context", {
             workspacePath: "/same/path/sub",
-          })
+          }),
         ).rejects.toThrow("AMBIGUOUS_PROJECT_MATCH");
       } finally {
         await server.close();
@@ -103,7 +101,7 @@ describe("resolve_project_context", () => {
         await expect(
           invokeJsonTool(server, "resolve_project_context", {
             workspacePath: "relative/path",
-          })
+          }),
         ).rejects.toThrow("INVALID_WORKSPACE_PATH");
       } finally {
         await server.close();
@@ -128,18 +126,16 @@ describe("resolve_project_context", () => {
             "# Tasks\n\n## In Progress\n\n- [/] Build the API\n- [/] Write tests\n\n## Backlog\n\n- [ ] Deploy\n\n## Done\n\n- [x] Setup project",
         });
 
-        const result = await invokeJsonTool(
-          server,
-          "resolve_project_context",
-          { workspacePath: "/Users/ryan/task-app" }
-        );
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/Users/ryan/task-app",
+        });
 
         const text = resultText(result);
         expect(text).toContain("## Operating Brief");
         expect(text).toContain("**Current Focus:** Build the API");
         expect(text).toContain("**Recommended Surface:** queue");
         expect(text).toContain("**Why:** This is best tracked as immediate execution state.");
-        expect(text).toContain("**Next Action:** Continue the queue item \"Build the API\"");
+        expect(text).toContain('**Next Action:** Continue the queue item "Build the API"');
         expect(text).toContain("## Current Focus");
         expect(text).toContain("- Build the API");
         expect(text).not.toContain("- Write tests");
@@ -162,11 +158,9 @@ describe("resolve_project_context", () => {
           workspacePaths: ["/Users/ryan/empty-app"],
         });
 
-        const result = await invokeJsonTool(
-          server,
-          "resolve_project_context",
-          { workspacePath: "/Users/ryan/empty-app" }
-        );
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/Users/ryan/empty-app",
+        });
 
         const text = resultText(result);
         expect(text).toContain("# Project Context: Empty App");
@@ -216,17 +210,17 @@ describe("resolve_project_context", () => {
           status: "done",
         });
 
-        const result = await invokeJsonTool(
-          server,
-          "resolve_project_context",
-          { workspacePath: "/Users/ryan/full-app" }
-        );
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/Users/ryan/full-app",
+        });
 
         const text = resultText(result);
         expect(text).toContain("## Operating Brief");
         expect(text).toContain("**Current Focus:** Auth System");
         expect(text).toContain("**Recommended Surface:** memory");
-        expect(text).toContain("**Why:** This should outlive the current task and be reusable later.");
+        expect(text).toContain(
+          "**Why:** This should outlive the current task and be reusable later.",
+        );
         expect(text).toContain("**Next Action:**");
         expect(text).toContain("## Key Knowledge");
         expect(text).toContain("API Architecture");
@@ -275,12 +269,9 @@ describe("resolve_project_context", () => {
 
         index.entries = index.entries.map((entry) => ({
           ...entry,
-          updatedAt:
-            entry.id === "first-note"
-              ? "not-a-date"
-              : "2026-03-18T00:00:00.000Z",
+          updatedAt: entry.id === "first-note" ? "not-a-date" : "2026-03-18T00:00:00.000Z",
         }));
-        writeFileSync(indexPath, JSON.stringify(index, null, 2) + "\n", "utf-8");
+        writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`, "utf-8");
 
         for (const entry of index.entries) {
           const metaPath = resolve(knowledgeDir, `${entry.id}.meta.json`);
@@ -288,7 +279,7 @@ describe("resolve_project_context", () => {
             updatedAt: string;
           };
           meta.updatedAt = entry.updatedAt;
-          writeFileSync(metaPath, JSON.stringify(meta, null, 2) + "\n", "utf-8");
+          writeFileSync(metaPath, `${JSON.stringify(meta, null, 2)}\n`, "utf-8");
         }
 
         const result = await invokeJsonTool(server, "resolve_project_context", {
@@ -317,7 +308,7 @@ describe("resolve_project_context", () => {
         await expect(
           invokeJsonTool(server, "resolve_project_context", {
             workspacePath: "/any/path",
-          })
+          }),
         ).rejects.toThrow("NO_PROJECT_MATCH");
       } finally {
         await server.close();

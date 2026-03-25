@@ -106,6 +106,27 @@ npm run dev
 npm run test
 ```
 
+### Code Quality
+
+```bash
+# Lint and format check (Biome)
+npm run lint
+
+# Auto-fix lint and format issues
+npm run lint:fix
+
+# Format only
+npm run format
+
+# Type check (no emit)
+npm run typecheck
+
+# Full quality gate (tests + types + lint)
+npm test && npm run typecheck && npm run lint
+```
+
+SPOC uses [Biome](https://biomejs.dev/) for linting and formatting (not ESLint/Prettier). Configuration is in `biome.json`.
+
 ## Concepts
 
 ### Projects and the DAG
@@ -141,6 +162,16 @@ Tasks in `tasks.md` use checkbox syntax:
 | `- [/] Task` | In progress |
 | `- [x] Task` | Done |
 
+### Structured Tasks
+
+For programmatic task management, SPOC provides a structured task API alongside the markdown `tasks.md` surface. Structured tasks are stored in `tasks/index.json` and provide typed status and priority fields.
+
+**Task statuses:** `backlog` → `in_progress` → `done` → `cancelled`
+
+**Task priorities:** `high`, `medium`, `low`
+
+When structured tasks exist, `tasks.md` is auto-rendered from the structured data as a backward-compatible view. The two surfaces coexist — `update_project_doc(tasks)` writes directly to `tasks.md`, while the task tools manage `tasks/index.json`.
+
 ### Knowledge Entry Kinds
 
 Each knowledge entry is tagged with a `kind` that describes what type of information it captures:
@@ -160,6 +191,12 @@ Each knowledge entry is tagged with a `kind` that describes what type of informa
 Plans track the lifecycle of feature work:
 
 `proposed` → `planned` → `in_progress` → `done` → `archived`
+
+### Concurrency
+
+SPOC uses advisory file locking to prevent data corruption when multiple MCP clients write simultaneously. Lock files are created alongside protected resources (e.g., `meta.json.lock`) and automatically expire after 10 seconds if the holding process crashes.
+
+All server-side file I/O uses `node:fs/promises` for non-blocking operation within the MCP event loop. CLI commands (`src/cli/`) remain synchronous as they run in their own process.
 
 ---
 
@@ -289,6 +326,16 @@ When OpenCode agent registration is enabled, SPOC appears in the agent switcher 
 | `update_project_plan_meta` | Update a plan's title, status, or other metadata |
 | `update_project_plan_body` | Replace a plan's body content |
 
+### Tasks
+
+| Tool | Description |
+|---|---|
+| `create_project_task` | Create a structured task in a project's task queue |
+| `list_project_tasks` | List tasks for a project, optionally filtered by status and/or priority |
+| `get_project_task` | Get a task's full metadata (title, status, priority) |
+| `update_project_task` | Update a task's title, status, or priority |
+| `delete_project_task` | Remove a task from the project's task queue |
+
 ### Knowledge
 
 | Tool | Description |
@@ -306,6 +353,14 @@ When OpenCode agent registration is enabled, SPOC appears in the agent switcher 
 | `update_project_paths` | Add, remove, or set workspace directory paths for a project (maps local directories to SPOC projects) |
 | `resolve_project_context` | Resolve project context from a workspace directory path — returns assembled overview, active tasks, knowledge, and plans |
 | `sync_agents_md` | Generate and write an `AGENTS.md` file to a project's workspace directories (coding discipline rules + codebase analysis + project context) |
+
+### Delete / Cleanup
+
+| Tool | Description |
+|---|---|
+| `delete_project` | Remove a project and all its data from the DAG |
+| `delete_project_plan` | Delete a structured plan from a project |
+| `delete_project_knowledge_entry` | Delete a knowledge entry from a project |
 
 ## MCP Resources
 
@@ -350,6 +405,8 @@ Prompts are registered as slash commands and can be individually enabled/disable
             ├── dependencies.md
             ├── knowledge.md
             ├── AGENTS.md       # Generated guardrail doc (via sync_agents_md)
+            ├── tasks/          # Structured task queue
+            │   └── index.json
             ├── plans/          # Structured plans for feature work
             │   └── {planId}.md
             └── knowledge/      # Structured knowledge entries

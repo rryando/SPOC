@@ -1,11 +1,5 @@
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-} from "node:fs";
 import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -65,9 +59,11 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
       return listRelativeFiles(rootPath, entryPath);
     }
 
-    return [dirname(entryPath) === rootPath
-      ? entry.name
-      : `${entryPath.slice(rootPath.length + 1).replace(/\\/g, "/")}`];
+    return [
+      dirname(entryPath) === rootPath
+        ? entry.name
+        : `${entryPath.slice(rootPath.length + 1).replace(/\\/g, "/")}`,
+    ];
   });
 }
 
@@ -111,31 +107,31 @@ describe("opencode superpowers bundle", () => {
         },
         {
           path: ["agent", "general", "model"],
-          value: "github-copilot/gemini-3.1-pro-preview",
+          value: "github-copilot/claude-opus-4.6",
         },
         {
           path: ["agent", "explore", "model"],
-          value: "github-copilot/claude-haiku-4.6",
+          value: "github-copilot/claude-haiku-4.5",
         },
         {
           path: ["agent", "code-reviewer"],
           value: expect.objectContaining({
             mode: "subagent",
-            model: "github-copilot/gpt-5.4",
+            model: "github-copilot/gpt-5.4-mini",
           }),
         },
         {
           path: ["agent", "docs-researcher"],
           value: expect.objectContaining({
             mode: "subagent",
-            model: "github-copilot/gemini-3.1-pro-preview",
+            model: "github-copilot/claude-opus-4.6",
           }),
         },
         {
           path: ["agent", "analyzer"],
           value: expect.objectContaining({
             mode: "subagent",
-            model: "github-copilot/gpt-5.4",
+            model: "github-copilot/gpt-5.4-mini",
           }),
         },
       ]),
@@ -168,9 +164,7 @@ describe("opencode superpowers bundle", () => {
     const runtimeManifest = readJsonFile<RuntimeManifest>(runtimeManifestPath);
     const outputRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-smoke-"));
 
-    expect(readdirSync(skillsDir).sort()).toEqual(
-      Object.keys(runtimeManifest.skills).sort(),
-    );
+    expect(readdirSync(skillsDir).sort()).toEqual(Object.keys(runtimeManifest.skills).sort());
 
     try {
       const result = runBundleBuild(outputRoot, repoLocalSourceRoot);
@@ -199,9 +193,7 @@ describe("opencode superpowers bundle", () => {
 
       if (runtimeManifest.agents.length > 0) {
         expect(listRelativeFiles(resolve(outputRoot, "agents")).sort()).toEqual(
-          runtimeManifest.agents
-            .map((agentPath) => agentPath.replace(/^agents\//, ""))
-            .sort(),
+          runtimeManifest.agents.map((agentPath) => agentPath.replace(/^agents\//, "")).sort(),
         );
       }
 
@@ -210,9 +202,7 @@ describe("opencode superpowers bundle", () => {
       }
 
       const pluginsDir = resolve(outputRoot, ".opencode", "plugins");
-      const actualPluginFiles = existsSync(pluginsDir)
-        ? listRelativeFiles(pluginsDir).sort()
-        : [];
+      const actualPluginFiles = existsSync(pluginsDir) ? listRelativeFiles(pluginsDir).sort() : [];
       expect(actualPluginFiles).toEqual(
         runtimeManifest.plugin
           .map((pluginPath) => pluginPath.replace(/^\.opencode\/plugins\//, ""))

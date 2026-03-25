@@ -61,7 +61,7 @@ export function extractBacklogTasks(raw: string): string[] {
  * Remove leading markdown checkbox syntax from a task line.
  */
 export function stripTaskCheckbox(line: string): string {
-  return line.replace(/^- \[[ x\/]\]\s*/, "").trim();
+  return line.replace(/^- \[[ x/]\]\s*/, "").trim();
 }
 
 /**
@@ -93,10 +93,7 @@ export function extractDependenciesContent(raw: string): string | null {
   const withoutNoneYet = withoutHeaders
     .split("\n")
     .filter(
-      (line) =>
-        line.trim() !== "" &&
-        line.trim() !== "- None yet" &&
-        line.trim() !== "- None"
+      (line) => line.trim() !== "" && line.trim() !== "- None yet" && line.trim() !== "- None",
     )
     .join("")
     .trim();

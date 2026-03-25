@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { withLock } from "./file-lock.js";
 
 export interface DagNode {
   id: string;
@@ -16,9 +17,9 @@ export interface RootMeta {
 /**
  * Reads and parses the root meta.json.
  */
-export function readRootMeta(dataDir: string): RootMeta {
+export async function readRootMeta(dataDir: string): Promise<RootMeta> {
   const metaPath = resolve(dataDir, "meta.json");
-  const raw = readFileSync(metaPath, "utf-8");
+  const raw = await readFile(metaPath, "utf-8");
   return JSON.parse(raw) as RootMeta;
 }
 
@@ -26,11 +27,7 @@ export function readRootMeta(dataDir: string): RootMeta {
  * Detect if adding an edge (from → to) would create a cycle.
  * Uses DFS from `to` to see if we can reach `from`.
  */
-export function wouldCreateCycle(
-  projects: DagNode[],
-  fromId: string,
-  toId: string
-): boolean {
+export function wouldCreateCycle(projects: DagNode[], fromId: string, toId: string): boolean {
   const adjacency = new Map<string, string[]>();
   for (const p of projects) {
     adjacency.set(p.id, [...p.dependsOn]);
@@ -60,12 +57,19 @@ export function wouldCreateCycle(
 }
 
 /**
+ * Writes root meta.json under an advisory file lock.
+ */
+export async function writeRootMeta(dataDir: string, rootMeta: RootMeta): Promise<void> {
+  const metaPath = resolve(dataDir, "meta.json");
+  await withLock(metaPath, async () => {
+    await writeFile(metaPath, JSON.stringify(rootMeta, null, 2), "utf-8");
+  });
+}
+
+/**
  * Validate that all dependency targets exist in the project list.
  */
-export function validateDependencies(
-  projects: DagNode[],
-  dependsOn: string[]
-): string[] {
+export function validateDependencies(projects: DagNode[], dependsOn: string[]): string[] {
   const knownIds = new Set(projects.map((p) => p.id));
   return dependsOn.filter((id) => !knownIds.has(id));
 }

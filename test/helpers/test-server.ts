@@ -1,15 +1,17 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerInitProject } from "../../src/tools/init-project.js";
+import { registerProjectResources } from "../../src/resources/projects.js";
+import { registerDeleteProject } from "../../src/tools/delete-project.js";
 import { registerGetProject } from "../../src/tools/get-project.js";
-import { registerUpdateDoc } from "../../src/tools/update-doc.js";
-import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
+import { registerInitProject } from "../../src/tools/init-project.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
-import { registerUpdatePaths } from "../../src/tools/update-paths.js";
+import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
+import { registerProjectTaskTools } from "../../src/tools/project-tasks.js";
 import { registerResolveContext } from "../../src/tools/resolve-context.js";
 import { registerSyncAgentsMd } from "../../src/tools/sync-agents-md.js";
-import { registerProjectResources } from "../../src/resources/projects.js";
+import { registerUpdateDoc } from "../../src/tools/update-doc.js";
+import { registerUpdatePaths } from "../../src/tools/update-paths.js";
 
 type ToolRegistration = (server: McpServer) => void;
 
@@ -19,19 +21,18 @@ const defaultRegistrations: ToolRegistration[] = [
   registerUpdateDoc,
   registerProjectPlanTools,
   registerProjectKnowledgeTools,
+  registerProjectTaskTools,
   registerUpdatePaths,
   registerResolveContext,
   registerSyncAgentsMd,
+  registerDeleteProject,
 ];
 
 async function withConnectedClient<T>(
   server: McpServer,
-  run: (client: Client) => Promise<T>
+  run: (client: Client) => Promise<T>,
 ): Promise<T> {
-  const client = new Client(
-    { name: "spoc-test-client", version: "1.0.0" },
-    { capabilities: {} }
-  );
+  const client = new Client({ name: "spoc-test-client", version: "1.0.0" }, { capabilities: {} });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
   try {
@@ -42,9 +43,7 @@ async function withConnectedClient<T>(
   }
 }
 
-function createServerWithRegistrations(
-  extraRegistrations: ToolRegistration[] = []
-): McpServer {
+function createServerWithRegistrations(extraRegistrations: ToolRegistration[] = []): McpServer {
   const server = new McpServer({
     name: "spoc-test-server",
     version: "1.0.0",
@@ -73,18 +72,19 @@ export function createTestServerWithRegistrations(
 export async function invokeJsonTool(
   server: McpServer,
   name: string,
-  args: Record<string, unknown> = {}
+  args: Record<string, unknown> = {},
 ): Promise<unknown> {
   return withConnectedClient(server, async (client) => {
     const result = await client.callTool({ name, arguments: args });
 
     if (result.isError) {
-      const text = "content" in result && Array.isArray(result.content)
-        ? result.content
-            .filter((item): item is { type: "text"; text: string } => item.type === "text")
-            .map((item) => item.text)
-            .join("\n")
-        : `Tool ${name} returned an error.`;
+      const text =
+        "content" in result && Array.isArray(result.content)
+          ? result.content
+              .filter((item): item is { type: "text"; text: string } => item.type === "text")
+              .map((item) => item.text)
+              .join("\n")
+          : `Tool ${name} returned an error.`;
       throw new Error(text);
     }
 
@@ -92,10 +92,7 @@ export async function invokeJsonTool(
   });
 }
 
-export async function readResourceText(
-  server: McpServer,
-  uri: string
-): Promise<string> {
+export async function readResourceText(server: McpServer, uri: string): Promise<string> {
   return withConnectedClient(server, async (client) => {
     const result = await client.readResource({ uri });
     const first = result.contents[0];

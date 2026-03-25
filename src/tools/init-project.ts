@@ -1,18 +1,23 @@
-import { z } from "zod";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { slugify } from "../utils/slug.js";
-import { renderTemplate, getTemplatePath } from "../utils/template.js";
-import { normalizeWorkspacePath } from "../utils/workspace-match.js";
-import { readRootMeta, wouldCreateCycle, validateDependencies } from "../utils/dag.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import {
-  projectAlreadyExists,
-  dependencyNotFound,
+  readRootMeta,
+  validateDependencies,
+  wouldCreateCycle,
+  writeRootMeta,
+} from "../utils/dag.js";
+import {
   cycleDetected,
+  dependencyNotFound,
   formatError,
+  projectAlreadyExists,
 } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { slugify } from "../utils/slug.js";
+import { getTemplatePath, renderTemplate } from "../utils/template.js";
+import { normalizeWorkspacePath } from "../utils/workspace-match.js";
 
 export const InitProjectSchema = {
   name: z.string().describe("Human-readable project name"),
@@ -38,11 +43,10 @@ export function registerInitProject(server: McpServer) {
         const slug = slugify(params.name);
         const dataDir = getDataDir();
         const projectDir = resolve(dataDir, "projects", slug);
-        const metaPath = resolve(dataDir, "meta.json");
         const dependsOn = params.dependsOn ?? [];
 
         // Read current DAG
-        const rootMeta = readRootMeta(dataDir);
+        const rootMeta = await readRootMeta(dataDir);
 
         // Check for duplicates
         if (rootMeta.projects.some((p) => p.id === slug)) {
@@ -65,7 +69,7 @@ export function registerInitProject(server: McpServer) {
         }
 
         // Create project directory
-        mkdirSync(projectDir, { recursive: true });
+        await mkdir(projectDir, { recursive: true });
 
         const now = new Date().toISOString();
         const repoUrl = params.repoUrl ?? "";
@@ -79,9 +83,8 @@ export function registerInitProject(server: McpServer) {
           dependsOnList: dependsOn.length > 0 ? dependsOn.join(", ") : "—",
           statusBlock: `**Status:** draft\n`,
           repoBlock: repoUrl ? `**Repo:** ${repoUrl}\n` : "",
-          upstreamBlock: dependsOn.length > 0
-            ? dependsOn.map((d) => `- ${d}`).join("\n")
-            : "- None",
+          upstreamBlock:
+            dependsOn.length > 0 ? dependsOn.map((d) => `- ${d}`).join("\n") : "- None",
         };
 
         // Render templates
@@ -94,11 +97,8 @@ export function registerInitProject(server: McpServer) {
         ];
 
         for (const { tmpl, out } of templates) {
-          const content = renderTemplate(
-            getTemplatePath(tmpl),
-            variables
-          );
-          writeFileSync(resolve(projectDir, out), content, "utf-8");
+          const content = renderTemplate(getTemplatePath(tmpl), variables);
+          await writeFile(resolve(projectDir, out), content, "utf-8");
         }
 
         // Post-render: inject workspacePaths into meta.json
@@ -108,27 +108,34 @@ export function registerInitProject(server: McpServer) {
         // from, which is the project root. An explicit empty array ([]) is respected
         // as-is so callers can intentionally register a path-less project.
         const rawWorkspacePaths =
-          params.workspacePaths !== undefined
-            ? params.workspacePaths
-            : [process.cwd()];
+          params.workspacePaths !== undefined ? params.workspacePaths : [process.cwd()];
         const normalizedPaths = rawWorkspacePaths.map(normalizeWorkspacePath);
         const metaJsonPath = resolve(projectDir, "meta.json");
-        const metaObj = JSON.parse(readFileSync(metaJsonPath, "utf-8")) as Record<string, unknown>;
+        const metaObj = JSON.parse(await readFile(metaJsonPath, "utf-8")) as Record<
+          string,
+          unknown
+        >;
         metaObj.workspacePaths = normalizedPaths;
-        writeFileSync(metaJsonPath, JSON.stringify(metaObj, null, 2), "utf-8");
+        await writeFile(metaJsonPath, JSON.stringify(metaObj, null, 2), "utf-8");
 
         // Create empty plan and knowledge indexes
-        mkdirSync(resolve(projectDir, "plans"), { recursive: true });
-        mkdirSync(resolve(projectDir, "knowledge"), { recursive: true });
-        writeFileSync(
+        await mkdir(resolve(projectDir, "plans"), { recursive: true });
+        await mkdir(resolve(projectDir, "knowledge"), { recursive: true });
+        await writeFile(
           resolve(projectDir, "plans", "index.json"),
           JSON.stringify({ plans: [] }, null, 2),
-          "utf-8"
+          "utf-8",
         );
-        writeFileSync(
+        await writeFile(
           resolve(projectDir, "knowledge", "index.json"),
           JSON.stringify({ entries: [] }, null, 2),
-          "utf-8"
+          "utf-8",
+        );
+        await mkdir(resolve(projectDir, "tasks"), { recursive: true });
+        await writeFile(
+          resolve(projectDir, "tasks", "index.json"),
+          JSON.stringify({ tasks: [] }, null, 2),
+          "utf-8",
         );
 
         // Update root meta
@@ -138,13 +145,13 @@ export function registerInitProject(server: McpServer) {
           status: "draft",
           dependsOn,
         });
-        writeFileSync(metaPath, JSON.stringify(rootMeta, null, 2), "utf-8");
+        await writeRootMeta(dataDir, rootMeta);
 
         return {
           content: [
             {
               type: "text" as const,
-              text: `✅ Project "${params.name}" initialized at projects/${slug}/\n\nCreated files:\n- meta.json\n- overview.md\n- tasks.md\n- dependencies.md\n- knowledge.md\n- plans/index.json\n- knowledge/index.json`,
+              text: `✅ Project "${params.name}" initialized at projects/${slug}/\n\nCreated files:\n- meta.json\n- overview.md\n- tasks.md\n- dependencies.md\n- knowledge.md\n- plans/index.json\n- knowledge/index.json\n- tasks/index.json`,
             },
           ],
         };
@@ -159,6 +166,6 @@ export function registerInitProject(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

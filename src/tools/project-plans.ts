@@ -1,44 +1,19 @@
-import { z } from "zod";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { getDataDir } from "../utils/paths.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { DagError, formatError, itemNotFound, projectNotFound } from "../utils/errors.js";
+import { getProjectDir } from "../utils/paths.js";
 import {
-  PLAN_STATUSES,
   createPlan,
-  updatePlan,
+  deletePlan,
+  PLAN_STATUSES,
   readPlanIndex,
-  type PlanStatus,
+  updatePlan,
 } from "../utils/project-memory.js";
 import { normalizeIdentifier } from "../utils/slug.js";
-import { DagError, formatError, projectNotFound, itemNotFound } from "../utils/errors.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-function jsonResult(data: unknown) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(data, null, 2),
-      },
-    ],
-  };
-}
-
-function errorResult(err: unknown) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-      },
-    ],
-    isError: true,
-  };
-}
-
-function getProjectDir(slug: string): string {
-  return resolve(getDataDir(), "projects", slug);
-}
+import { errorResult, jsonResult } from "../utils/tool-response.js";
 
 export function registerProjectPlanTools(server: McpServer) {
   // ---- create_project_plan ----
@@ -54,15 +29,8 @@ export function registerProjectPlanTools(server: McpServer) {
         .optional()
         .default("proposed")
         .describe("Plan status (default: proposed)"),
-      planId: z
-        .string()
-        .optional()
-        .describe("Plan identifier (derived from title if omitted)"),
-      keywords: z
-        .array(z.string())
-        .optional()
-        .default([])
-        .describe("Searchable keywords"),
+      planId: z.string().optional().describe("Plan identifier (derived from title if omitted)"),
+      keywords: z.array(z.string()).optional().default([]).describe("Searchable keywords"),
       body: z.string().optional().describe("Markdown body content"),
     },
     async (params) => {
@@ -74,7 +42,7 @@ export function registerProjectPlanTools(server: McpServer) {
 
         const id = params.planId ?? params.title;
 
-        const meta = createPlan(projectDir, {
+        const meta = await createPlan(projectDir, {
           id,
           title: params.title,
           status: params.status,
@@ -84,17 +52,14 @@ export function registerProjectPlanTools(server: McpServer) {
         });
 
         // Read back the body file
-        const bodyContent = readFileSync(
-          resolve(projectDir, meta.file),
-          "utf-8"
-        );
+        const bodyContent = await readFile(resolve(projectDir, meta.file), "utf-8");
 
         return jsonResult({ meta, body: bodyContent });
       } catch (err) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
-    }
+    },
   );
 
   // ---- list_project_plans ----
@@ -103,14 +68,8 @@ export function registerProjectPlanTools(server: McpServer) {
     "List plans for a project, optionally filtered by status and/or keywords.",
     {
       slug: z.string().describe("Project slug"),
-      status: z
-        .enum(PLAN_STATUSES)
-        .optional()
-        .describe("Filter by status"),
-      keywords: z
-        .array(z.string())
-        .optional()
-        .describe("Filter by keywords (any-match semantics)"),
+      status: z.enum(PLAN_STATUSES).optional().describe("Filter by status"),
+      keywords: z.array(z.string()).optional().describe("Filter by keywords (any-match semantics)"),
     },
     async (params) => {
       try {
@@ -119,7 +78,7 @@ export function registerProjectPlanTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
-        const index = readPlanIndex(projectDir);
+        const index = await readPlanIndex(projectDir);
         let plans = index.plans;
 
         // Filter by status
@@ -129,11 +88,9 @@ export function registerProjectPlanTools(server: McpServer) {
 
         // Filter by keywords (any-match: include if intersection is non-empty)
         if (params.keywords && params.keywords.length > 0) {
-          const filterKeywords = new Set(
-            params.keywords.map((k) => k.trim().toLowerCase())
-          );
+          const filterKeywords = new Set(params.keywords.map((k) => k.trim().toLowerCase()));
           plans = plans.filter((p) =>
-            p.keywords.some((k) => filterKeywords.has(k.trim().toLowerCase()))
+            p.keywords.some((k) => filterKeywords.has(k.trim().toLowerCase())),
           );
         }
 
@@ -142,7 +99,7 @@ export function registerProjectPlanTools(server: McpServer) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
-    }
+    },
   );
 
   // ---- get_project_plan ----
@@ -166,21 +123,17 @@ export function registerProjectPlanTools(server: McpServer) {
         }
 
         const normalizedId = normalizeIdentifier(params.planId);
-        const metaPath = resolve(
-          projectDir,
-          "plans",
-          `${normalizedId}.meta.json`
-        );
+        const metaPath = resolve(projectDir, "plans", `${normalizedId}.meta.json`);
 
         if (!existsSync(metaPath)) {
           return formatError(itemNotFound("plan", params.planId));
         }
 
-        const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+        const meta = JSON.parse(await readFile(metaPath, "utf-8"));
 
         if (params.includeBody) {
           const bodyPath = resolve(projectDir, meta.file);
-          const body = readFileSync(bodyPath, "utf-8");
+          const body = await readFile(bodyPath, "utf-8");
           return jsonResult({ meta, body });
         }
 
@@ -189,7 +142,7 @@ export function registerProjectPlanTools(server: McpServer) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
-    }
+    },
   );
 
   // ---- update_project_plan_meta ----
@@ -202,10 +155,7 @@ export function registerProjectPlanTools(server: McpServer) {
       title: z.string().optional().describe("New title"),
       summary: z.string().optional().describe("New summary"),
       status: z.enum(PLAN_STATUSES).optional().describe("New status"),
-      keywords: z
-        .array(z.string())
-        .optional()
-        .describe("New keywords"),
+      keywords: z.array(z.string()).optional().describe("New keywords"),
     },
     async (params) => {
       try {
@@ -214,7 +164,7 @@ export function registerProjectPlanTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
-        const meta = updatePlan(projectDir, {
+        const meta = await updatePlan(projectDir, {
           id: params.planId,
           title: params.title,
           summary: params.summary,
@@ -227,7 +177,7 @@ export function registerProjectPlanTools(server: McpServer) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
-    }
+    },
   );
 
   // ---- update_project_plan_body ----
@@ -247,30 +197,56 @@ export function registerProjectPlanTools(server: McpServer) {
         }
 
         const normalizedId = normalizeIdentifier(params.planId);
-        const metaPath = resolve(
-          projectDir,
-          "plans",
-          `${normalizedId}.meta.json`
-        );
+        const metaPath = resolve(projectDir, "plans", `${normalizedId}.meta.json`);
 
         if (!existsSync(metaPath)) {
           return formatError(itemNotFound("plan", params.planId));
         }
 
-        const existingMeta = JSON.parse(readFileSync(metaPath, "utf-8"));
+        const existingMeta = JSON.parse(await readFile(metaPath, "utf-8"));
         const bodyPath = resolve(projectDir, existingMeta.file);
 
         // Write the new body
-        writeFileSync(bodyPath, params.body, "utf-8");
+        await writeFile(bodyPath, params.body, "utf-8");
 
         // Update the meta's updatedAt by calling updatePlan with just id
-        const meta = updatePlan(projectDir, { id: params.planId });
+        const meta = await updatePlan(projectDir, { id: params.planId });
 
         return jsonResult({ meta, body: params.body });
       } catch (err) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
-    }
+    },
+  );
+
+  // ---- delete_project_plan ----
+  server.tool(
+    "delete_project_plan",
+    "Delete a plan and its body from a project.",
+    {
+      slug: z.string().describe("Project slug"),
+      planId: z.string().describe("Plan identifier"),
+    },
+    async (params) => {
+      try {
+        const projectDir = getProjectDir(params.slug);
+        if (!existsSync(projectDir)) {
+          return formatError(projectNotFound(params.slug));
+        }
+        await deletePlan(projectDir, params.planId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `✅ Deleted plan "${params.planId}" from project "${params.slug}".`,
+            },
+          ],
+        };
+      } catch (err) {
+        if (err instanceof DagError) return formatError(err);
+        return errorResult(err);
+      }
+    },
   );
 }

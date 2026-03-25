@@ -108,12 +108,12 @@ export function deriveOperatingBrief(input: {
     why: recommendation.why,
     nextAction:
       focus.kind === "plan"
-        ? `Continue the active plan \"${focus.label}\" and keep related task status aligned.`
-        : `Continue the queue item \"${focus.label}\" and update task status as work progresses.`,
+        ? `Continue the active plan "${focus.label}" and keep related task status aligned.`
+        : `Continue the queue item "${focus.label}" and update task status as work progresses.`,
   };
 }
 
-function safeTime(value?: string): number {
+export function safeTime(value?: string): number {
   if (!value) return Number.NEGATIVE_INFINITY;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;

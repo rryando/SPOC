@@ -38,61 +38,61 @@ afterEach(() => {
 });
 
 describe("project memory utilities", () => {
-  it("rejects normalized id collisions", () => {
+  it("rejects normalized id collisions", async () => {
     const projectDir = makeProjectDir();
 
-    createPlan(projectDir, {
+    await createPlan(projectDir, {
       id: "Alpha Plan",
       title: "Alpha Plan",
       status: "proposed",
       keywords: ["Architecture"],
     });
 
-    expect(() =>
+    await expect(
       createPlan(projectDir, {
         id: "alpha-plan",
         title: "Alpha Plan Again",
         status: "proposed",
         keywords: ["Architecture"],
-      })
-    ).toThrow(/normalized id .*alpha-plan/i);
+      }),
+    ).rejects.toThrow(/normalized id .*alpha-plan/i);
   });
 
-  it("rejects invalid status, kind, and keyword values", () => {
+  it("rejects invalid status, kind, and keyword values", async () => {
     const projectDir = makeProjectDir();
 
-    expect(() =>
+    await expect(
       createPlan(projectDir, {
         id: "invalid-status",
         title: "Invalid Status",
         status: "oops" as never,
         keywords: ["valid-keyword"],
-      })
-    ).toThrow(/invalid plan status/i);
+      }),
+    ).rejects.toThrow(/invalid plan status/i);
 
-    expect(() =>
+    await expect(
       createKnowledgeEntry(projectDir, {
         id: "invalid-kind",
         title: "Invalid Kind",
         kind: "note" as never,
         keywords: ["valid-keyword"],
-      })
-    ).toThrow(/invalid knowledge kind/i);
+      }),
+    ).rejects.toThrow(/invalid knowledge kind/i);
 
-    expect(() =>
+    await expect(
       createPlan(projectDir, {
         id: "invalid-keyword",
         title: "Invalid Keyword",
         status: "proposed",
         keywords: ["###"],
-      })
-    ).toThrow(/invalid keyword/i);
+      }),
+    ).rejects.toThrow(/invalid keyword/i);
   });
 
-  it("creates a single title h1", () => {
+  it("creates a single title h1", async () => {
     const projectDir = makeProjectDir();
 
-    const plan = createPlan(projectDir, {
+    const plan = await createPlan(projectDir, {
       id: "single-h1",
       title: "Single H1",
       status: "proposed",
@@ -106,10 +106,10 @@ describe("project memory utilities", () => {
     expect(markdown.match(/^# Single H1$/gm)).toHaveLength(1);
   });
 
-  it("rewrites the leading h1 when a title changes", () => {
+  it("rewrites the leading h1 when a title changes", async () => {
     const projectDir = makeProjectDir();
 
-    const entry = createKnowledgeEntry(projectDir, {
+    const entry = await createKnowledgeEntry(projectDir, {
       id: "decision-1",
       title: "Old Title",
       kind: "reference",
@@ -117,7 +117,7 @@ describe("project memory utilities", () => {
       content: "# Old Title\n\nKeep this body.",
     });
 
-    updateKnowledgeEntry(projectDir, {
+    await updateKnowledgeEntry(projectDir, {
       id: entry.id,
       title: "New Title",
     });
@@ -128,10 +128,10 @@ describe("project memory utilities", () => {
     expect(markdown).not.toContain("# Old Title");
   });
 
-  it("keeps item meta and index updatedAt in sync", () => {
+  it("keeps item meta and index updatedAt in sync", async () => {
     const projectDir = makeProjectDir();
 
-    const created = createPlan(projectDir, {
+    const created = await createPlan(projectDir, {
       id: "sync-updated-at",
       title: "Sync updatedAt",
       status: "proposed",
@@ -139,7 +139,7 @@ describe("project memory utilities", () => {
       now: "2026-03-16T10:00:00.000Z",
     });
 
-    const updated = updatePlan(projectDir, {
+    const updated = await updatePlan(projectDir, {
       id: created.id,
       status: "in_progress",
       now: "2026-03-16T11:00:00.000Z",
@@ -148,25 +148,25 @@ describe("project memory utilities", () => {
     const meta = readJson(resolve(projectDir, "plans", `${updated.normalizedId}.meta.json`)) as {
       updatedAt: string;
     };
-    const index = readPlanIndex(projectDir);
+    const index = await readPlanIndex(projectDir);
 
     expect(meta.updatedAt).toBe("2026-03-16T11:00:00.000Z");
     expect(index.plans[0]?.updatedAt).toBe("2026-03-16T11:00:00.000Z");
   });
 
-  it("reads legacy projects without creating memory directories", () => {
+  it("reads legacy projects without creating memory directories", async () => {
     const projectDir = makeProjectDir();
 
-    expect(readPlanIndex(projectDir)).toEqual({ plans: [] });
-    expect(readKnowledgeIndex(projectDir)).toEqual({ entries: [] });
+    expect(await readPlanIndex(projectDir)).toEqual({ plans: [] });
+    expect(await readKnowledgeIndex(projectDir)).toEqual({ entries: [] });
     expect(existsSync(resolve(projectDir, "plans"))).toBe(false);
     expect(existsSync(resolve(projectDir, "knowledge"))).toBe(false);
   });
 
-  it("rebuilds and writes back a missing plans index", () => {
+  it("rebuilds and writes back a missing plans index", async () => {
     const projectDir = makeProjectDir();
 
-    createPlan(projectDir, {
+    await createPlan(projectDir, {
       id: "missing-index",
       title: "Missing Index",
       status: "proposed",
@@ -177,16 +177,16 @@ describe("project memory utilities", () => {
     const indexPath = resolve(projectDir, "plans", "index.json");
     unlinkSync(indexPath);
 
-    const index = readPlanIndex(projectDir);
+    const index = await readPlanIndex(projectDir);
 
     expect(index.plans).toHaveLength(1);
     expect(readJson(indexPath)).toEqual(index);
   });
 
-  it("rebuilds and writes back a corrupted knowledge index", () => {
+  it("rebuilds and writes back a corrupted knowledge index", async () => {
     const projectDir = makeProjectDir();
 
-    createKnowledgeEntry(projectDir, {
+    await createKnowledgeEntry(projectDir, {
       id: "corrupted-index",
       title: "Corrupted Index",
       kind: "reference",
@@ -197,23 +197,23 @@ describe("project memory utilities", () => {
     const indexPath = resolve(projectDir, "knowledge", "index.json");
     writeFileSync(indexPath, "{not-json", "utf-8");
 
-    const index = readKnowledgeIndex(projectDir);
+    const index = await readKnowledgeIndex(projectDir);
 
     expect(index.entries).toHaveLength(1);
     expect(readJson(indexPath)).toEqual(index);
   });
 
-  it("rebuilds stale indexes for both plans and knowledge", () => {
+  it("rebuilds stale indexes for both plans and knowledge", async () => {
     const projectDir = makeProjectDir();
 
-    const plan = createPlan(projectDir, {
+    const plan = await createPlan(projectDir, {
       id: "stale-plan",
       title: "Stale Plan",
       status: "proposed",
       keywords: ["rebuild"],
       now: "2026-03-16T13:00:00.000Z",
     });
-    const entry = createKnowledgeEntry(projectDir, {
+    const entry = await createKnowledgeEntry(projectDir, {
       id: "stale-knowledge",
       title: "Stale Knowledge",
       kind: "pattern",
@@ -224,16 +224,16 @@ describe("project memory utilities", () => {
     writeFileSync(
       resolve(projectDir, "plans", "index.json"),
       JSON.stringify({ plans: [{ ...plan, updatedAt: "1999-01-01T00:00:00.000Z" }] }, null, 2),
-      "utf-8"
+      "utf-8",
     );
     writeFileSync(
       resolve(projectDir, "knowledge", "index.json"),
       JSON.stringify({ entries: [{ ...entry, updatedAt: "1999-01-01T00:00:00.000Z" }] }, null, 2),
-      "utf-8"
+      "utf-8",
     );
 
-    const plans = readPlanIndex(projectDir);
-    const knowledge = readKnowledgeIndex(projectDir);
+    const plans = await readPlanIndex(projectDir);
+    const knowledge = await readKnowledgeIndex(projectDir);
 
     expect(plans.plans[0]?.updatedAt).toBe("2026-03-16T13:00:00.000Z");
     expect(knowledge.entries[0]?.updatedAt).toBe("2026-03-16T13:00:00.000Z");
@@ -241,30 +241,30 @@ describe("project memory utilities", () => {
     expect(readJson(resolve(projectDir, "knowledge", "index.json"))).toEqual(knowledge);
   });
 
-  it("fails descriptively when an index rebuild is impossible", () => {
+  it("fails descriptively when an index rebuild is impossible", async () => {
     const projectDir = makeProjectDir();
     const plansDir = resolve(projectDir, "plans");
 
     mkdirSync(plansDir, { recursive: true });
     writeFileSync(resolve(plansDir, "broken.meta.json"), "{", "utf-8");
 
-    expect(() => readPlanIndex(projectDir)).toThrow(/unable to rebuild plans index/i);
-    expect(() => readPlanIndex(projectDir)).toThrow(/broken.meta.json/i);
+    await expect(readPlanIndex(projectDir)).rejects.toThrow(/unable to rebuild plans index/i);
+    await expect(readPlanIndex(projectDir)).rejects.toThrow(/broken.meta.json/i);
   });
 
-  it("creates memory directories lazily on the first write for legacy projects", () => {
+  it("creates memory directories lazily on the first write for legacy projects", async () => {
     const projectDir = makeProjectDir();
 
     expect(existsSync(resolve(projectDir, "plans"))).toBe(false);
     expect(existsSync(resolve(projectDir, "knowledge"))).toBe(false);
 
-    createPlan(projectDir, {
+    await createPlan(projectDir, {
       id: "lazy-plan",
       title: "Lazy Plan",
       status: "proposed",
       keywords: ["legacy"],
     });
-    createKnowledgeEntry(projectDir, {
+    await createKnowledgeEntry(projectDir, {
       id: "lazy-knowledge",
       title: "Lazy Knowledge",
       kind: "gotcha",

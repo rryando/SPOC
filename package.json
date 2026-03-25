@@ -23,7 +23,11 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "init": "npm run build && node dist/index.js init"
+    "init": "npm run build && node dist/index.js init",
+    "lint": "biome check src/ test/",
+    "lint:fix": "biome check --fix src/ test/",
+    "format": "biome format --write src/ test/",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",
@@ -32,11 +36,11 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3",
     "vite": "^6.4.1",
-    "vitest": "^3.2.4",
-    "@types/bun": "latest"
+    "vitest": "^3.2.4"
   },
   "private": true
 }

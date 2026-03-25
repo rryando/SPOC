@@ -1,14 +1,12 @@
-import { z } from "zod";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { getDataDir } from "../utils/paths.js";
-import { normalizeWorkspacePath } from "../utils/workspace-match.js";
-import {
-  projectNotFound,
-  invalidWorkspacePath,
-  formatError,
-} from "../utils/errors.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { formatError, invalidWorkspacePath, projectNotFound } from "../utils/errors.js";
+import { getProjectDir } from "../utils/paths.js";
+import type { ProjectMeta } from "../utils/project-documents.js";
+import { normalizeWorkspacePath } from "../utils/workspace-match.js";
 
 export function registerUpdatePaths(server: McpServer) {
   server.tool(
@@ -19,14 +17,11 @@ export function registerUpdatePaths(server: McpServer) {
       action: z
         .enum(["add", "remove", "set"])
         .describe('How to modify paths: "add", "remove", or "set"'),
-      paths: z
-        .array(z.string())
-        .describe("Absolute directory paths to add/remove/set"),
+      paths: z.array(z.string()).describe("Absolute directory paths to add/remove/set"),
     },
     async (params) => {
       try {
-        const dataDir = getDataDir();
-        const projectDir = resolve(dataDir, "projects", params.slug);
+        const projectDir = getProjectDir(params.slug);
         const metaPath = resolve(projectDir, "meta.json");
 
         if (!existsSync(metaPath)) {
@@ -44,13 +39,8 @@ export function registerUpdatePaths(server: McpServer) {
         const normalized = params.paths.map(normalizeWorkspacePath);
 
         // Read current meta
-        const meta = JSON.parse(readFileSync(metaPath, "utf-8")) as Record<
-          string,
-          unknown
-        >;
-        const current: string[] = Array.isArray(meta.workspacePaths)
-          ? (meta.workspacePaths as string[])
-          : [];
+        const meta = JSON.parse(await readFile(metaPath, "utf-8")) as ProjectMeta;
+        const current: string[] = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
 
         let updated: string[];
 
@@ -62,9 +52,7 @@ export function registerUpdatePaths(server: McpServer) {
           }
           case "remove": {
             const toRemove = new Set(normalized);
-            updated = current.filter(
-              (p) => !toRemove.has(normalizeWorkspacePath(p))
-            );
+            updated = current.filter((p) => !toRemove.has(normalizeWorkspacePath(p)));
             break;
           }
           case "set": {
@@ -74,16 +62,14 @@ export function registerUpdatePaths(server: McpServer) {
         }
 
         meta.workspacePaths = updated;
-        writeFileSync(metaPath, JSON.stringify(meta, null, 2), "utf-8");
+        await writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
 
         return {
           content: [
             {
               type: "text" as const,
               text: `✅ Workspace paths for "${params.slug}" updated (${params.action}).\n\nCurrent paths:\n${
-                updated.length > 0
-                  ? updated.map((p) => `- ${p}`).join("\n")
-                  : "- (none)"
+                updated.length > 0 ? updated.map((p) => `- ${p}`).join("\n") : "- (none)"
               }`,
             },
           ],
@@ -99,6 +85,6 @@ export function registerUpdatePaths(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

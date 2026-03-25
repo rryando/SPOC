@@ -44,21 +44,33 @@ describe("project-resources", () => {
         expect(knowledgeData.entries[0].id).toBe("auth-flow-module");
 
         // Plan body
-        const planBody = await readResourceText(server, "spoc://projects/my-project/plans/reduce-token-cost");
+        const planBody = await readResourceText(
+          server,
+          "spoc://projects/my-project/plans/reduce-token-cost",
+        );
         expect(planBody).toContain("# Reduce token cost");
 
         // Plan meta
-        const planMeta = await readResourceText(server, "spoc://projects/my-project/plans/reduce-token-cost/meta");
+        const planMeta = await readResourceText(
+          server,
+          "spoc://projects/my-project/plans/reduce-token-cost/meta",
+        );
         const planMetaData = JSON.parse(planMeta);
         expect(planMetaData.id).toBe("reduce-token-cost");
         expect(planMetaData.status).toBe("planned");
 
         // Knowledge body
-        const knowledgeBody = await readResourceText(server, "spoc://projects/my-project/knowledge/auth-flow-module");
+        const knowledgeBody = await readResourceText(
+          server,
+          "spoc://projects/my-project/knowledge/auth-flow-module",
+        );
         expect(knowledgeBody).toContain("# Auth flow module");
 
         // Knowledge meta
-        const knowledgeMeta = await readResourceText(server, "spoc://projects/my-project/knowledge/auth-flow-module/meta");
+        const knowledgeMeta = await readResourceText(
+          server,
+          "spoc://projects/my-project/knowledge/auth-flow-module/meta",
+        );
         const knowledgeMetaData = JSON.parse(knowledgeMeta);
         expect(knowledgeMetaData.id).toBe("auth-flow-module");
         expect(knowledgeMetaData.kind).toBe("module");

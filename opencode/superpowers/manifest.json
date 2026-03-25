@@ -20,31 +20,52 @@
   "config": {
     "requiredMerges": [
       {
-        "path": ["model"],
+        "path": [
+          "model"
+        ],
         "value": "github-copilot/claude-sonnet-4.6"
       },
       {
-        "path": ["agent", "build", "model"],
+        "path": [
+          "agent",
+          "build",
+          "model"
+        ],
         "value": "github-copilot/claude-sonnet-4.6"
       },
       {
-        "path": ["agent", "plan", "model"],
+        "path": [
+          "agent",
+          "plan",
+          "model"
+        ],
         "value": "github-copilot/claude-opus-4.6"
       },
       {
-        "path": ["agent", "general", "model"],
-        "value": "github-copilot/gemini-3.1-pro-preview"
+        "path": [
+          "agent",
+          "general",
+          "model"
+        ],
+        "value": "github-copilot/claude-opus-4.6"
       },
       {
-        "path": ["agent", "explore", "model"],
-        "value": "github-copilot/claude-haiku-4.6"
+        "path": [
+          "agent",
+          "explore",
+          "model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
       },
       {
-        "path": ["agent", "code-reviewer"],
+        "path": [
+          "agent",
+          "code-reviewer"
+        ],
         "value": {
           "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
           "mode": "subagent",
-          "model": "github-copilot/gpt-5.4",
+          "model": "github-copilot/gpt-5.4-mini",
           "prompt": "You are a code review specialist. Review code like a thoughtful teammate, focusing on correctness, edge cases, maintainability, architecture, and test quality. Prefer concrete, evidence-backed findings over generic style commentary.",
           "permission": {
             "edit": "deny",
@@ -53,11 +74,14 @@
         }
       },
       {
-        "path": ["agent", "docs-researcher"],
+        "path": [
+          "agent",
+          "docs-researcher"
+        ],
         "value": {
           "description": "Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks.",
           "mode": "subagent",
-          "model": "github-copilot/gemini-3.1-pro-preview",
+          "model": "github-copilot/claude-opus-4.6",
           "permission": {
             "edit": "ask",
             "bash": "ask",
@@ -67,11 +91,14 @@
         }
       },
       {
-        "path": ["agent", "analyzer"],
+        "path": [
+          "agent",
+          "analyzer"
+        ],
         "value": {
           "description": "Performs deep code analysis, refactoring guidance, and architecture-level reasoning without making hasty edits.",
           "mode": "subagent",
-          "model": "github-copilot/gpt-5.4",
+          "model": "github-copilot/gpt-5.4-mini",
           "permission": {
             "edit": "ask",
             "bash": "ask",
@@ -81,8 +108,10 @@
         }
       },
       {
-        "path": ["small_model"],
-        "value": "github-copilot/claude-haiku-4.6"
+        "path": [
+          "small_model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
       }
     ]
   }

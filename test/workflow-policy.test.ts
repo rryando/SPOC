@@ -12,7 +12,7 @@ describe("workflow policy", () => {
         hasPlanSignals: false,
         hasDurableKnowledgeSignal: false,
         itemLabel: "Rename one function across two files",
-      })
+      }),
     ).toEqual({
       surface: "queue",
       why: expect.stringMatching(/execution state|small standalone/i),
@@ -25,7 +25,7 @@ describe("workflow policy", () => {
         hasPlanSignals: true,
         hasDurableKnowledgeSignal: false,
         itemLabel: "Add operating brief across prompts and context resolution",
-      }).surface
+      }).surface,
     ).toBe("plan");
   });
 
@@ -35,7 +35,7 @@ describe("workflow policy", () => {
         hasPlanSignals: false,
         hasDurableKnowledgeSignal: true,
         itemLabel: "Document focus-selection gotcha",
-      }).surface
+      }).surface,
     ).toBe("memory");
   });
 
@@ -45,7 +45,7 @@ describe("workflow policy", () => {
         hasPlanSignals: true,
         hasDurableKnowledgeSignal: true,
         itemLabel: "Auth System",
-      }).surface
+      }).surface,
     ).toBe("memory");
   });
 
@@ -66,7 +66,7 @@ describe("workflow policy", () => {
         ],
         inProgressTasks: ["- [/] Update docs"],
         backlogTasks: ["- [ ] First backlog item"],
-      })
+      }),
     ).toEqual({
       kind: "plan",
       label: "Newer plan",
@@ -89,7 +89,7 @@ describe("workflow policy", () => {
         ],
         inProgressTasks: ["- [/] Update docs"],
         backlogTasks: ["- [ ] First backlog item"],
-      })
+      }),
     ).toEqual({
       kind: "plan",
       label: "First plan",
@@ -102,7 +102,7 @@ describe("workflow policy", () => {
         plans: [],
         inProgressTasks: ["- [/] First task", "- [/] Second task"],
         backlogTasks: ["- [ ] Backlog item"],
-      })
+      }),
     ).toEqual({
       kind: "task",
       label: "First task",
@@ -115,7 +115,7 @@ describe("workflow policy", () => {
         plans: [],
         inProgressTasks: [],
         backlogTasks: ["- [ ] First backlog item", "- [ ] Second backlog item"],
-      })
+      }),
     ).toEqual({
       kind: "task",
       label: "First backlog item",
@@ -129,7 +129,7 @@ describe("workflow policy", () => {
         inProgressTasks: [],
         backlogTasks: [],
         hasDurableKnowledgeSignal: false,
-      })
+      }),
     ).toEqual({
       currentFocus: "None",
       recommendedSurface: "queue",

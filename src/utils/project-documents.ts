@@ -10,3 +10,13 @@ export const PROJECT_DOC_FILES = {
 } as const;
 
 export type ProjectDocType = keyof typeof PROJECT_DOC_FILES;
+
+export interface ProjectMeta {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  repoUrl?: string;
+  createdAt: string;
+  workspacePaths: string[];
+}

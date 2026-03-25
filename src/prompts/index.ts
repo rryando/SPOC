@@ -1,10 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerSpocInitPrompt } from "./spoc-init.js";
+import { type AgentId, readConfig } from "../cli/config.js";
 import { registerSpocBrainstormPrompt } from "./spoc-brainstorm.js";
 import { registerSpocExecutePrompt } from "./spoc-execute.js";
-import { registerSpocSyncPrompt } from "./spoc-sync.js";
+import { registerSpocInitPrompt } from "./spoc-init.js";
 import { registerSpocOrchestratePrompt } from "./spoc-orchestrate.js";
-import { readConfig, type AgentId } from "../cli/config.js";
+import { registerSpocSyncPrompt } from "./spoc-sync.js";
 
 type PromptRegistrar = (server: McpServer) => void;
 

@@ -5,7 +5,7 @@
 export class DagError extends Error {
   constructor(
     public readonly code: string,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "DagError";
@@ -13,129 +13,107 @@ export class DagError extends Error {
 }
 
 export function projectNotFound(slug: string): DagError {
-  return new DagError(
-    "PROJECT_NOT_FOUND",
-    `Project "${slug}" does not exist.`
-  );
+  return new DagError("PROJECT_NOT_FOUND", `Project "${slug}" does not exist.`);
 }
 
 export function projectAlreadyExists(slug: string): DagError {
-  return new DagError(
-    "PROJECT_ALREADY_EXISTS",
-    `Project "${slug}" already exists.`
-  );
+  return new DagError("PROJECT_ALREADY_EXISTS", `Project "${slug}" already exists.`);
 }
 
 export function invalidDocType(doc: string): DagError {
   return new DagError(
     "INVALID_DOC_TYPE",
-    `Invalid document type "${doc}". Must be one of: overview, tasks, dependencies, knowledge.`
+    `Invalid document type "${doc}". Must be one of: overview, tasks, dependencies, knowledge.`,
   );
 }
 
 export function cycleDetected(fromSlug: string, toSlug: string): DagError {
   return new DagError(
     "CYCLE_DETECTED",
-    `Adding dependency "${fromSlug}" → "${toSlug}" would create a cycle.`
+    `Adding dependency "${fromSlug}" → "${toSlug}" would create a cycle.`,
   );
 }
 
 export function dependencyNotFound(ids: string[]): DagError {
-  return new DagError(
-    "DEPENDENCY_NOT_FOUND",
-    `Unknown dependency target(s): ${ids.join(", ")}`
-  );
+  return new DagError("DEPENDENCY_NOT_FOUND", `Unknown dependency target(s): ${ids.join(", ")}`);
 }
 
 export function invalidPlanStatus(status: string): DagError {
-  return new DagError(
-    "INVALID_PLAN_STATUS",
-    `Invalid plan status "${status}".`
-  );
+  return new DagError("INVALID_PLAN_STATUS", `Invalid plan status "${status}".`);
+}
+
+export function invalidTaskStatus(status: string): DagError {
+  return new DagError("INVALID_TASK_STATUS", `Invalid task status "${status}".`);
+}
+
+export function invalidTaskPriority(priority: string): DagError {
+  return new DagError("INVALID_TASK_PRIORITY", `Invalid task priority "${priority}".`);
 }
 
 export function invalidKnowledgeKind(kind: string): DagError {
-  return new DagError(
-    "INVALID_KNOWLEDGE_KIND",
-    `Invalid knowledge kind "${kind}".`
-  );
+  return new DagError("INVALID_KNOWLEDGE_KIND", `Invalid knowledge kind "${kind}".`);
 }
 
 export function invalidKeyword(keyword: string): DagError {
-  return new DagError(
-    "INVALID_KEYWORD",
-    `Invalid keyword "${keyword}".`
-  );
+  return new DagError("INVALID_KEYWORD", `Invalid keyword "${keyword}".`);
 }
 
 export function normalizedIdCollision(
-  kind: "plan" | "knowledge entry",
+  kind: "plan" | "knowledge entry" | "task",
   requestedId: string,
-  normalizedId: string
+  normalizedId: string,
 ): DagError {
   return new DagError(
     "NORMALIZED_ID_COLLISION",
-    `Cannot create ${kind} "${requestedId}" because normalized id "${normalizedId}" already exists.`
+    `Cannot create ${kind} "${requestedId}" because normalized id "${normalizedId}" already exists.`,
   );
 }
 
-export function itemNotFound(
-  kind: "plan" | "knowledge entry",
-  id: string
-): DagError {
-  return new DagError(
-    "ITEM_NOT_FOUND",
-    `Could not find ${kind} "${id}".`
-  );
+export function itemNotFound(kind: "plan" | "knowledge entry" | "task", id: string): DagError {
+  return new DagError("ITEM_NOT_FOUND", `Could not find ${kind} "${id}".`);
 }
 
-export function indexRebuildFailed(
-  kind: "plans" | "knowledge",
-  reason: string
-): DagError {
-  return new DagError(
-    "INDEX_REBUILD_FAILED",
-    `Unable to rebuild ${kind} index: ${reason}`
-  );
+export function indexRebuildFailed(kind: "plans" | "knowledge", reason: string): DagError {
+  return new DagError("INDEX_REBUILD_FAILED", `Unable to rebuild ${kind} index: ${reason}`);
 }
 
 export function noProjectMatch(workspacePath: string): DagError {
   return new DagError(
     "NO_PROJECT_MATCH",
     `No project found matching workspace path "${workspacePath}". ` +
-      `Register a workspace path using update_project_paths(slug, "add", [path]).`
+      `Register a workspace path using update_project_paths(slug, "add", [path]).`,
   );
 }
 
-export function ambiguousProjectMatch(
-  workspacePath: string,
-  slugs: string[]
-): DagError {
+export function ambiguousProjectMatch(workspacePath: string, slugs: string[]): DagError {
   return new DagError(
     "AMBIGUOUS_PROJECT_MATCH",
     `Multiple projects match workspace path "${workspacePath}" at the same depth: ${slugs.join(", ")}. ` +
-      `Use more specific workspace paths or remove duplicates with update_project_paths.`
+      `Use more specific workspace paths or remove duplicates with update_project_paths.`,
   );
 }
 
 export function invalidWorkspacePath(path: string): DagError {
   return new DagError(
     "INVALID_WORKSPACE_PATH",
-    `Workspace path "${path}" is not absolute. Paths must start with "/".`
+    `Workspace path "${path}" is not absolute. Paths must start with "/".`,
   );
 }
 
 export function noWorkspacePaths(slug: string): DagError {
   return new DagError(
     "NO_WORKSPACE_PATHS",
-    `No workspace paths registered for project "${slug}". Use update_project_paths to add paths first.`
+    `No workspace paths registered for project "${slug}". Use update_project_paths to add paths first.`,
   );
 }
 
 /**
  * Format a DagError into an MCP tool error response.
  */
-export function formatError(err: DagError): { content: Array<{ type: "text"; text: string }>; isError: true } {
+export function formatError(err: DagError): {
+  content: Array<{ type: "text"; text: string }>;
+  isError: true;
+} {
   return {
     content: [{ type: "text" as const, text: `[${err.code}] ${err.message}` }],
     isError: true,

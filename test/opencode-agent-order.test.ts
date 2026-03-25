@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { writeFileSync, readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { withTempHomeDir } from "./helpers/temp-home-dir.js";
+import { describe, expect, it } from "vitest";
 import { writeOpencodeAgent } from "../src/cli/instructions.js";
+import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 describe("writeOpencodeAgent — agent key order", () => {
   it("places SPOC Orchestrator first in a fresh config", async () => {
@@ -22,11 +22,11 @@ describe("writeOpencodeAgent — agent key order", () => {
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
       const existing = {
-        "$schema": "https://opencode.ai/config.json",
-        "agent": {
-          "build": { "model": "some-model" },
-          "plan": { "model": "another-model" },
-          "general": { "model": "third-model" },
+        $schema: "https://opencode.ai/config.json",
+        agent: {
+          build: { model: "some-model" },
+          plan: { model: "another-model" },
+          general: { model: "third-model" },
         },
       };
       writeFileSync(configFile, JSON.stringify(existing, null, 2));
@@ -46,9 +46,9 @@ describe("writeOpencodeAgent — agent key order", () => {
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
       const existing = {
-        "agent": {
-          "plan": { "model": "opus" },
-          "build": { "model": "sonnet" },
+        agent: {
+          plan: { model: "opus" },
+          build: { model: "sonnet" },
         },
       };
       writeFileSync(configFile, JSON.stringify(existing, null, 2));
@@ -59,8 +59,8 @@ describe("writeOpencodeAgent — agent key order", () => {
       const config = JSON.parse(raw) as Record<string, unknown>;
       const agents = config.agent as Record<string, unknown>;
 
-      expect((agents["build"] as any).model).toBe("sonnet");
-      expect((agents["plan"] as any).model).toBe("opus");
+      expect((agents.build as any).model).toBe("sonnet");
+      expect((agents.plan as any).model).toBe("opus");
       expect(agents["SPOC Orchestrator"]).toBeDefined();
     });
   });
@@ -89,7 +89,7 @@ describe("writeOpencodeAgent — agent key order", () => {
       const raw = readFileSync(configFile, "utf-8");
       const config = JSON.parse(raw) as Record<string, unknown>;
 
-      expect(config["default_agent"]).toBe("SPOC Orchestrator");
+      expect(config.default_agent).toBe("SPOC Orchestrator");
     });
   });
 });

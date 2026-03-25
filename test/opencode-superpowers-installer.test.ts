@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { withTempHomeDir } from "./helpers/temp-home-dir.js";
+import { describe, expect, it } from "vitest";
 import {
   buildOpencodeSuperpowersInstallPlan,
   detectOpencodeSuperpowersInstall,
@@ -10,9 +9,10 @@ import {
   installBundledOpencodeSuperpowers,
   installBundledOpencodeSuperpowersWithHooks,
   readInstalledOpencodeSuperpowersManifest,
-  writeInstalledOpencodeSuperpowersManifest,
   type SourceOpencodeSuperpowersManifest,
+  writeInstalledOpencodeSuperpowersManifest,
 } from "../src/cli/opencode-superpowers.js";
+import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 const bundleRoot = resolve(import.meta.dirname, "..", "opencode", "superpowers");
 const sourceManifestPath = resolve(bundleRoot, "manifest.json");
@@ -41,7 +41,9 @@ function readExpectedSourceBundleVersion(): string {
   const sourceManifest = readSourceManifest();
 
   if (sourceManifest.bundleVersionSource !== "package.json") {
-    throw new Error(`Unsupported bundleVersionSource in test: ${sourceManifest.bundleVersionSource}`);
+    throw new Error(
+      `Unsupported bundleVersionSource in test: ${sourceManifest.bundleVersionSource}`,
+    );
   }
 
   return (JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson).version;
@@ -83,15 +85,7 @@ function expectRuntimePayloadInstalled(homeDir: string): void {
     for (const relativePath of files) {
       expect(
         existsSync(
-          resolve(
-            homeDir,
-            ".config",
-            "opencode",
-            "skills",
-            "superpowers",
-            skillName,
-            relativePath,
-          ),
+          resolve(homeDir, ".config", "opencode", "skills", "superpowers", skillName, relativePath),
         ),
       ).toBe(true);
     }
@@ -169,9 +163,9 @@ describe("opencode superpowers install detection", () => {
         "utf-8",
       );
 
-      expect(
-        detectOpencodeSuperpowersInstall(sourceManifestWithConfigOnly).state,
-      ).toBe("foreign-existing");
+      expect(detectOpencodeSuperpowersInstall(sourceManifestWithConfigOnly).state).toBe(
+        "foreign-existing",
+      );
     });
   });
 
@@ -258,7 +252,13 @@ describe("opencode superpowers installer", () => {
 
   it("replaces a foreign install when auto-confirmed and installs the curated runtime payload", async () => {
     await withTempHomeDir(async (homeDir) => {
-      const foreignPluginPath = resolve(homeDir, ".config", "opencode", "plugins", "superpowers.js");
+      const foreignPluginPath = resolve(
+        homeDir,
+        ".config",
+        "opencode",
+        "plugins",
+        "superpowers.js",
+      );
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(foreignPluginPath, "foreign plugin", "utf-8");
 
@@ -293,27 +293,29 @@ describe("opencode superpowers installer", () => {
             model: "github-copilot/claude-opus-4.6",
           },
           general: {
-            model: "github-copilot/gemini-3.1-pro-preview",
+            model: "github-copilot/claude-opus-4.6",
           },
           explore: {
-            model: "github-copilot/claude-haiku-4.6",
+            model: "github-copilot/claude-haiku-4.5",
           },
           "code-reviewer": {
             mode: "subagent",
-            model: "github-copilot/gpt-5.4",
+            model: "github-copilot/gpt-5.4-mini",
           },
           "docs-researcher": {
             mode: "subagent",
-            model: "github-copilot/gemini-3.1-pro-preview",
+            model: "github-copilot/claude-opus-4.6",
           },
           analyzer: {
             mode: "subagent",
-            model: "github-copilot/gpt-5.4",
+            model: "github-copilot/gpt-5.4-mini",
           },
         },
       });
       expect(opencodeConfig).not.toHaveProperty("plugin");
-      expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain("skills/superpowers");
+      expect(readInstalledOpencodeSuperpowersManifest()?.ownedPaths).toContain(
+        "skills/superpowers",
+      );
     });
   });
 

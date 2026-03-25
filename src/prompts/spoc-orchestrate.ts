@@ -309,6 +309,6 @@ export function registerSpocOrchestratePrompt(server: McpServer) {
           },
         },
       ],
-    })
+    }),
   );
 }

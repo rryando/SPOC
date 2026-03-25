@@ -1,13 +1,7 @@
-import {
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  existsSync,
-} from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import color from "picocolors";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
 
 // ---------------------------------------------------------------------------
@@ -41,26 +35,18 @@ function readJsonFile(path: string): Record<string, unknown> {
 /** Write JSON content to disk, creating parent dirs as needed. */
 function writeJsonFile(path: string, data: Record<string, unknown>): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
 /**
  * Deep-set a nested key path on an object (mutates in place).
  * E.g. deepSet(obj, ["mcp", "servers", "spoc"], value)
  */
-function deepSet(
-  obj: Record<string, unknown>,
-  keys: string[],
-  value: unknown,
-): void {
+function deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
   let current = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const k = keys[i];
-    if (
-      typeof current[k] !== "object" ||
-      current[k] === null ||
-      Array.isArray(current[k])
-    ) {
+    if (typeof current[k] !== "object" || current[k] === null || Array.isArray(current[k])) {
       current[k] = {};
     }
     current = current[k] as Record<string, unknown>;
@@ -109,7 +95,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
       const p = this.configPath();
       const existing = readJsonFile(p);
       deepSet(existing, ["mcp", "spoc"], makeOpencodeEntry());
-      return JSON.stringify(existing, null, 2) + "\n";
+      return `${JSON.stringify(existing, null, 2)}\n`;
     },
   },
 
@@ -122,7 +108,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
       const p = this.configPath();
       const existing = readJsonFile(p);
       deepSet(existing, ["servers", "spoc"], makeStdioEntry());
-      return JSON.stringify(existing, null, 2) + "\n";
+      return `${JSON.stringify(existing, null, 2)}\n`;
     },
   },
 
@@ -130,13 +116,12 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
   "copilot-cli": {
     label: "GitHub Copilot CLI",
     hint: "gh copilot with MCP support",
-    configPath: () =>
-      resolve(homedir(), ".config", "github-copilot", "mcp.json"),
+    configPath: () => resolve(homedir(), ".config", "github-copilot", "mcp.json"),
     merge() {
       const p = this.configPath();
       const existing = readJsonFile(p);
       deepSet(existing, ["mcpServers", "spoc"], makeStdioEntry());
-      return JSON.stringify(existing, null, 2) + "\n";
+      return `${JSON.stringify(existing, null, 2)}\n`;
     },
   },
 
@@ -149,7 +134,7 @@ const IDE_MAP: Record<IdeId, IdeInfo> = {
       const p = this.configPath();
       const existing = readJsonFile(p);
       deepSet(existing, ["mcpServers", "spoc"], makeStdioEntry());
-      return JSON.stringify(existing, null, 2) + "\n";
+      return `${JSON.stringify(existing, null, 2)}\n`;
     },
   },
 };
@@ -243,7 +228,7 @@ export function writeIdeConfig(id: IdeId): WriteResult {
  */
 export function displayPath(p: string): string {
   const home = homedir();
-  return p.startsWith(home) ? "~" + p.slice(home.length) : p;
+  return p.startsWith(home) ? `~${p.slice(home.length)}` : p;
 }
 
 // ---------------------------------------------------------------------------
@@ -313,20 +298,20 @@ export function writeOpencodeAgent(): AgentWriteResult {
 
   // Write the prompt text file
   mkdirSync(opencodePromptsDir(), { recursive: true });
-  writeFileSync(promptFile, ORCHESTRATE_PROMPT_TEXT + "\n", "utf-8");
+  writeFileSync(promptFile, `${ORCHESTRATE_PROMPT_TEXT}\n`, "utf-8");
 
   // Merge agent entry into opencode.json with controlled key order:
   // 1. SPOC Orchestrator (always first — controls Tab-cycle position in OpenCode)
   // 2. build (second, if already present in config)
   // 3. all other existing agents in their original order
   const existing = readJsonFile(configFile);
-  const existingAgents = (existing["agent"] ?? {}) as Record<string, unknown>;
+  const existingAgents = (existing.agent ?? {}) as Record<string, unknown>;
 
   const orderedAgents: Record<string, unknown> = {
     [SPOC_AGENT_KEY]: SPOC_AGENT_ENTRY,
   };
   if ("build" in existingAgents) {
-    orderedAgents["build"] = existingAgents["build"];
+    orderedAgents.build = existingAgents.build;
   }
   for (const [key, value] of Object.entries(existingAgents)) {
     if (key !== SPOC_AGENT_KEY && key !== "build") {
@@ -334,9 +319,9 @@ export function writeOpencodeAgent(): AgentWriteResult {
     }
   }
 
-  existing["agent"] = orderedAgents;
+  existing.agent = orderedAgents;
   // Set SPOC Orchestrator as the startup default agent
-  existing["default_agent"] = SPOC_AGENT_KEY;
+  existing.default_agent = SPOC_AGENT_KEY;
   writeJsonFile(configFile, existing);
 
   return {

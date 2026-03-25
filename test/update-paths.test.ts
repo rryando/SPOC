@@ -5,9 +5,7 @@ import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
 
 function readProjectMeta(dataDir: string, slug: string): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(resolve(dataDir, "projects", slug, "meta.json"), "utf-8")
-  );
+  return JSON.parse(readFileSync(resolve(dataDir, "projects", slug, "meta.json"), "utf-8"));
 }
 
 describe("update_project_paths", () => {
@@ -159,7 +157,7 @@ describe("update_project_paths", () => {
             slug: "relative-test",
             action: "add",
             paths: ["relative/path"],
-          })
+          }),
         ).rejects.toThrow("INVALID_WORKSPACE_PATH");
       } finally {
         await server.close();

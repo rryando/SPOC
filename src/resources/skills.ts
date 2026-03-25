@@ -1,8 +1,8 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PACKAGE_ROOT } from "../utils/paths.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const SKILLS_DIR = resolve(PACKAGE_ROOT, "skills");
 
@@ -63,14 +63,19 @@ export function registerSkillResources(server: McpServer) {
   server.resource(
     "skills-list",
     "spoc://skills",
-    { description: "List of available agent skills for this MCP server", mimeType: "application/json" },
+    {
+      description: "List of available agent skills for this MCP server",
+      mimeType: "application/json",
+    },
     async (uri) => {
       const skills = listSkills();
       const list = skills.map(({ name, description }) => ({ name, description }));
       return {
-        contents: [{ uri: uri.href, text: JSON.stringify(list, null, 2), mimeType: "application/json" }],
+        contents: [
+          { uri: uri.href, text: JSON.stringify(list, null, 2), mimeType: "application/json" },
+        ],
       };
-    }
+    },
   );
 
   // Template: individual skill
@@ -81,13 +86,11 @@ export function registerSkillResources(server: McpServer) {
     async (uri, variables) => {
       const skillName = variables.name as string;
       const skills = listSkills();
-      const skill = skills.find(
-        (s) => s.name === skillName || s.filename === `${skillName}.md`
-      );
+      const skill = skills.find((s) => s.name === skillName || s.filename === `${skillName}.md`);
 
       if (!skill) {
         throw new Error(
-          `Skill "${skillName}" not found. Available: ${skills.map((s) => s.name).join(", ")}`
+          `Skill "${skillName}" not found. Available: ${skills.map((s) => s.name).join(", ")}`,
         );
       }
 
@@ -95,6 +98,6 @@ export function registerSkillResources(server: McpServer) {
       return {
         contents: [{ uri: uri.href, text: content, mimeType: "text/markdown" }],
       };
-    }
+    },
   );
 }

@@ -99,7 +99,9 @@ describe("docs and skills smoke tests", () => {
     expect(initPrompt).toContain("three-surface model");
     expect(initPrompt).toContain("queue = immediate execution state in `tasks.md`");
     expect(initPrompt).toContain("plan = multi-step work in structured plans");
-    expect(initPrompt).toContain("memory = durable reusable knowledge in structured knowledge entries");
+    expect(initPrompt).toContain(
+      "memory = durable reusable knowledge in structured knowledge entries",
+    );
   });
 
   it("agent definitions mention queue, plan, and memory", () => {
@@ -107,9 +109,13 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README explains that OpenCode setup installs SPOC-managed superpowers", () => {
-    expect(openCodeManagedSuperpowersSection).toContain("selecting OpenCode in `spoc init` installs");
+    expect(openCodeManagedSuperpowersSection).toContain(
+      "selecting OpenCode in `spoc init` installs",
+    );
     expect(openCodeManagedSuperpowersSection).toContain("manager of the active `superpowers` set");
-    expect(openCodeManagedSuperpowersSection).toContain("generic Superpowers installs may be replaced");
+    expect(openCodeManagedSuperpowersSection).toContain(
+      "generic Superpowers installs may be replaced",
+    );
     expect(openCodeManagedSuperpowersSection).toContain("`spoc config` re-syncs");
     expect(openCodeManagedSuperpowersSection).toContain("orchestrator agent is disabled");
   });
@@ -119,6 +125,8 @@ describe("docs and skills smoke tests", () => {
     expect(openCodeManagedSuperpowersSection).toContain("Superpowers skills remain available");
     expect(openCodeManagedSuperpowersSection).toContain("agent definitions are bundled");
     expect(openCodeManagedSuperpowersSection).toContain("excluded to keep the package lean");
-    expect(openCodeManagedSuperpowersSection).toContain("`opencode/superpowers/bundle-runtime.json`");
+    expect(openCodeManagedSuperpowersSection).toContain(
+      "`opencode/superpowers/bundle-runtime.json`",
+    );
   });
 });

@@ -1,7 +1,9 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
-export const EXECUTE_PROMPT_TEXT = (project: string) => `You are an expert software engineer executing tasks for the project **${project}** tracked in the SPOC DAG.
+export const EXECUTE_PROMPT_TEXT = (
+  project: string,
+) => `You are an expert software engineer executing tasks for the project **${project}** tracked in the SPOC DAG.
 
 ## Your Mission
 Work through the project's task list methodically. Read the current state, execute the highest-priority ready tasks, update the DAG as you go, and keep docs in sync with reality.
@@ -26,7 +28,7 @@ You have full access to all SPOC tools:
 You also have access to all your standard tools (file system, shell, search, etc.) for doing the actual implementation work.
 
 ## Workflow
-1. **Orient**: Use \`get_project\` with slug=\"${project}\" and doc=\"tasks\" to read the project's task list. Also read overview and knowledge docs for context.
+1. **Orient**: Use \`get_project\` with slug="${project}" and doc="tasks" to read the project's task list. Also read overview and knowledge docs for context.
    - If an operating brief or resolved context is available, use its current focus, recommended surface, why, and next action to guide execution.
 2. **Select**: Identify the highest-priority unblocked task(s). Confirm with the user if ambiguous.
    - Also check for implementation plans: \`list_project_plans\` with keywords \`["implementation-plan"]\` to find detailed step-by-step plans that may have been created by external workflows (e.g. superpowers).
@@ -60,7 +62,7 @@ export function registerSpocExecutePrompt(server: McpServer) {
         project: z
           .string()
           .describe(
-            "The project slug to execute tasks for (e.g. my-project). Find slugs via list_projects."
+            "The project slug to execute tasks for (e.g. my-project). Find slugs via list_projects.",
           ),
       },
     },
@@ -74,6 +76,6 @@ export function registerSpocExecutePrompt(server: McpServer) {
           },
         },
       ],
-    })
+    }),
   );
 }

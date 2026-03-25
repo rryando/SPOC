@@ -1,14 +1,8 @@
-import { z } from "zod";
-import { writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { readRootMeta, wouldCreateCycle } from "../utils/dag.js";
-import {
-  projectNotFound,
-  cycleDetected,
-  formatError,
-} from "../utils/errors.js";
-import { getDataDir } from "../utils/paths.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { readRootMeta, wouldCreateCycle, writeRootMeta } from "../utils/dag.js";
+import { cycleDetected, formatError, projectNotFound } from "../utils/errors.js";
+import { getDataDir } from "../utils/paths.js";
 
 export const ManageDependencySchema = {
   slug: z.string().describe("Project slug"),
@@ -24,8 +18,7 @@ export function registerManageDependency(server: McpServer) {
     async (params) => {
       try {
         const dataDir = getDataDir();
-        const metaPath = resolve(dataDir, "meta.json");
-        const rootMeta = readRootMeta(dataDir);
+        const rootMeta = await readRootMeta(dataDir);
 
         const project = rootMeta.projects.find((p) => p.id === params.slug);
         if (!project) {
@@ -72,7 +65,7 @@ export function registerManageDependency(server: McpServer) {
           project.dependsOn.splice(idx, 1);
         }
 
-        writeFileSync(metaPath, JSON.stringify(rootMeta, null, 2), "utf-8");
+        await writeRootMeta(dataDir, rootMeta);
 
         const verb = params.action === "add" ? "Added" : "Removed";
         return {
@@ -94,6 +87,6 @@ export function registerManageDependency(server: McpServer) {
           isError: true,
         };
       }
-    }
+    },
   );
 }

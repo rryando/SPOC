@@ -19,10 +19,10 @@ describe("init_project", () => {
 
         // --- Structured indexes ---
         expect(
-          JSON.parse(readFileSync(resolve(projectDir, "plans", "index.json"), "utf-8"))
+          JSON.parse(readFileSync(resolve(projectDir, "plans", "index.json"), "utf-8")),
         ).toEqual({ plans: [] });
         expect(
-          JSON.parse(readFileSync(resolve(projectDir, "knowledge", "index.json"), "utf-8"))
+          JSON.parse(readFileSync(resolve(projectDir, "knowledge", "index.json"), "utf-8")),
         ).toEqual({ entries: [] });
 
         // --- overview.md ---
@@ -64,7 +64,7 @@ describe("init_project", () => {
         });
 
         const meta = JSON.parse(
-          readFileSync(resolve(dataDir, "projects", "with-paths", "meta.json"), "utf-8")
+          readFileSync(resolve(dataDir, "projects", "with-paths", "meta.json"), "utf-8"),
         );
         // Should normalize trailing slashes
         expect(meta.workspacePaths).toEqual(["/Users/ryan/with-paths", "/other/path"]);
@@ -84,7 +84,7 @@ describe("init_project", () => {
         });
 
         const meta = JSON.parse(
-          readFileSync(resolve(dataDir, "projects", "no-paths", "meta.json"), "utf-8")
+          readFileSync(resolve(dataDir, "projects", "no-paths", "meta.json"), "utf-8"),
         );
         // When no workspacePaths are provided, the tool falls back to process.cwd()
         // so the project is immediately resolvable by the MCP client's working directory.
