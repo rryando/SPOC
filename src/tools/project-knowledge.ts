@@ -15,6 +15,11 @@ import {
 import { normalizeIdentifier } from "../utils/slug.js";
 import { errorResult, jsonResult } from "../utils/tool-response.js";
 
+const fileRefSchema = z.object({
+  path: z.string().describe("Relative path from workspace root"),
+  anchor: z.string().optional().describe("Stable identifier: function/class/export name"),
+});
+
 export function registerProjectKnowledgeTools(server: McpServer) {
   // ---- create_project_knowledge_entry ----
   server.tool(
@@ -32,6 +37,10 @@ export function registerProjectKnowledgeTools(server: McpServer) {
       entryId: z.string().optional().describe("Entry identifier (derived from title if omitted)"),
       keywords: z.array(z.string()).optional().default([]).describe("Searchable keywords"),
       body: z.string().optional().describe("Markdown body content"),
+      sourceFiles: z
+        .array(fileRefSchema)
+        .optional()
+        .describe("Source file references (path + optional anchor)"),
     },
     async (params) => {
       try {
@@ -49,6 +58,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
           keywords: params.keywords,
           summary: params.summary,
           content: params.body,
+          sourceFiles: params.sourceFiles,
         });
 
         // Read back the body file
@@ -156,6 +166,10 @@ export function registerProjectKnowledgeTools(server: McpServer) {
       summary: z.string().optional().describe("New summary"),
       kind: z.enum(KNOWLEDGE_KINDS).optional().describe("New kind"),
       keywords: z.array(z.string()).optional().describe("New keywords"),
+      sourceFiles: z
+        .array(fileRefSchema)
+        .optional()
+        .describe("New source file references (replaces existing; empty array clears)"),
     },
     async (params) => {
       try {
@@ -170,6 +184,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
           summary: params.summary,
           kind: params.kind,
           keywords: params.keywords,
+          sourceFiles: params.sourceFiles,
         });
 
         return jsonResult({ meta });

@@ -258,6 +258,62 @@ describe("project-knowledge tools", () => {
       }
     });
   });
+
+  it("creates knowledge entry with sourceFiles and returns them", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "KE Ref Test",
+          description: "Test sourceFiles on knowledge",
+        });
+
+        const result = await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "ke-ref-test",
+          title: "Auth pattern",
+          kind: "pattern",
+          sourceFiles: [{ path: "src/auth.ts", anchor: "AuthService" }],
+        });
+        const parsed = JSON.parse((result as any).content.find((c: any) => c.type === "text").text);
+        expect(parsed.meta.sourceFiles).toEqual([{ path: "src/auth.ts", anchor: "AuthService" }]);
+
+        // List returns sourceFiles
+        const listResult = await invokeJsonTool(server, "list_project_knowledge_entries", {
+          slug: "ke-ref-test",
+        });
+        const listParsed = JSON.parse(
+          (listResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(listParsed.entries[0].sourceFiles).toEqual([
+          { path: "src/auth.ts", anchor: "AuthService" },
+        ]);
+
+        // Update replaces sourceFiles
+        const updateResult = await invokeJsonTool(server, "update_project_knowledge_meta", {
+          slug: "ke-ref-test",
+          entryId: "auth-pattern",
+          sourceFiles: [{ path: "src/new-auth.ts" }],
+        });
+        const updateParsed = JSON.parse(
+          (updateResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(updateParsed.meta.sourceFiles).toEqual([{ path: "src/new-auth.ts" }]);
+
+        // Update with empty array clears sourceFiles
+        const clearResult = await invokeJsonTool(server, "update_project_knowledge_meta", {
+          slug: "ke-ref-test",
+          entryId: "auth-pattern",
+          sourceFiles: [],
+        });
+        const clearParsed = JSON.parse(
+          (clearResult as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(clearParsed.meta.sourceFiles).toBeUndefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });
 
 describe("prompt and agent text — knowledge-specific checks", () => {
