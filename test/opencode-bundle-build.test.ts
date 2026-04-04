@@ -490,6 +490,7 @@ describe("opencode bundle runtime manifest", () => {
     expect(runtimeManifest).toEqual({
       sourceRoot: "~/.config/opencode/skills/superpowers",
       skills: {
+        aesthetic: ["SKILL.md", "CATALOG.md"],
         brainstorming: [
           "SKILL.md",
           "spec-document-reviewer-prompt.md",
