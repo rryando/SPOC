@@ -77,7 +77,7 @@ For concrete patterns, recipes, and implementation guidance, reference the **[CA
 9. Cards & Containers — content vessels
 10. Micro-interactions — small moments of delight
 11. Scroll & Parallax — scroll-driven experiences
-12. Responsive — beauty at every viewport
+12. Responsive Beauty — beauty at every viewport
 
 Each pattern includes a **When** (trigger), **Feel** (sensory description), and **How** (implementation direction).
 
