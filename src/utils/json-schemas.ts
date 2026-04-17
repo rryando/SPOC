@@ -46,6 +46,22 @@ export const rootMetaSchema = z.object({
 export type RootMetaJson = z.infer<typeof rootMetaSchema>;
 
 // ---------------------------------------------------------------------------
+// Per-project meta.json
+// ---------------------------------------------------------------------------
+
+export const projectMetaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  status: z.string().optional(),
+  repoUrl: z.string().optional(),
+  createdAt: z.string(),
+  workspacePaths: z.array(z.string()).optional().default([]),
+}).passthrough();
+
+export type ProjectMetaJson = z.infer<typeof projectMetaSchema>;
+
+// ---------------------------------------------------------------------------
 // plans/index.json, knowledge/index.json, tasks/index.json
 // ---------------------------------------------------------------------------
 

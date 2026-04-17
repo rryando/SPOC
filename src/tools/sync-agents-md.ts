@@ -9,9 +9,10 @@ import {
   extractOverviewContent,
 } from "../utils/content-assembly.js";
 import { readRootMeta } from "../utils/dag.js";
-import { formatError, noWorkspacePaths, projectNotFound } from "../utils/errors.js";
+import { formatError, invalidFileFormat, noWorkspacePaths, projectNotFound } from "../utils/errors.js";
+import { readJsonSafe, validateJson } from "../utils/json.js";
+import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
-import type { ProjectMeta } from "../utils/project-documents.js";
 import { readPlanIndex } from "../utils/project-memory.js";
 import { errorResult } from "../utils/tool-response.js";
 
@@ -227,7 +228,9 @@ export function registerSyncAgentsMd(server: McpServer) {
         // Read project meta
         const projectDir = getProjectDir(params.slug);
         const metaPath = resolve(projectDir, "meta.json");
-        const meta = JSON.parse(await readFile(metaPath, "utf-8")) as ProjectMeta;
+        const raw = await readJsonSafe<unknown>(metaPath);
+        if (raw === undefined) throw invalidFileFormat(metaPath, "unable to parse JSON");
+        const meta = validateJson(raw, projectMetaSchema, metaPath);
 
         const name = meta.name ?? params.slug;
         const workspacePaths = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];

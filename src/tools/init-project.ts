@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -12,8 +12,10 @@ import {
   cycleDetected,
   dependencyNotFound,
   formatError,
+  invalidFileFormat,
   projectAlreadyExists,
 } from "../utils/errors.js";
+import { readJsonSafe } from "../utils/json.js";
 import { getDataDir } from "../utils/paths.js";
 import { slugify } from "../utils/slug.js";
 import { getTemplatePath, renderTemplate } from "../utils/template.js";
@@ -112,10 +114,8 @@ export function registerInitProject(server: McpServer) {
           params.workspacePaths !== undefined ? params.workspacePaths : [process.cwd()];
         const normalizedPaths = rawWorkspacePaths.map(normalizeWorkspacePath);
         const metaJsonPath = resolve(projectDir, "meta.json");
-        const metaObj = JSON.parse(await readFile(metaJsonPath, "utf-8")) as Record<
-          string,
-          unknown
-        >;
+        const metaObj = await readJsonSafe<Record<string, unknown>>(metaJsonPath);
+        if (metaObj === undefined) throw invalidFileFormat(metaJsonPath, "unable to parse JSON");
         metaObj.workspacePaths = normalizedPaths;
         await writeFile(metaJsonPath, JSON.stringify(metaObj, null, 2), "utf-8");
 

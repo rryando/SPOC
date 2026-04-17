@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readJsonSafe, validateJson } from "../utils/json.js";
+import { knowledgeMetaSchema, planMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir } from "../utils/paths.js";
 import { PROJECT_DOC_FILES } from "../utils/project-documents.js";
 import { readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
@@ -88,7 +90,11 @@ export function registerProjectResources(server: McpServer) {
         throw new Error(`Plan "${planId}" not found in project "${slug}".`);
       }
 
-      const meta = JSON.parse(await readFile(metaPath, "utf-8"));
+      const raw = await readJsonSafe<unknown>(metaPath);
+      if (raw === undefined) {
+        throw new Error(`Plan "${planId}" metadata could not be parsed in project "${slug}".`);
+      }
+      const meta = validateJson(raw, planMetaSchema, metaPath);
       const bodyPath = resolve(projectDir, meta.file);
 
       if (!existsSync(bodyPath)) {
@@ -159,7 +165,11 @@ export function registerProjectResources(server: McpServer) {
         throw new Error(`Knowledge entry "${entryId}" not found in project "${slug}".`);
       }
 
-      const meta = JSON.parse(await readFile(metaPath, "utf-8"));
+      const raw = await readJsonSafe<unknown>(metaPath);
+      if (raw === undefined) {
+        throw new Error(`Knowledge entry "${entryId}" metadata could not be parsed in project "${slug}".`);
+      }
+      const meta = validateJson(raw, knowledgeMetaSchema, metaPath);
       const bodyPath = resolve(projectDir, meta.file);
 
       if (!existsSync(bodyPath)) {

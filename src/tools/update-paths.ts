@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { formatError, invalidWorkspacePath, projectNotFound } from "../utils/errors.js";
+import { formatError, invalidFileFormat, invalidWorkspacePath, projectNotFound } from "../utils/errors.js";
+import { readJsonSafe, validateJson } from "../utils/json.js";
+import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getProjectDir } from "../utils/paths.js";
-import type { ProjectMeta } from "../utils/project-documents.js";
 import { errorResult } from "../utils/tool-response.js";
 import { normalizeWorkspacePath } from "../utils/workspace-match.js";
 
@@ -40,7 +41,9 @@ export function registerUpdatePaths(server: McpServer) {
         const normalized = params.paths.map(normalizeWorkspacePath);
 
         // Read current meta
-        const meta = JSON.parse(await readFile(metaPath, "utf-8")) as ProjectMeta;
+        const raw = await readJsonSafe<unknown>(metaPath);
+        if (raw === undefined) throw invalidFileFormat(metaPath, "unable to parse JSON");
+        const meta = validateJson(raw, projectMetaSchema, metaPath);
         const current: string[] = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
 
         let updated: string[];

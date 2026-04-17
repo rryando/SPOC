@@ -3,7 +3,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DagError, formatError, itemNotFound, projectNotFound } from "../utils/errors.js";
+import { DagError, formatError, invalidFileFormat, itemNotFound, projectNotFound } from "../utils/errors.js";
+import { readJsonSafe, validateJson } from "../utils/json.js";
+import { knowledgeMetaSchema } from "../utils/json-schemas.js";
 import { getProjectDir } from "../utils/paths.js";
 import {
   createKnowledgeEntry,
@@ -135,7 +137,9 @@ export function registerProjectKnowledgeTools(server: McpServer) {
           return formatError(itemNotFound("knowledge entry", params.entryId));
         }
 
-        const meta = JSON.parse(await readFile(metaPath, "utf-8"));
+        const raw = await readJsonSafe<unknown>(metaPath);
+        if (raw === undefined) throw invalidFileFormat(metaPath, "unable to parse JSON");
+        const meta = validateJson(raw, knowledgeMetaSchema, metaPath);
 
         if (params.includeBody) {
           const bodyPath = resolve(projectDir, meta.file);
@@ -214,7 +218,9 @@ export function registerProjectKnowledgeTools(server: McpServer) {
           return formatError(itemNotFound("knowledge entry", params.entryId));
         }
 
-        const existingMeta = JSON.parse(await readFile(metaPath, "utf-8"));
+        const rawMeta = await readJsonSafe<unknown>(metaPath);
+        if (rawMeta === undefined) throw invalidFileFormat(metaPath, "unable to parse JSON");
+        const existingMeta = validateJson(rawMeta, knowledgeMetaSchema, metaPath);
         const bodyPath = resolve(projectDir, existingMeta.file);
 
         // Write the new body

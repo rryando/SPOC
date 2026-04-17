@@ -15,8 +15,9 @@ import {
   invalidWorkspacePath,
   noProjectMatch,
 } from "../utils/errors.js";
+import { readJsonSafe, validateJson } from "../utils/json.js";
+import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
-import type { ProjectMeta } from "../utils/project-documents.js";
 import type { FileRef } from "../utils/project-memory.js";
 import { readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
 import { errorResult } from "../utils/tool-response.js";
@@ -59,14 +60,17 @@ export function registerResolveContext(server: McpServer) {
         const rootMeta = await readRootMeta(dataDir);
 
         // Build workspace project list by reading each project's meta.json
+        type ProjectMetaValidated = { id: string; name: string; description: string; createdAt: string; workspacePaths: string[]; status?: string; repoUrl?: string };
         const workspaceProjects: WorkspaceProject[] = [];
-        const projectMetas = new Map<string, ProjectMeta>();
+        const projectMetas = new Map<string, ProjectMetaValidated>();
 
         for (const node of rootMeta.projects) {
           const metaPath = resolve(dataDir, "projects", node.id, "meta.json");
           if (!existsSync(metaPath)) continue;
 
-          const meta = JSON.parse(await readFile(metaPath, "utf-8")) as ProjectMeta;
+          const raw = await readJsonSafe<unknown>(metaPath);
+          if (raw === undefined) continue;
+          const meta = validateJson(raw, projectMetaSchema, metaPath) as ProjectMetaValidated;
           const paths = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
 
           if (paths.length > 0) {
