@@ -164,7 +164,14 @@ describe("opencode superpowers bundle", () => {
     const runtimeManifest = readJsonFile<RuntimeManifest>(runtimeManifestPath);
     const outputRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-smoke-"));
 
-    expect(readdirSync(skillsDir).sort()).toEqual(Object.keys(runtimeManifest.skills).sort());
+    // SPOC-native skills (authored in this repo) live in the bundle but aren't
+    // declared in bundle-runtime.json — they are preserved output files.
+    const spocNativeSkillNames = ["loop"];
+    const expectedSkillNames = [
+      ...Object.keys(runtimeManifest.skills),
+      ...spocNativeSkillNames,
+    ].sort();
+    expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 
     try {
       const result = runBundleBuild(outputRoot, repoLocalSourceRoot);

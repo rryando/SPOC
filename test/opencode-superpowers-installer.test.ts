@@ -49,6 +49,10 @@ function readExpectedSourceBundleVersion(): string {
   return (JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson).version;
 }
 
+// SPOC-native skill files: authored in this repo, not sourced from upstream.
+// Must match the skill entries in scripts/build-opencode-superpowers-bundle.mjs preservedOutputFiles.
+const spocNativeSkillFiles = ["skills/loop/SKILL.md"];
+
 function curatedBundlePayloadFiles(): string[] {
   const runtimeManifest = readRuntimeManifest();
 
@@ -62,6 +66,8 @@ function curatedBundlePayloadFiles(): string[] {
     ),
     ...runtimeManifest.agents,
     ...runtimeManifest.plugin,
+    // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
+    ...spocNativeSkillFiles,
   ].sort((a, b) => a.localeCompare(b));
 }
 

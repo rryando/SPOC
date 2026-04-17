@@ -74,8 +74,15 @@ function listSourceSkillNames(sourceRoot: string) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter((skillName) => existsSync(resolve(sourceRoot, skillName, "SKILL.md")))
+    .filter((skillName) => !SPOC_NATIVE_SKILL_NAMES.has(skillName))
     .sort();
 }
+
+// SPOC-native skills authored in this repo; they live in the bundle under skills/
+// but are not declared in bundle-runtime.json and are not sourced from the upstream
+// superpowers install. Must stay in sync with preservedOutputFiles in
+// scripts/build-opencode-superpowers-bundle.mjs.
+const SPOC_NATIVE_SKILL_NAMES = new Set(["loop"]);
 
 function listTopLevelAgentPaths(sourceRoot: string) {
   const sourceAgentsRoot = resolve(sourceRoot, "agents");

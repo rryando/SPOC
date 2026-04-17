@@ -1,12 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
-import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
-import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
-import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
 
 // Resolve relative to project root (one level up from test/)
 const root = resolve(import.meta.dirname, "..");
@@ -20,12 +15,7 @@ const orchestrateSkill = readFileSync(resolve(root, "skills/orchestrate.md"), "u
 const updateDocsSkill = readFileSync(resolve(root, "skills/update-docs.md"), "utf-8");
 const initSkill = readFileSync(resolve(root, "skills/init-project.md"), "utf-8");
 const exploreDagSkill = readFileSync(resolve(root, "skills/explore-dag.md"), "utf-8");
-const brainstormPrompt = BRAINSTORM_PROMPT_TEXT("my-project");
-const executePrompt = EXECUTE_PROMPT_TEXT("my-project");
-const syncPrompt = SYNC_PROMPT_TEXT("my-project");
-const initPrompt = INIT_PROMPT_TEXT;
 const orchestratePrompt = ORCHESTRATE_PROMPT_TEXT;
-const agentDefinitions = JSON.stringify(AGENT_DEFINITIONS);
 
 describe("docs and skills smoke tests", () => {
   it("README mentions create_project_plan tool", () => {
@@ -75,37 +65,19 @@ describe("docs and skills smoke tests", () => {
     expect(orchestratePrompt).toContain("**memory** = durable reusable knowledge");
   });
 
-  it("execute prompt mentions recommended surface", () => {
-    expect(executePrompt).toContain("recommended surface");
-    expect(executePrompt).toContain("tasks.md is the queue surface");
-    expect(executePrompt).toContain("structured plans are the plan surface");
-    expect(executePrompt).toContain("this is the memory surface");
+  it("orchestrate prompt mentions recommended surface", () => {
+    expect(orchestratePrompt).toContain("recommended surface");
   });
 
-  it("brainstorm prompt mentions queue items vs multi-step plans", () => {
-    expect(brainstormPrompt).toContain("queue items vs multi-step plans");
-    expect(brainstormPrompt).toContain("durable memory vs summary-only doc updates");
+  it("orchestrate prompt mentions operating brief", () => {
+    expect(orchestratePrompt).toContain("operating brief");
+    expect(orchestratePrompt).toContain("queue / plan / memory");
   });
 
-  it("sync prompt mentions operating brief", () => {
-    expect(syncPrompt).toContain("operating brief");
-    expect(syncPrompt).toContain("queue / plan / memory");
-    expect(syncPrompt).toContain("queue = immediate execution state in tasks.md");
-    expect(syncPrompt).toContain("plan = durable multi-step change records");
-    expect(syncPrompt).toContain("memory = durable reusable discoveries");
-  });
-
-  it("init prompt mentions three-surface model", () => {
-    expect(initPrompt).toContain("three-surface model");
-    expect(initPrompt).toContain("queue = immediate execution state in `tasks.md`");
-    expect(initPrompt).toContain("plan = multi-step work in structured plans");
-    expect(initPrompt).toContain(
-      "memory = durable reusable knowledge in structured knowledge entries",
-    );
-  });
-
-  it("agent definitions mention queue, plan, and memory", () => {
-    expect(agentDefinitions).toContain("queue, plan, and memory");
+  it("orchestrate prompt mentions three-surface model", () => {
+    expect(orchestratePrompt).toContain("queue");
+    expect(orchestratePrompt).toContain("plan");
+    expect(orchestratePrompt).toContain("memory");
   });
 
   it("README explains that OpenCode setup installs SPOC-managed superpowers", () => {

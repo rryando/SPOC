@@ -18,6 +18,8 @@ const preservedOutputFiles = new Set([
   "manifest.json",
   "bundle-runtime.json",
   ".opencode/plugins/superpowers.js",
+  // SPOC-native skills (not sourced from upstream, authored in this repo)
+  "skills/loop/SKILL.md",
 ]);
 
 function normalizeRelativePath(filePath) {

@@ -1,14 +1,8 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
-import { defaultConfig } from "../src/cli/config.js";
 import { SPOC_AGENT_ENTRY } from "../src/cli/instructions.js";
-import { BRAINSTORM_PROMPT_TEXT } from "../src/prompts/spoc-brainstorm.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
-import { INIT_PROMPT_TEXT } from "../src/prompts/spoc-init.js";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
-import { SYNC_PROMPT_TEXT } from "../src/prompts/spoc-sync.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
 
@@ -330,7 +324,7 @@ describe("project-plans tools", () => {
   });
 });
 
-describe("prompt and agent text — plan/knowledge references", () => {
+describe("prompt text — plan/knowledge references", () => {
   it("orchestrate prompt references new plan/knowledge tools and MULTI workflow", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_plan");
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("knowledge/");
@@ -338,49 +332,36 @@ describe("prompt and agent text — plan/knowledge references", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_knowledge_entry");
   });
 
-  it("init prompt references plans/ and knowledge/ directories", () => {
-    expect(INIT_PROMPT_TEXT).toContain("plans/");
-    expect(INIT_PROMPT_TEXT).toContain("knowledge/");
+  it("orchestrate prompt references plans/ and knowledge/ directories", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("plans/");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("knowledge/");
   });
 
-  it("init prompt instructs proactive codebase analysis and knowledge entry creation", () => {
-    expect(INIT_PROMPT_TEXT).toContain("create_project_knowledge_entry");
-    expect(INIT_PROMPT_TEXT).toContain("code patterns");
-    expect(INIT_PROMPT_TEXT).toContain("coding style");
-    expect(INIT_PROMPT_TEXT).toContain("modules");
-    expect(INIT_PROMPT_TEXT).toContain("services");
-    expect(INIT_PROMPT_TEXT).toContain("tech stack");
-    expect(INIT_PROMPT_TEXT).toContain("key files");
+  it("orchestrate prompt instructs proactive codebase analysis and knowledge entry creation", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_knowledge_entry");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("code patterns");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("coding style");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("modules");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("tech stack");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("key files");
   });
 
-  it("sync prompt instructs codebase re-scan and knowledge entry creation/update", () => {
-    expect(SYNC_PROMPT_TEXT("my-project")).toContain("create_project_knowledge_entry");
-    expect(SYNC_PROMPT_TEXT("my-project")).toContain("re-scan");
-    expect(SYNC_PROMPT_TEXT("my-project")).toContain("update_project_knowledge_body");
+  it("orchestrate prompt instructs codebase re-scan and knowledge entry creation/update", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_knowledge_entry");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("re-scan");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("update_project_knowledge_body");
   });
 
-  it("brainstorm prompt mentions creating structured plans", () => {
-    expect(BRAINSTORM_PROMPT_TEXT("my-project")).toContain("create or update structured plans");
+  it("orchestrate prompt mentions creating structured plans", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_plan");
   });
 
-  it("execute prompt mentions structured knowledge entries", () => {
-    expect(EXECUTE_PROMPT_TEXT("my-project")).toContain("structured knowledge entries");
+  it("orchestrate prompt mentions structured knowledge entries", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("structured knowledge entries");
   });
 
-  it("sync prompt mentions summary docs and structured plan/knowledge indexes", () => {
-    expect(SYNC_PROMPT_TEXT("my-project")).toContain(
-      "summary docs and structured plan/knowledge indexes",
-    );
-  });
-
-  it("agent definitions have updated hints", () => {
-    expect(AGENT_DEFINITIONS.execute.hint).toContain("structured");
-    expect(AGENT_DEFINITIONS["sync-knowledge"].hint).toContain("plans");
-    expect(AGENT_DEFINITIONS["sync-knowledge"].hint).toContain("knowledge");
-  });
-
-  it("sync-knowledge agent is enabled by default", () => {
-    expect(defaultConfig().agents["sync-knowledge"].enabled).toBe(true);
+  it("orchestrate prompt mentions summary docs and structured plan/knowledge indexes", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("summary docs and structured plan/knowledge indexes");
   });
 
   it("SPOC_AGENT_ENTRY description uses the short OpenCode label", () => {

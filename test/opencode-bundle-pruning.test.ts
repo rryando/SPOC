@@ -30,6 +30,10 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
   });
 }
 
+// SPOC-native skills: authored in this repo, not sourced from upstream.
+// Must match the skill entries in scripts/build-opencode-superpowers-bundle.mjs preservedOutputFiles.
+const spocNativeSkillFiles = ["skills/loop/SKILL.md"];
+
 describe("checked-in opencode bundle pruning", () => {
   it("matches the runtime manifest exactly", () => {
     const runtimeManifest = readJsonFile<RuntimeManifest>(runtimeManifestPath);
@@ -43,6 +47,8 @@ describe("checked-in opencode bundle pruning", () => {
       ),
       ...runtimeManifest.agents,
       ...runtimeManifest.plugin,
+      // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
+      ...spocNativeSkillFiles,
     ].sort();
 
     expect(listRelativeFiles(bundleRoot).sort()).toEqual(expectedBundleFiles);

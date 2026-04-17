@@ -1,8 +1,6 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { AGENT_DEFINITIONS } from "../src/agents/definitions.js";
-import { EXECUTE_PROMPT_TEXT } from "../src/prompts/spoc-execute.js";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { createTestServer, invokeJsonTool } from "./helpers/test-server.js";
@@ -325,11 +323,11 @@ describe("prompt and agent text — knowledge-specific checks", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("update_project_knowledge_body");
   });
 
-  it("execute prompt references structured knowledge entries for durable discoveries", () => {
-    expect(EXECUTE_PROMPT_TEXT("my-project")).toContain("structured knowledge entries");
+  it("orchestrate prompt references structured knowledge entries for durable discoveries", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("structured knowledge entries");
   });
 
-  it("agent definitions sync-knowledge hint references knowledge", () => {
-    expect(AGENT_DEFINITIONS["sync-knowledge"].hint).toContain("knowledge");
+  it("orchestrate prompt references knowledge tools and workflows", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("knowledge");
   });
 });

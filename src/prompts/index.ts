@@ -1,31 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { type AgentId, readConfig } from "../cli/config.js";
-import { registerSpocBrainstormPrompt } from "./spoc-brainstorm.js";
-import { registerSpocExecutePrompt } from "./spoc-execute.js";
-import { registerSpocInitPrompt } from "./spoc-init.js";
-import { registerSpocOrchestratePrompt } from "./spoc-orchestrate.js";
-import { registerSpocSyncPrompt } from "./spoc-sync.js";
-
-type PromptRegistrar = (server: McpServer) => void;
-
-const REGISTRARS: Record<AgentId, PromptRegistrar> = {
-  orchestrate: registerSpocOrchestratePrompt,
-  "init-project": registerSpocInitPrompt,
-  brainstorm: registerSpocBrainstormPrompt,
-  execute: registerSpocExecutePrompt,
-  "sync-knowledge": registerSpocSyncPrompt,
-};
+import { registerCancelLoopPrompt, registerLoopPrompt } from "./loop.js";
 
 /**
- * Reads ~/.spoc/config.json and registers MCP prompts for enabled agents.
- * If no config exists, all agents are registered by default.
+ * Registers MCP prompts.
+ * Loop prompts are always registered for self-referential development loops.
+ * Agent workflows are delivered via IDE-native agent configuration,
+ * not as MCP slash commands.
  */
 export function registerAllPrompts(server: McpServer): void {
-  const config = readConfig();
-
-  for (const [id, register] of Object.entries(REGISTRARS)) {
-    if (config.agents[id as AgentId].enabled) {
-      register(server);
-    }
-  }
+  registerLoopPrompt(server);
+  registerCancelLoopPrompt(server);
 }

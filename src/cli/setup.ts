@@ -1,7 +1,6 @@
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import { AGENT_DEFINITIONS } from "../agents/definitions.js";
-import { AGENT_IDS, configExists, readConfig, type SpocConfig, writeConfig } from "./config.js";
+import { configExists, readConfig, type SpocConfig, writeConfig } from "./config.js";
 import {
   displayPath,
   type IdeId,
@@ -59,13 +58,6 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   const config: SpocConfig = {
     version: "1",
     ides: ["opencode"],
-    agents: {
-      orchestrate: { enabled: true },
-      "init-project": { enabled: true },
-      brainstorm: { enabled: true },
-      execute: { enabled: true },
-      "sync-knowledge": { enabled: true },
-    },
   };
 
   // ── Write SPOC config ───────────────────────────────────────────────────
@@ -199,10 +191,6 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       p.note(result.summary, "OpenCode Superpowers");
     }
   }
-
-  // ── Print enabled slash commands ──────────────────────────────────────────
-  const slashList = AGENT_IDS.map((id) => `  /${AGENT_DEFINITIONS[id].promptName}`).join("\n");
-  p.note(slashList, "Enabled Slash Commands");
 
   p.outro(
     color.green("Done!") +
