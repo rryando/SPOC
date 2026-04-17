@@ -13,6 +13,7 @@ import { formatError, noWorkspacePaths, projectNotFound } from "../utils/errors.
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import type { ProjectMeta } from "../utils/project-documents.js";
 import { readPlanIndex } from "../utils/project-memory.js";
+import { errorResult } from "../utils/tool-response.js";
 
 // ---------------------------------------------------------------------------
 // Static preamble
@@ -310,15 +311,7 @@ export function registerSyncAgentsMd(server: McpServer) {
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
     },
   );

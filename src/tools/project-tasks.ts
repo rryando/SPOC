@@ -12,12 +12,8 @@ import {
   TASK_STATUSES,
   updateTask,
 } from "../utils/project-memory.js";
+import { fileRefSchema } from "../utils/schemas.js";
 import { errorResult, jsonResult } from "../utils/tool-response.js";
-
-const fileRefSchema = z.object({
-  path: z.string().describe("Relative path from workspace root"),
-  anchor: z.string().optional().describe("Stable identifier: function/class/export name"),
-});
 
 export function registerProjectTaskTools(server: McpServer) {
   // ---- create_project_task ----

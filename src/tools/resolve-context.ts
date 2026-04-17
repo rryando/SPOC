@@ -19,6 +19,7 @@ import { getDataDir, getProjectDir } from "../utils/paths.js";
 import type { ProjectMeta } from "../utils/project-documents.js";
 import type { FileRef } from "../utils/project-memory.js";
 import { readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
+import { errorResult } from "../utils/tool-response.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import { findBestMatch, type WorkspaceProject } from "../utils/workspace-match.js";
 
@@ -178,15 +179,7 @@ export function registerResolveContext(server: McpServer) {
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
     },
   );

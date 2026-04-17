@@ -12,13 +12,9 @@ import {
   readPlanIndex,
   updatePlan,
 } from "../utils/project-memory.js";
+import { fileRefSchema } from "../utils/schemas.js";
 import { normalizeIdentifier } from "../utils/slug.js";
 import { errorResult, jsonResult } from "../utils/tool-response.js";
-
-const fileRefSchema = z.object({
-  path: z.string().describe("Relative path from workspace root"),
-  anchor: z.string().optional().describe("Stable identifier: function/class/export name"),
-});
 
 export function registerProjectPlanTools(server: McpServer) {
   // ---- create_project_plan ----

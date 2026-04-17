@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readRootMeta, writeRootMeta } from "../utils/dag.js";
 import { formatError, projectNotFound } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
+import { errorResult } from "../utils/tool-response.js";
 
 const VALID_STATUSES = ["draft", "active", "completed", "archived"] as const;
 
@@ -39,15 +40,7 @@ export function registerUpdateStatus(server: McpServer) {
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
     },
   );

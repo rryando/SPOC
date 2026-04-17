@@ -17,6 +17,7 @@ import {
 import { getDataDir } from "../utils/paths.js";
 import { slugify } from "../utils/slug.js";
 import { getTemplatePath, renderTemplate } from "../utils/template.js";
+import { errorResult } from "../utils/tool-response.js";
 import { normalizeWorkspacePath } from "../utils/workspace-match.js";
 
 export const InitProjectSchema = {
@@ -156,15 +157,7 @@ export function registerInitProject(server: McpServer) {
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
     },
   );

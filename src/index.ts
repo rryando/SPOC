@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -10,6 +9,7 @@ import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerDeleteProject } from "./tools/delete-project.js";
 import { registerGetProject } from "./tools/get-project.js";
+import { registerProjectLoopTools } from "./tools/project-loop.js";
 import { registerInitProject } from "./tools/init-project.js";
 import { registerListProjects } from "./tools/list-projects.js";
 import { registerManageDependency } from "./tools/manage-dependency.js";
@@ -22,6 +22,8 @@ import { registerUpdateDoc } from "./tools/update-doc.js";
 import { registerUpdatePaths } from "./tools/update-paths.js";
 import { registerUpdateStatus } from "./tools/update-status.js";
 import { ensureDataDir, getDataDir, PACKAGE_ROOT } from "./utils/paths.js";
+import { readJsonSafeSync, validateJson } from "./utils/json.js";
+import { packageJsonSchema } from "./utils/json-schemas.js";
 
 // ---------------------------------------------------------------------------
 // CLI subcommand routing: `spoc init` / `spoc config`
@@ -47,9 +49,13 @@ async function run(): Promise<void> {
   }
 
   // Create MCP server
-  const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as {
-    version: string;
-  };
+  const pkgPath = resolve(PACKAGE_ROOT, "package.json");
+  const pkgRaw = readJsonSafeSync<unknown>(pkgPath);
+  if (pkgRaw === undefined) {
+    console.error(`Failed to read ${pkgPath}`);
+    process.exit(1);
+  }
+  const pkg = validateJson(pkgRaw, packageJsonSchema, pkgPath);
   const server = new McpServer({
     name: "spoc",
     version: pkg.version,
@@ -69,6 +75,7 @@ async function run(): Promise<void> {
   registerResolveContext(server);
   registerSyncAgentsMd(server);
   registerDeleteProject(server);
+  registerProjectLoopTools(server);
 
   // Register resources
   registerProjectResources(server);

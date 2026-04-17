@@ -8,8 +8,11 @@
 import { constants } from "node:fs";
 import { access, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { readJsonSafe } from "./json.js";
+import { planMetaSchema, knowledgeMetaSchema } from "./json-schemas.js";
 import {
   indexRebuildFailed,
+  invalidFileFormat,
   invalidFileRef,
   invalidKeyword,
   invalidKnowledgeKind,
@@ -231,13 +234,6 @@ async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
 }
 
-async function readJsonSafe<T>(filePath: string): Promise<T | undefined> {
-  try {
-    return JSON.parse(await readFile(filePath, "utf-8")) as T;
-  } catch {
-    return undefined;
-  }
-}
 
 async function writeJson(filePath: string, data: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
@@ -295,9 +291,19 @@ async function rebuildPlanIndex(plansDir: string): Promise<PlanIndex> {
 
   for (const file of files) {
     try {
-      const meta = JSON.parse(await readFile(join(plansDir, file), "utf-8")) as PlanMeta;
-      plans.push(meta);
-    } catch {
+      const filePath = join(plansDir, file);
+      const raw = await readJsonSafe<unknown>(filePath);
+      if (raw === undefined) {
+        errors.push(file);
+        continue;
+      }
+      const result = planMetaSchema.safeParse(raw);
+      if (!result.success) {
+        throw invalidFileFormat(filePath, result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
+      }
+      plans.push(result.data as PlanMeta);
+    } catch (e) {
+      if (e instanceof Error && e.name === "DagError") throw e;
       errors.push(file);
     }
   }
@@ -318,9 +324,19 @@ async function rebuildKnowledgeIndex(knowledgeDir: string): Promise<KnowledgeInd
 
   for (const file of files) {
     try {
-      const meta = JSON.parse(await readFile(join(knowledgeDir, file), "utf-8")) as KnowledgeMeta;
-      entries.push(meta);
-    } catch {
+      const filePath = join(knowledgeDir, file);
+      const raw = await readJsonSafe<unknown>(filePath);
+      if (raw === undefined) {
+        errors.push(file);
+        continue;
+      }
+      const result = knowledgeMetaSchema.safeParse(raw);
+      if (!result.success) {
+        throw invalidFileFormat(filePath, result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
+      }
+      entries.push(result.data as KnowledgeMeta);
+    } catch (e) {
+      if (e instanceof Error && e.name === "DagError") throw e;
       errors.push(file);
     }
   }

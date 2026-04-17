@@ -13,6 +13,12 @@ import {
 import { homedir } from "node:os";
 import { dirname, relative, resolve } from "node:path";
 import { PACKAGE_ROOT } from "../utils/paths.js";
+import { readJsonSafeSync, validateJson } from "../utils/json.js";
+import {
+  opencodeSourceManifestSchema,
+  opencodeInstalledManifestSchema,
+  packageJsonSchema,
+} from "../utils/json-schemas.js";
 
 export type InstallState = "absent" | "spoc-managed" | "foreign-existing";
 
@@ -87,14 +93,10 @@ export interface InstallResult {
 }
 
 function readJsonFile(path: string): Record<string, unknown> {
-  try {
-    return JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
+  return readJsonSafeSync<Record<string, unknown>>(path) ?? {};
 }
 
-function writeJsonFile(path: string, data: Record<string, unknown>): void {
+function writeJsonFile(path: string, data: object): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
@@ -146,9 +148,12 @@ export function opencodeConfigPath(): string {
 }
 
 export function readSourceOpencodeSuperpowersManifest(): SourceOpencodeSuperpowersManifest {
-  return JSON.parse(
-    readFileSync(sourceBundlePath("manifest.json"), "utf-8"),
-  ) as SourceOpencodeSuperpowersManifest;
+  const manifestPath = sourceBundlePath("manifest.json");
+  const raw = readJsonSafeSync<unknown>(manifestPath);
+  if (raw === undefined) {
+    throw new Error(`Failed to read source manifest at ${manifestPath}`);
+  }
+  return validateJson(raw, opencodeSourceManifestSchema, manifestPath) as SourceOpencodeSuperpowersManifest;
 }
 
 export function readInstalledOpencodeSuperpowersManifest(): InstalledOpencodeSuperpowersManifest | null {
@@ -157,13 +162,15 @@ export function readInstalledOpencodeSuperpowersManifest(): InstalledOpencodeSup
     return null;
   }
 
-  return JSON.parse(readFileSync(manifestPath, "utf-8")) as InstalledOpencodeSuperpowersManifest;
+  const raw = readJsonSafeSync<unknown>(manifestPath);
+  if (raw === undefined) return null;
+  return validateJson(raw, opencodeInstalledManifestSchema, manifestPath);
 }
 
 export function writeInstalledOpencodeSuperpowersManifest(
   manifest: InstalledOpencodeSuperpowersManifest,
 ): void {
-  writeJsonFile(opencodeInstalledManifestPath(), manifest as unknown as Record<string, unknown>);
+  writeJsonFile(opencodeInstalledManifestPath(), manifest);
 }
 
 function configMergeExists(config: Record<string, unknown>, merge: ConfigMerge): boolean {
@@ -235,10 +242,12 @@ export function detectOpencodeSuperpowersInstall(
 }
 
 function readPackageVersion(): string {
-  const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as {
-    version: string;
-  };
-  return pkg.version;
+  const pkgPath = resolve(PACKAGE_ROOT, "package.json");
+  const raw = readJsonSafeSync<unknown>(pkgPath);
+  if (raw === undefined) {
+    throw new Error(`Failed to read ${pkgPath}`);
+  }
+  return validateJson(raw, packageJsonSchema, pkgPath).version;
 }
 
 function listBundleFiles(dir: string = sourceBundleRootDir()): string[] {

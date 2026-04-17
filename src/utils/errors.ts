@@ -2,6 +2,8 @@
  * Typed error helpers for consistent MCP tool error responses.
  */
 
+import { toolError } from "./tool-response.js";
+
 export class DagError extends Error {
   constructor(
     public readonly code: string,
@@ -77,6 +79,10 @@ export function itemNotFound(kind: "plan" | "knowledge entry" | "task", id: stri
   return new DagError("ITEM_NOT_FOUND", `Could not find ${kind} "${id}".`);
 }
 
+export function invalidFileFormat(filePath: string, details: string): DagError {
+  return new DagError("INVALID_FILE_FORMAT", `Invalid file format in "${filePath}": ${details}`);
+}
+
 export function indexRebuildFailed(kind: "plans" | "knowledge", reason: string): DagError {
   return new DagError("INDEX_REBUILD_FAILED", `Unable to rebuild ${kind} index: ${reason}`);
 }
@@ -113,13 +119,9 @@ export function noWorkspacePaths(slug: string): DagError {
 
 /**
  * Format a DagError into an MCP tool error response.
+ * Delegates to the canonical `toolError` helper so all error responses
+ * share the same `[CODE] message` shape.
  */
-export function formatError(err: DagError): {
-  content: Array<{ type: "text"; text: string }>;
-  isError: true;
-} {
-  return {
-    content: [{ type: "text" as const, text: `[${err.code}] ${err.message}` }],
-    isError: true,
-  };
+export function formatError(err: DagError) {
+  return toolError(err.code, err.message);
 }

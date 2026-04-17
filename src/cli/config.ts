@@ -1,36 +1,17 @@
-import { accessSync, constants, readFileSync, writeFileSync } from "node:fs";
+import { accessSync, constants, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ensureDataDir, getDataDir } from "../utils/paths.js";
+import { readJsonSafeSync } from "../utils/json.js";
+import { cliConfigSchema } from "../utils/json-schemas.js";
 
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
-export interface AgentConfig {
-  enabled: boolean;
-}
-
 export interface SpocConfig {
   version: "1";
   ides: string[];
-  agents: {
-    orchestrate: AgentConfig;
-    "init-project": AgentConfig;
-    brainstorm: AgentConfig;
-    execute: AgentConfig;
-    "sync-knowledge": AgentConfig;
-  };
 }
-
-export type AgentId = keyof SpocConfig["agents"];
-
-export const AGENT_IDS: AgentId[] = [
-  "orchestrate",
-  "init-project",
-  "brainstorm",
-  "execute",
-  "sync-knowledge",
-];
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -40,13 +21,6 @@ export function defaultConfig(): SpocConfig {
   return {
     version: "1",
     ides: [],
-    agents: {
-      orchestrate: { enabled: true },
-      "init-project": { enabled: true },
-      brainstorm: { enabled: true },
-      execute: { enabled: true },
-      "sync-knowledge": { enabled: true },
-    },
   };
 }
 
@@ -74,12 +48,15 @@ export function configExists(): boolean {
  * Reads config from disk. Returns default config if file missing.
  */
 export function readConfig(): SpocConfig {
-  try {
-    const raw = readFileSync(configPath(), "utf-8");
-    return JSON.parse(raw) as SpocConfig;
-  } catch {
-    return defaultConfig();
+  const raw = readJsonSafeSync<unknown>(configPath());
+  if (raw === undefined) return defaultConfig();
+  const result = cliConfigSchema.safeParse(raw);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
+    console.error(`Invalid config at ${configPath()}:\n${issues}`);
+    process.exit(1);
   }
+  return result.data;
 }
 
 /**

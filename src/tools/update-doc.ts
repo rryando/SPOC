@@ -6,6 +6,7 @@ import { z } from "zod";
 import { formatError, invalidDocType, projectNotFound } from "../utils/errors.js";
 import { getProjectDir } from "../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../utils/project-documents.js";
+import { errorResult } from "../utils/tool-response.js";
 
 const VALID_DOCS = Object.keys(PROJECT_DOC_FILES) as [ProjectDocType, ...ProjectDocType[]];
 
@@ -45,15 +46,7 @@ export function registerUpdateDoc(server: McpServer) {
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
     },
   );

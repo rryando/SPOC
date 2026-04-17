@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
+import { readJsonSafeSync } from "../utils/json.js";
 
 // ---------------------------------------------------------------------------
 // IDE MCP Configuration — Definitions + Auto-Write
@@ -25,11 +26,7 @@ interface IdeInfo {
 
 /** Safely parse a JSON file. Returns empty object on any error. */
 function readJsonFile(path: string): Record<string, unknown> {
-  try {
-    return JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
+  return readJsonSafeSync<Record<string, unknown>>(path) ?? {};
 }
 
 /** Write JSON content to disk, creating parent dirs as needed. */
@@ -270,8 +267,7 @@ export function opencodeHasAgent(): boolean {
   const configFile = resolve(opencodeConfigDir(), "opencode.json");
   if (!existsSync(configFile)) return false;
   try {
-    const raw = readFileSync(configFile, "utf-8");
-    const config = JSON.parse(raw) as Record<string, unknown>;
+    const config = readJsonSafeSync<Record<string, unknown>>(configFile) ?? {};
     const agents = config.agent as Record<string, unknown> | undefined;
     return agents != null && SPOC_AGENT_KEY in agents;
   } catch {

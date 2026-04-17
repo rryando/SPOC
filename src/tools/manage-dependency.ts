@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { readRootMeta, wouldCreateCycle, writeRootMeta } from "../utils/dag.js";
-import { cycleDetected, formatError, projectNotFound } from "../utils/errors.js";
+import { DagError, cycleDetected, formatError, projectNotFound } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
+import { errorResult, jsonResult } from "../utils/tool-response.js";
 
 export const ManageDependencySchema = {
   slug: z.string().describe("Project slug"),
@@ -33,14 +34,7 @@ export function registerManageDependency(server: McpServer) {
         if (params.action === "add") {
           // Check if already exists
           if (project.dependsOn.includes(params.targetSlug)) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Dependency "${params.slug}" → "${params.targetSlug}" already exists.`,
-                },
-              ],
-            };
+            return jsonResult({ message: `Dependency "${params.slug}" → "${params.targetSlug}" already exists.` });
           }
 
           // Check for cycles
@@ -53,14 +47,7 @@ export function registerManageDependency(server: McpServer) {
           // Remove
           const idx = project.dependsOn.indexOf(params.targetSlug);
           if (idx === -1) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Dependency "${params.slug}" → "${params.targetSlug}" does not exist.`,
-                },
-              ],
-            };
+            return jsonResult({ message: `Dependency "${params.slug}" → "${params.targetSlug}" does not exist.` });
           }
           project.dependsOn.splice(idx, 1);
         }
@@ -68,24 +55,10 @@ export function registerManageDependency(server: McpServer) {
         await writeRootMeta(dataDir, rootMeta);
 
         const verb = params.action === "add" ? "Added" : "Removed";
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `✅ ${verb} dependency: "${params.slug}" → "${params.targetSlug}"`,
-            },
-          ],
-        };
+        return jsonResult({ message: `✅ ${verb} dependency: "${params.slug}" → "${params.targetSlug}"` });
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        if (err instanceof DagError) return formatError(err);
+        return errorResult(err);
       }
     },
   );

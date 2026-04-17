@@ -1,6 +1,9 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { withLock } from "./file-lock.js";
+import { readJsonSafe, validateJson } from "./json.js";
+import { rootMetaSchema } from "./json-schemas.js";
+import { invalidFileFormat } from "./errors.js";
 
 export interface DagNode {
   id: string;
@@ -19,8 +22,15 @@ export interface RootMeta {
  */
 export async function readRootMeta(dataDir: string): Promise<RootMeta> {
   const metaPath = resolve(dataDir, "meta.json");
-  const raw = await readFile(metaPath, "utf-8");
-  return JSON.parse(raw) as RootMeta;
+  const raw = await readJsonSafe<unknown>(metaPath);
+  if (raw === undefined) {
+    throw invalidFileFormat(metaPath, "file missing or not valid JSON");
+  }
+  try {
+    return validateJson(raw, rootMetaSchema, metaPath);
+  } catch (err) {
+    throw invalidFileFormat(metaPath, err instanceof Error ? err.message : String(err));
+  }
 }
 
 /**
