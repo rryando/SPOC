@@ -10,7 +10,10 @@
  * Strips: leading H1, blockquote, status/repo blocks, then checks if remaining
  * content is just empty section headers.
  *
- * NOTE: Coupled to the template format in project.md.tmpl.
+ * NOTE: Coupled to the template format in project.md.tmpl. Guarded by
+ * test/content-assembly.test.ts — edits to the template or this function
+ * must preserve the null/non-null contract on unmodified vs. populated
+ * renders, or that test will fail.
  */
 export function extractOverviewContent(raw: string): string | null {
   const lines = raw.split("\n");
@@ -73,7 +76,9 @@ export function stripTaskCheckbox(line: string): string {
  * header in assembled documents. Returns null if the only non-blank content
  * under each header is `- None yet` / `- None` or nothing.
  *
- * NOTE: Coupled to the template format in dependency.md.tmpl.
+ * NOTE: Coupled to the template format in dependency.md.tmpl. Guarded by
+ * test/content-assembly.test.ts — edits to the template or this function
+ * must preserve the null/non-null contract, or that test will fail.
  */
 export function extractDependenciesContent(raw: string): string | null {
   const lines = raw.split("\n");
