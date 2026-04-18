@@ -120,14 +120,15 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       opencodeAgentActive = true;
       p.note(
         [
-          `${color.green("✔")} Updated agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
-          `${color.green("✔")} Refreshed prompt at ${color.dim(displayPath(agentResult.promptPath))}`,
+          `${color.green("✔")} Updated agent entries in ${color.dim(displayPath(agentResult.configPath))}`,
+          `${color.green("✔")} Refreshed orchestrator prompt at ${color.dim(displayPath(agentResult.promptPath))}`,
+          `${color.green("✔")} Refreshed Caveman prompt at ${color.dim(displayPath(agentResult.cavemanPromptPath))}`,
         ].join("\n"),
         "OpenCode Agent",
       );
     } else {
       const shouldRegister = await p.confirm({
-        message: `Register ${color.cyan("SPOC - (Orchestrator)")} as a primary agent in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        message: `Register ${color.cyan("SPOC - (Orchestrator)")} and ${color.cyan("SPOC - Caveman")} as primary agents in OpenCode? (Tab-switchable alongside Build/Plan)`,
         initialValue: true,
       });
 
@@ -142,10 +143,12 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
         const verb = agentResult.action === "created" ? "Created" : "Updated";
         p.note(
           [
-            `${color.green("✔")} ${verb} agent entry in ${color.dim(displayPath(agentResult.configPath))}`,
-            `${color.green("✔")} Wrote prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
+            `${color.green("✔")} ${verb} agent entries in ${color.dim(displayPath(agentResult.configPath))}`,
+            `${color.green("✔")} Wrote orchestrator prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
+            `${color.green("✔")} Wrote Caveman prompt to ${color.dim(displayPath(agentResult.cavemanPromptPath))}`,
             "",
-            `Switch to ${color.cyan("SPOC - (Orchestrator)")} with ${color.bold("Tab")} in OpenCode.`,
+            `Switch to ${color.cyan("SPOC - (Orchestrator)")} or ${color.cyan("SPOC - Caveman")} with ${color.bold("Tab")} in OpenCode.`,
+            `${color.dim("Caveman = same capabilities, ~65% fewer output tokens.")}`,
           ].join("\n"),
           "OpenCode Agent",
         );

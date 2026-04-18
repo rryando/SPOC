@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../prompts/spoc-orchestrate-caveman.js";
 import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
 import { readJsonSafeSync } from "../utils/json.js";
 
@@ -247,6 +248,11 @@ function opencodePromptPath(): string {
   return resolve(opencodePromptsDir(), "spoc-orchestrate.txt");
 }
 
+/** Path to the SPOC Caveman orchestrator prompt file. */
+function opencodeCavemanPromptPath(): string {
+  return resolve(opencodePromptsDir(), "spoc-orchestrate-caveman.txt");
+}
+
 /**
  * The OpenCode agent entry for SPOC orchestrator.
  */
@@ -257,8 +263,22 @@ export const SPOC_AGENT_ENTRY = {
   color: "#00bcd4",
 };
 
+/**
+ * The OpenCode agent entry for SPOC Caveman — same capabilities as SPOC
+ * Orchestrator, but with caveman speech layered on top for token efficiency.
+ */
+export const SPOC_CAVEMAN_AGENT_ENTRY = {
+  description: "SPOC - Caveman (token-efficient orchestrator)",
+  mode: "primary" as const,
+  prompt: "{file:./prompts/spoc-orchestrate-caveman.txt}",
+  color: "#d2691e",
+};
+
 /** The key used for the SPOC agent entry in opencode.json → agent.<key>. */
 const SPOC_AGENT_KEY = "SPOC Orchestrator";
+
+/** The key used for the SPOC Caveman agent entry. */
+const SPOC_CAVEMAN_AGENT_KEY = "SPOC Caveman";
 
 /**
  * Checks whether the SPOC agent is already registered in opencode.json.
@@ -269,6 +289,9 @@ export function opencodeHasAgent(): boolean {
   try {
     const config = readJsonSafeSync<Record<string, unknown>>(configFile) ?? {};
     const agents = config.agent as Record<string, unknown> | undefined;
+    // Presence gate: if the orchestrator is registered, SPOC is "configured".
+    // writeOpencodeAgent() always installs both the orchestrator and Caveman,
+    // so existing installs auto-upgrade to gain Caveman on re-run.
     return agents != null && SPOC_AGENT_KEY in agents;
   } catch {
     return false;
@@ -278,51 +301,65 @@ export function opencodeHasAgent(): boolean {
 export interface AgentWriteResult {
   configPath: string;
   promptPath: string;
+  cavemanPromptPath: string;
   action: "created" | "updated";
   alreadyConfigured: boolean;
 }
 
 /**
- * Registers the SPOC orchestrator as a primary agent in opencode.json.
- * Also writes the prompt text file to ~/.config/opencode/prompts/.
+ * Registers the SPOC orchestrator agents (standard + Caveman) as primary
+ * agents in opencode.json. Also writes both prompt text files to
+ * ~/.config/opencode/prompts/.
+ *
+ * Both agents share full SPOC tool access and workflow rules; SPOC Caveman
+ * layers caveman-speak on top for token-efficient chat output.
  */
 export function writeOpencodeAgent(): AgentWriteResult {
   const alreadyConfigured = opencodeHasAgent();
   const configFile = resolve(opencodeConfigDir(), "opencode.json");
   const promptFile = opencodePromptPath();
+  const cavemanPromptFile = opencodeCavemanPromptPath();
   const existed = existsSync(configFile);
 
-  // Write the prompt text file
+  // Write both prompt text files
   mkdirSync(opencodePromptsDir(), { recursive: true });
   writeFileSync(promptFile, `${ORCHESTRATE_PROMPT_TEXT}\n`, "utf-8");
+  writeFileSync(cavemanPromptFile, `${ORCHESTRATE_CAVEMAN_PROMPT_TEXT}\n`, "utf-8");
 
-  // Merge agent entry into opencode.json with controlled key order:
+  // Merge agent entries into opencode.json with controlled key order:
   // 1. SPOC Orchestrator (always first — controls Tab-cycle position in OpenCode)
-  // 2. build (second, if already present in config)
-  // 3. all other existing agents in their original order
+  // 2. SPOC Caveman (second — Tab once to reach token-efficient mode)
+  // 3. build (third, if already present in config)
+  // 4. all other existing agents in their original order
   const existing = readJsonFile(configFile);
   const existingAgents = (existing.agent ?? {}) as Record<string, unknown>;
 
   const orderedAgents: Record<string, unknown> = {
     [SPOC_AGENT_KEY]: SPOC_AGENT_ENTRY,
+    [SPOC_CAVEMAN_AGENT_KEY]: SPOC_CAVEMAN_AGENT_ENTRY,
   };
   if ("build" in existingAgents) {
     orderedAgents.build = existingAgents.build;
   }
   for (const [key, value] of Object.entries(existingAgents)) {
-    if (key !== SPOC_AGENT_KEY && key !== "build") {
+    if (
+      key !== SPOC_AGENT_KEY &&
+      key !== SPOC_CAVEMAN_AGENT_KEY &&
+      key !== "build"
+    ) {
       orderedAgents[key] = value;
     }
   }
 
   existing.agent = orderedAgents;
-  // Set SPOC Orchestrator as the startup default agent
+  // Set SPOC Orchestrator as the startup default agent (Caveman is opt-in via Tab)
   existing.default_agent = SPOC_AGENT_KEY;
   writeJsonFile(configFile, existing);
 
   return {
     configPath: configFile,
     promptPath: promptFile,
+    cavemanPromptPath: cavemanPromptFile,
     action: existed ? "updated" : "created",
     alreadyConfigured,
   };

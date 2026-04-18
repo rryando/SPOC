@@ -5,7 +5,7 @@ import { writeOpencodeAgent } from "../src/cli/instructions.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 describe("writeOpencodeAgent — agent key order", () => {
-  it("places SPOC Orchestrator first in a fresh config", async () => {
+  it("places SPOC Orchestrator first and SPOC Caveman second in a fresh config", async () => {
     await withTempHomeDir(async (homeDir) => {
       writeOpencodeAgent();
 
@@ -15,10 +15,11 @@ describe("writeOpencodeAgent — agent key order", () => {
       const agentKeys = Object.keys(config.agent as object);
 
       expect(agentKeys[0]).toBe("SPOC Orchestrator");
+      expect(agentKeys[1]).toBe("SPOC Caveman");
     });
   });
 
-  it("places SPOC Orchestrator first and build second when existing config has build and plan", async () => {
+  it("places SPOC agents first and build third when existing config has build and plan", async () => {
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
       const existing = {
@@ -38,7 +39,8 @@ describe("writeOpencodeAgent — agent key order", () => {
       const agentKeys = Object.keys(config.agent as object);
 
       expect(agentKeys[0]).toBe("SPOC Orchestrator");
-      expect(agentKeys[1]).toBe("build");
+      expect(agentKeys[1]).toBe("SPOC Caveman");
+      expect(agentKeys[2]).toBe("build");
     });
   });
 
@@ -62,10 +64,11 @@ describe("writeOpencodeAgent — agent key order", () => {
       expect((agents.build as any).model).toBe("sonnet");
       expect((agents.plan as any).model).toBe("opus");
       expect(agents["SPOC Orchestrator"]).toBeDefined();
+      expect(agents["SPOC Caveman"]).toBeDefined();
     });
   });
 
-  it("does not duplicate SPOC Orchestrator if already present", async () => {
+  it("does not duplicate SPOC agents if already present", async () => {
     await withTempHomeDir(async (homeDir) => {
       writeOpencodeAgent();
       writeOpencodeAgent();
@@ -75,13 +78,16 @@ describe("writeOpencodeAgent — agent key order", () => {
       const config = JSON.parse(raw) as Record<string, unknown>;
       const agentKeys = Object.keys(config.agent as object);
 
-      const spocCount = agentKeys.filter((k) => k === "SPOC Orchestrator").length;
-      expect(spocCount).toBe(1);
+      const orchestratorCount = agentKeys.filter((k) => k === "SPOC Orchestrator").length;
+      const cavemanCount = agentKeys.filter((k) => k === "SPOC Caveman").length;
+      expect(orchestratorCount).toBe(1);
+      expect(cavemanCount).toBe(1);
       expect(agentKeys[0]).toBe("SPOC Orchestrator");
+      expect(agentKeys[1]).toBe("SPOC Caveman");
     });
   });
 
-  it("sets default_agent to SPOC Orchestrator", async () => {
+  it("sets default_agent to SPOC Orchestrator (Caveman is opt-in)", async () => {
     await withTempHomeDir(async (homeDir) => {
       writeOpencodeAgent();
 
@@ -90,6 +96,35 @@ describe("writeOpencodeAgent — agent key order", () => {
       const config = JSON.parse(raw) as Record<string, unknown>;
 
       expect(config.default_agent).toBe("SPOC Orchestrator");
+    });
+  });
+
+  it("writes both orchestrator prompt files to disk", async () => {
+    await withTempHomeDir(async (homeDir) => {
+      writeOpencodeAgent();
+
+      const orchestratorPrompt = resolve(
+        homeDir,
+        ".config",
+        "opencode",
+        "prompts",
+        "spoc-orchestrate.txt",
+      );
+      const cavemanPrompt = resolve(
+        homeDir,
+        ".config",
+        "opencode",
+        "prompts",
+        "spoc-orchestrate-caveman.txt",
+      );
+
+      const orchestratorContent = readFileSync(orchestratorPrompt, "utf-8");
+      const cavemanContent = readFileSync(cavemanPrompt, "utf-8");
+
+      expect(orchestratorContent).toContain("orchestration agent for the SPOC MCP server");
+      expect(cavemanContent).toContain("Caveman Mode");
+      // Caveman wraps the full orchestrator prompt
+      expect(cavemanContent).toContain("orchestration agent for the SPOC MCP server");
     });
   });
 });
