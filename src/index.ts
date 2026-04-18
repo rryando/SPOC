@@ -9,6 +9,7 @@ import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAuditKnowledge } from "./tools/audit-knowledge.js";
 import { registerDeleteProject } from "./tools/delete-project.js";
+import { registerProjectDiff } from "./tools/project-diff.js";
 import { registerGetProject } from "./tools/get-project.js";
 import { registerProjectLoopTools } from "./tools/project-loop.js";
 import { registerInitProject } from "./tools/init-project.js";
@@ -79,6 +80,7 @@ async function run(): Promise<void> {
   registerResolveContext(server);
   registerSyncAgentsMd(server);
   registerDeleteProject(server);
+  registerProjectDiff(server);
   registerProjectLoopTools(server);
 
   // Register resources

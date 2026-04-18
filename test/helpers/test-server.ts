@@ -5,6 +5,7 @@ import { registerProjectResources } from "../../src/resources/projects.js";
 import { registerAuditKnowledge } from "../../src/tools/audit-knowledge.js";
 import { registerDeleteProject } from "../../src/tools/delete-project.js";
 import { registerGetProject } from "../../src/tools/get-project.js";
+import { registerProjectDiff } from "../../src/tools/project-diff.js";
 import { registerInitProject } from "../../src/tools/init-project.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
 import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
@@ -30,6 +31,7 @@ const defaultRegistrations: ToolRegistration[] = [
   registerResolveContext,
   registerSyncAgentsMd,
   registerDeleteProject,
+  registerProjectDiff,
 ];
 
 async function withConnectedClient<T>(
