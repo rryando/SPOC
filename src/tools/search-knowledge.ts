@@ -9,7 +9,7 @@ import { errorResult, jsonResult } from "../utils/tool-response.js";
 function tokenize(text: string): Set<string> {
   const tokens = text
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter((t) => t.length >= 2);
   return new Set(tokens);
 }

@@ -152,4 +152,54 @@ describe("search_project_knowledge", () => {
       expect(data.totalScanned).toBe(3);
     });
   });
+
+  it("unicode: café matches Café Module", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "Unicode Test",
+        description: "Test unicode search",
+      });
+      await invokeJsonTool(server, "create_project_knowledge_entry", {
+        slug: "unicode-test",
+        title: "Café Module",
+        summary: "Module for café features",
+        kind: "module",
+        keywords: ["café"],
+      });
+
+      const result = await invokeJsonTool(server, "search_project_knowledge", {
+        slug: "unicode-test",
+        query: "café",
+      });
+      const data = parseResult(result);
+      expect(data.results.length).toBe(1);
+      expect(data.results[0].title).toBe("Café Module");
+    });
+  });
+
+  it("unicode: CJK query matches CJK title", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "CJK Test",
+        description: "Test CJK search",
+      });
+      await invokeJsonTool(server, "create_project_knowledge_entry", {
+        slug: "cjk-test",
+        title: "日本語ガイド",
+        summary: "Guide in Japanese 日本語",
+        kind: "reference",
+        keywords: ["japanese", "guide"],
+      });
+
+      const result = await invokeJsonTool(server, "search_project_knowledge", {
+        slug: "cjk-test",
+        query: "日本語",
+      });
+      const data = parseResult(result);
+      expect(data.results.length).toBe(1);
+      expect(data.results[0].title).toBe("日本語ガイド");
+    });
+  });
 });
