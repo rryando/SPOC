@@ -19,7 +19,7 @@ import { readJsonSafe, validateJson } from "../utils/json.js";
 import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import type { FileRef } from "../utils/project-memory.js";
-import { readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
 import { errorResult } from "../utils/tool-response.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import { findBestMatch, type WorkspaceProject } from "../utils/workspace-match.js";
@@ -172,6 +172,29 @@ export function registerResolveContext(server: McpServer) {
             })
             .join("\n");
           sections.push(`\n## Active Plans\n\n${bullets}`);
+        }
+
+        // Active Tasks (in_progress + backlog) with plan linkage
+        const allTasks = await listTasks(projectDir);
+        const activeTasks = allTasks.filter(
+          (t) => t.status === "in_progress" || t.status === "backlog",
+        );
+        if (activeTasks.length > 0) {
+          const taskLines: string[] = [];
+          for (const task of activeTasks) {
+            const statusMarker = task.status === "in_progress" ? "[/]" : "[ ]";
+            const priorityTag = ` **[${task.priority}]**`;
+            taskLines.push(`- ${statusMarker}${priorityTag} ${task.title}`);
+            if (task.planId) {
+              const linkedPlan = planIndex.plans.find((p) => p.normalizedId === task.planId);
+              if (linkedPlan) {
+                taskLines.push(`  → plan: ${linkedPlan.title}`);
+              } else {
+                taskLines.push(`  → plan: ${task.planId} (missing)`);
+              }
+            }
+          }
+          sections.push(`\n## Active Tasks\n\n${taskLines.join("\n")}`);
         }
 
         return {

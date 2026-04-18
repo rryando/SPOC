@@ -234,4 +234,184 @@ describe("project-tasks tools", () => {
       }
     });
   });
+
+  it("create task with valid planId links to plan", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Plan Link Project",
+          description: "Test planId on tasks",
+        });
+
+        // Create a plan first
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "plan-link-project",
+          title: "My Plan",
+          summary: "A test plan",
+        });
+
+        // Create task linked to the plan
+        const result = parseResult(
+          await invokeJsonTool(server, "create_project_task", {
+            slug: "plan-link-project",
+            title: "Linked Task",
+            planId: "my-plan",
+          }),
+        );
+        expect(result.meta.planId).toBe("my-plan");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("create task with invalid planId returns PLAN_NOT_FOUND", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Bad Plan Project",
+          description: "Test invalid planId",
+        });
+
+        await expect(
+          invokeJsonTool(server, "create_project_task", {
+            slug: "bad-plan-project",
+            title: "Bad Link Task",
+            planId: "nonexistent-plan",
+          }),
+        ).rejects.toThrow("PLAN_NOT_FOUND");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("update task to set planId", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Update Plan Project",
+          description: "Test update planId",
+        });
+
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "update-plan-project",
+          title: "Target Plan",
+        });
+
+        await invokeJsonTool(server, "create_project_task", {
+          slug: "update-plan-project",
+          title: "Task To Link",
+        });
+
+        const result = parseResult(
+          await invokeJsonTool(server, "update_project_task", {
+            slug: "update-plan-project",
+            taskId: "task-to-link",
+            planId: "target-plan",
+          }),
+        );
+        expect(result.meta.planId).toBe("target-plan");
+
+        // Unset planId with null
+        const unsetResult = parseResult(
+          await invokeJsonTool(server, "update_project_task", {
+            slug: "update-plan-project",
+            taskId: "task-to-link",
+            planId: null,
+          }),
+        );
+        expect(unsetResult.meta.planId).toBeUndefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("legacy task without planId loads cleanly", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Legacy Project",
+          description: "Test backward compat",
+        });
+
+        // Create task without planId (legacy behavior)
+        const result = parseResult(
+          await invokeJsonTool(server, "create_project_task", {
+            slug: "legacy-project",
+            title: "Old Task",
+          }),
+        );
+        expect(result.meta.planId).toBeUndefined();
+        expect(result.meta.title).toBe("Old Task");
+
+        // Listing also works
+        const listResult = parseResult(
+          await invokeJsonTool(server, "list_project_tasks", {
+            slug: "legacy-project",
+          }),
+        );
+        expect(listResult.tasks).toHaveLength(1);
+        expect(listResult.tasks[0].planId).toBeUndefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("resolve_project_context shows plan title for linked tasks", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Context Project",
+          description: "Test context assembly",
+          workspacePaths: ["/tmp/test-context-project"],
+        });
+
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "context-project",
+          title: "Main Plan",
+          summary: "The main plan",
+          status: "in_progress",
+        });
+
+        await invokeJsonTool(server, "create_project_task", {
+          slug: "context-project",
+          title: "Linked Task",
+          status: "in_progress",
+          planId: "main-plan",
+        });
+
+        await invokeJsonTool(server, "create_project_task", {
+          slug: "context-project",
+          title: "Unlinked Task",
+          status: "backlog",
+        });
+
+        const result = await invokeJsonTool(server, "resolve_project_context", {
+          workspacePath: "/tmp/test-context-project",
+        });
+        const text = (result as any).content[0].text;
+        expect(text).toContain("Linked Task");
+        expect(text).toContain("→ plan: Main Plan");
+        expect(text).toContain("Unlinked Task");
+        // Unlinked task should NOT have a plan sub-line
+        const lines = text.split("\n");
+        const unlinkedIdx = lines.findIndex((l: string) => l.includes("Unlinked Task"));
+        expect(unlinkedIdx).toBeGreaterThan(-1);
+        // Next line after unlinked task should not be a plan line
+        if (unlinkedIdx + 1 < lines.length) {
+          expect(lines[unlinkedIdx + 1]).not.toContain("→ plan:");
+        }
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });

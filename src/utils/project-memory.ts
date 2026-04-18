@@ -716,6 +716,7 @@ export interface TaskMeta {
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
+  planId?: string;
   sourceFiles?: FileRef[];
   createdAt: string;
   updatedAt: string;
@@ -733,6 +734,7 @@ export interface CreateTaskInput {
   title: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  planId?: string;
   sourceFiles?: FileRef[];
   now?: string;
 }
@@ -742,6 +744,7 @@ export interface UpdateTaskInput {
   title?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  planId?: string | null;
   sourceFiles?: FileRef[];
   now?: string;
 }
@@ -859,6 +862,7 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
     title: input.title,
     status,
     priority,
+    ...(input.planId && { planId: input.planId }),
     ...(sourceFiles && { sourceFiles }),
     createdAt: ts,
     updatedAt: ts,
@@ -916,6 +920,13 @@ export async function updateTask(projectDir: string, input: UpdateTaskInput): Pr
   if (input.title !== undefined) task.title = input.title;
   if (input.status !== undefined) task.status = input.status;
   if (input.priority !== undefined) task.priority = input.priority;
+  if (input.planId !== undefined) {
+    if (input.planId === null) {
+      delete task.planId;
+    } else {
+      task.planId = input.planId;
+    }
+  }
   if (input.sourceFiles !== undefined) {
     if (input.sourceFiles.length === 0) {
       delete task.sourceFiles;

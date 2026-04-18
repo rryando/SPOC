@@ -1,13 +1,14 @@
 import { existsSync } from "node:fs";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DagError, formatError, projectNotFound } from "../utils/errors.js";
+import { DagError, formatError, planNotFound, projectNotFound } from "../utils/errors.js";
 import { getProjectDir } from "../utils/paths.js";
 import {
   createTask,
   deleteTask,
   getTask,
   listTasks,
+  readPlanIndex,
   TASK_PRIORITIES,
   TASK_STATUSES,
   updateTask,
@@ -37,6 +38,7 @@ export function registerProjectTaskTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("Source file references (path + optional anchor)"),
+      planId: z.string().optional().describe("Link task to a governing plan by plan ID"),
     },
     async (params) => {
       try {
@@ -45,10 +47,18 @@ export function registerProjectTaskTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
+        if (params.planId) {
+          const planIndex = await readPlanIndex(projectDir);
+          if (!planIndex.plans.some((p) => p.normalizedId === params.planId)) {
+            return formatError(planNotFound(params.slug, params.planId));
+          }
+        }
+
         const meta = await createTask(projectDir, {
           title: params.title,
           status: params.status,
           priority: params.priority,
+          planId: params.planId,
           sourceFiles: params.sourceFiles,
         });
 
@@ -128,6 +138,7 @@ export function registerProjectTaskTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("New source file references (replaces existing; empty array clears)"),
+      planId: z.string().nullable().optional().describe("Link task to a governing plan by plan ID (null to unset)"),
     },
     async (params) => {
       try {
@@ -136,11 +147,19 @@ export function registerProjectTaskTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
+        if (params.planId) {
+          const planIndex = await readPlanIndex(projectDir);
+          if (!planIndex.plans.some((p) => p.normalizedId === params.planId)) {
+            return formatError(planNotFound(params.slug, params.planId));
+          }
+        }
+
         const meta = await updateTask(projectDir, {
           id: params.taskId,
           title: params.title,
           status: params.status,
           priority: params.priority,
+          planId: params.planId,
           sourceFiles: params.sourceFiles,
         });
 
