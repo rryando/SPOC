@@ -10,6 +10,7 @@ import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge
 import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 import { registerProjectTaskTools } from "../../src/tools/project-tasks.js";
 import { registerResolveContext } from "../../src/tools/resolve-context.js";
+import { registerSearchKnowledge } from "../../src/tools/search-knowledge.js";
 import { registerSyncAgentsMd } from "../../src/tools/sync-agents-md.js";
 import { registerUpdateDoc } from "../../src/tools/update-doc.js";
 import { registerUpdatePaths } from "../../src/tools/update-paths.js";
@@ -23,6 +24,7 @@ const defaultRegistrations: ToolRegistration[] = [
   registerProjectPlanTools,
   registerProjectKnowledgeTools,
   registerAuditKnowledge,
+  registerSearchKnowledge,
   registerProjectTaskTools,
   registerUpdatePaths,
   registerResolveContext,

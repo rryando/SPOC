@@ -18,6 +18,7 @@ import { registerProjectKnowledgeTools } from "./tools/project-knowledge.js";
 import { registerProjectPlanTools } from "./tools/project-plans.js";
 import { registerProjectTaskTools } from "./tools/project-tasks.js";
 import { registerResolveContext } from "./tools/resolve-context.js";
+import { registerSearchKnowledge } from "./tools/search-knowledge.js";
 import { registerSyncAgentsMd } from "./tools/sync-agents-md.js";
 import { registerUpdateDoc } from "./tools/update-doc.js";
 import { registerUpdatePaths } from "./tools/update-paths.js";
@@ -72,6 +73,7 @@ async function run(): Promise<void> {
   registerProjectPlanTools(server);
   registerProjectKnowledgeTools(server);
   registerAuditKnowledge(server);
+  registerSearchKnowledge(server);
   registerProjectTaskTools(server);
   registerUpdatePaths(server);
   registerResolveContext(server);
