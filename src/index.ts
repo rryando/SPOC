@@ -7,6 +7,7 @@ import { handleCli } from "./cli/index.js";
 import { registerAllPrompts } from "./prompts/index.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
+import { registerAuditKnowledge } from "./tools/audit-knowledge.js";
 import { registerDeleteProject } from "./tools/delete-project.js";
 import { registerGetProject } from "./tools/get-project.js";
 import { registerProjectLoopTools } from "./tools/project-loop.js";
@@ -70,6 +71,7 @@ async function run(): Promise<void> {
   registerGetProject(server);
   registerProjectPlanTools(server);
   registerProjectKnowledgeTools(server);
+  registerAuditKnowledge(server);
   registerProjectTaskTools(server);
   registerUpdatePaths(server);
   registerResolveContext(server);

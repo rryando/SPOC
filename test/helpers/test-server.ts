@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerProjectResources } from "../../src/resources/projects.js";
+import { registerAuditKnowledge } from "../../src/tools/audit-knowledge.js";
 import { registerDeleteProject } from "../../src/tools/delete-project.js";
 import { registerGetProject } from "../../src/tools/get-project.js";
 import { registerInitProject } from "../../src/tools/init-project.js";
@@ -21,6 +22,7 @@ const defaultRegistrations: ToolRegistration[] = [
   registerUpdateDoc,
   registerProjectPlanTools,
   registerProjectKnowledgeTools,
+  registerAuditKnowledge,
   registerProjectTaskTools,
   registerUpdatePaths,
   registerResolveContext,
