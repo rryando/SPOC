@@ -322,6 +322,73 @@ describe("project-plans tools", () => {
       }
     });
   });
+
+  it("update_project_plan_body dryRun returns envelope without writing", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Dry Plan", description: "Test" });
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "dry-plan",
+          title: "Dry plan entry",
+          planId: "dry-plan-entry",
+          body: "# Original plan\n",
+        });
+
+        const bodyPath = resolve(dataDir, "projects", "dry-plan", "plans", "dry-plan-entry.md");
+        const contentBefore = readFileSync(bodyPath, "utf-8");
+
+        const result = await invokeJsonTool(server, "update_project_plan_body", {
+          slug: "dry-plan",
+          planId: "dry-plan-entry",
+          body: "# New plan body\nWith details.",
+          dryRun: true,
+        });
+        const parsed = JSON.parse(
+          (result as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(parsed.dryRun).toBe(true);
+        expect(parsed.wouldWrite.path).toContain("dry-plan-entry.md");
+        expect(parsed.wouldWrite.bytes).toBeGreaterThan(0);
+        expect(parsed.wouldWrite.preview).toContain("# New plan body");
+
+        // File should be unchanged
+        const contentAfter = readFileSync(bodyPath, "utf-8");
+        expect(contentAfter).toBe(contentBefore);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("update_project_plan_body dryRun=false still writes (regression)", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Write Plan", description: "T" });
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "write-plan",
+          title: "Write plan entry",
+          planId: "write-plan-entry",
+          body: "# Old\n",
+        });
+
+        const result = await invokeJsonTool(server, "update_project_plan_body", {
+          slug: "write-plan",
+          planId: "write-plan-entry",
+          body: "# Updated plan\n",
+          dryRun: false,
+        });
+        const parsed = JSON.parse(
+          (result as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(parsed.body).toBe("# Updated plan\n");
+        expect(parsed.meta.updatedAt).toBeDefined();
+      } finally {
+        await server.close();
+      }
+    });
+  });
 });
 
 describe("prompt text — plan/knowledge references", () => {

@@ -203,6 +203,7 @@ export function registerProjectPlanTools(server: McpServer) {
       slug: z.string().describe("Project slug"),
       planId: z.string().describe("Plan identifier"),
       body: z.string().describe("New markdown body content"),
+      dryRun: z.boolean().optional().default(false).describe("Return what would be written without writing to disk"),
     },
     async (params) => {
       try {
@@ -222,6 +223,18 @@ export function registerProjectPlanTools(server: McpServer) {
         if (rawMeta === undefined) throw invalidFileFormat(metaPath, "unable to parse JSON");
         const existingMeta = validateJson(rawMeta, planMetaSchema, metaPath);
         const bodyPath = resolve(projectDir, existingMeta.file);
+
+        if (params.dryRun) {
+          const bytes = Buffer.byteLength(params.body, "utf-8");
+          return jsonResult({
+            dryRun: true,
+            wouldWrite: {
+              path: bodyPath,
+              bytes,
+              preview: params.body.slice(0, 200),
+            },
+          });
+        }
 
         // Write the new body
         await writeFile(bodyPath, params.body, "utf-8");

@@ -14,6 +14,7 @@ export const UpdateDocSchema = {
   slug: z.string().describe("Project slug"),
   doc: z.enum(VALID_DOCS).describe("Document type to update"),
   content: z.string().describe("New document content (full replacement)"),
+  dryRun: z.boolean().optional().default(false).describe("Return what would be written without writing to disk"),
 };
 
 export function registerUpdateDoc(server: McpServer) {
@@ -35,6 +36,26 @@ export function registerUpdateDoc(server: McpServer) {
         }
 
         const filePath = resolve(projectDir, fileName);
+
+        if (params.dryRun) {
+          const bytes = Buffer.byteLength(params.content, "utf-8");
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  dryRun: true,
+                  wouldWrite: {
+                    path: filePath,
+                    bytes,
+                    preview: params.content.slice(0, 200),
+                  },
+                }),
+              },
+            ],
+          };
+        }
+
         await writeFile(filePath, params.content, "utf-8");
 
         return {

@@ -149,6 +149,56 @@ describe("project-knowledge tools", () => {
     });
   });
 
+  it("update_project_doc dryRun returns envelope without writing", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Dry Doc", description: "Test" });
+        const docPath = resolve(dataDir, "projects", "dry-doc", "overview.md");
+        const contentBefore = readFileSync(docPath, "utf-8");
+
+        const result = await invokeJsonTool(server, "update_project_doc", {
+          slug: "dry-doc",
+          doc: "overview",
+          content: "# New overview\nWith details.",
+          dryRun: true,
+        });
+        const parsed = JSON.parse(
+          (result as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(parsed.dryRun).toBe(true);
+        expect(parsed.wouldWrite.path).toContain("overview.md");
+        expect(parsed.wouldWrite.bytes).toBeGreaterThan(0);
+        expect(parsed.wouldWrite.preview).toContain("# New overview");
+
+        // File should be unchanged
+        const contentAfter = readFileSync(docPath, "utf-8");
+        expect(contentAfter).toBe(contentBefore);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("update_project_doc dryRun=false still writes (regression)", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Write Doc", description: "T" });
+        const result = await invokeJsonTool(server, "update_project_doc", {
+          slug: "write-doc",
+          doc: "overview",
+          content: "# Updated overview\n",
+          dryRun: false,
+        });
+        const text = (result as any).content.find((c: any) => c.type === "text").text;
+        expect(text).toContain("Updated overview");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
   it("rebuilds missing or corrupted knowledge indexes before list/get responses", async () => {
     await withTempDataDir(async (dataDir) => {
       const server = createTestServer();
@@ -251,6 +301,75 @@ describe("project-knowledge tools", () => {
             entryId: "non-existent",
           }),
         ).rejects.toThrow("ITEM_NOT_FOUND");
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("update_project_knowledge_body dryRun returns envelope without writing", async () => {
+    await withTempDataDir(async (dataDir) => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Dry Project", description: "Test" });
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "dry-project",
+          title: "Dry entry",
+          kind: "reference",
+          entryId: "dry-entry",
+          body: "# Original body\n",
+        });
+
+        const bodyPath = resolve(dataDir, "projects", "dry-project", "knowledge", "dry-entry.md");
+        const contentBefore = readFileSync(bodyPath, "utf-8");
+
+        const result = await invokeJsonTool(server, "update_project_knowledge_body", {
+          slug: "dry-project",
+          entryId: "dry-entry",
+          body: "# New body content\nWith more text.",
+          dryRun: true,
+        });
+        const parsed = JSON.parse(
+          (result as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(parsed.dryRun).toBe(true);
+        expect(parsed.wouldWrite.path).toContain("dry-entry.md");
+        expect(parsed.wouldWrite.bytes).toBeGreaterThan(0);
+        expect(parsed.wouldWrite.preview).toContain("# New body content");
+
+        // File should be unchanged
+        const contentAfter = readFileSync(bodyPath, "utf-8");
+        expect(contentAfter).toBe(contentBefore);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("update_project_knowledge_body dryRun=false still writes (regression)", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", { name: "Write Project", description: "T" });
+        await invokeJsonTool(server, "create_project_knowledge_entry", {
+          slug: "write-project",
+          title: "Write entry",
+          kind: "reference",
+          entryId: "write-entry",
+          body: "# Old\n",
+        });
+
+        const result = await invokeJsonTool(server, "update_project_knowledge_body", {
+          slug: "write-project",
+          entryId: "write-entry",
+          body: "# Updated body\n",
+          dryRun: false,
+        });
+        const parsed = JSON.parse(
+          (result as any).content.find((c: any) => c.type === "text").text,
+        );
+        expect(parsed.body).toBe("# Updated body\n");
+        expect(parsed.meta.updatedAt).toBeDefined();
       } finally {
         await server.close();
       }
