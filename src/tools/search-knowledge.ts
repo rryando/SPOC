@@ -29,7 +29,7 @@ export function registerSearchKnowledge(server: McpServer) {
     {
       slug: z.string().describe("Project slug"),
       query: z.string().describe("Search query string"),
-      limit: z.number().optional().default(10).describe("Max results to return (default: 10)"),
+      limit: z.number().int().min(1).max(100).optional().default(10).describe("Max results to return (default: 10)"),
       kind: z.enum(KNOWLEDGE_KINDS).optional().describe("Filter by knowledge kind"),
     },
     async (params) => {

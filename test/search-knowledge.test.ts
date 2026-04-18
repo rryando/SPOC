@@ -202,4 +202,49 @@ describe("search_project_knowledge", () => {
       expect(data.results[0].title).toBe("日本語ガイド");
     });
   });
+
+  it("rejects negative limit", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await seedProject(server);
+
+      await expect(
+        invokeJsonTool(server, "search_project_knowledge", {
+          slug: "search-test",
+          query: "database",
+          limit: -1,
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects zero limit", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await seedProject(server);
+
+      await expect(
+        invokeJsonTool(server, "search_project_knowledge", {
+          slug: "search-test",
+          query: "database",
+          limit: 0,
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects non-integer limit", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await seedProject(server);
+
+      await expect(
+        invokeJsonTool(server, "search_project_knowledge", {
+          slug: "search-test",
+          query: "database",
+          limit: 1.5,
+        }),
+      ).rejects.toThrow();
+    });
+  });
 });
