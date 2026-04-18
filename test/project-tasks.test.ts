@@ -408,7 +408,80 @@ describe("project-tasks tools", () => {
         // Next line after unlinked task should not be a plan line
         if (unlinkedIdx + 1 < lines.length) {
           expect(lines[unlinkedIdx + 1]).not.toContain("→ plan:");
-        }
+         }
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("rejects whitespace-only planId on create", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "PlanId Validation",
+          description: "Test planId validation",
+        });
+
+        await expect(
+          invokeJsonTool(server, "create_project_task", {
+            slug: "planid-validation",
+            title: "Bad PlanId Task",
+            planId: "   ",
+          }),
+        ).rejects.toThrow();
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("rejects empty string planId on create", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "PlanId Empty",
+          description: "Test empty planId",
+        });
+
+        await expect(
+          invokeJsonTool(server, "create_project_task", {
+            slug: "planid-empty",
+            title: "Empty PlanId Task",
+            planId: "",
+          }),
+        ).rejects.toThrow();
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  it("normalizes planId before lookup on create", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      try {
+        await invokeJsonTool(server, "init_project", {
+          name: "Normalize PlanId",
+          description: "Test planId normalization",
+        });
+
+        await invokeJsonTool(server, "create_project_plan", {
+          slug: "normalize-planid",
+          title: "My Plan",
+        });
+
+        // Pass unnormalized planId — should still match
+        const result = parseResult(
+          await invokeJsonTool(server, "create_project_task", {
+            slug: "normalize-planid",
+            title: "Normalized Task",
+            planId: "My Plan",
+          }),
+        );
+        expect(result.meta.planId).toBe("my-plan");
       } finally {
         await server.close();
       }

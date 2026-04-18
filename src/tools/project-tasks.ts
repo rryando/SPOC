@@ -14,6 +14,7 @@ import {
   updateTask,
 } from "../utils/project-memory.js";
 import { fileRefSchema } from "../utils/schemas.js";
+import { normalizeIdentifier } from "../utils/slug.js";
 import { errorResult, jsonResult } from "../utils/tool-response.js";
 
 export function registerProjectTaskTools(server: McpServer) {
@@ -38,7 +39,7 @@ export function registerProjectTaskTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("Source file references (path + optional anchor)"),
-      planId: z.string().optional().describe("Link task to a governing plan by plan ID"),
+      planId: z.string().min(1).refine((s) => s.trim().length > 0, { message: "planId must not be blank" }).optional().describe("Link task to a governing plan by plan ID"),
     },
     async (params) => {
       try {
@@ -47,10 +48,12 @@ export function registerProjectTaskTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
-        if (params.planId) {
+        const normalizedPlanId = params.planId ? normalizeIdentifier(params.planId) : undefined;
+
+        if (normalizedPlanId) {
           const planIndex = await readPlanIndex(projectDir);
-          if (!planIndex.plans.some((p) => p.normalizedId === params.planId)) {
-            return formatError(planNotFound(params.slug, params.planId));
+          if (!planIndex.plans.some((p) => p.normalizedId === normalizedPlanId)) {
+            return formatError(planNotFound(params.slug, normalizedPlanId));
           }
         }
 
@@ -58,7 +61,7 @@ export function registerProjectTaskTools(server: McpServer) {
           title: params.title,
           status: params.status,
           priority: params.priority,
-          planId: params.planId,
+          planId: normalizedPlanId,
           sourceFiles: params.sourceFiles,
         });
 
@@ -138,7 +141,7 @@ export function registerProjectTaskTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("New source file references (replaces existing; empty array clears)"),
-      planId: z.string().nullable().optional().describe("Link task to a governing plan by plan ID (null to unset)"),
+      planId: z.union([z.string().min(1).refine((s) => s.trim().length > 0, { message: "planId must not be blank" }), z.null()]).optional().describe("Link task to a governing plan by plan ID (null to unset)"),
     },
     async (params) => {
       try {
@@ -147,10 +150,12 @@ export function registerProjectTaskTools(server: McpServer) {
           return formatError(projectNotFound(params.slug));
         }
 
-        if (params.planId) {
+        const normalizedPlanId = params.planId ? normalizeIdentifier(params.planId) : params.planId;
+
+        if (normalizedPlanId) {
           const planIndex = await readPlanIndex(projectDir);
-          if (!planIndex.plans.some((p) => p.normalizedId === params.planId)) {
-            return formatError(planNotFound(params.slug, params.planId));
+          if (!planIndex.plans.some((p) => p.normalizedId === normalizedPlanId)) {
+            return formatError(planNotFound(params.slug, normalizedPlanId));
           }
         }
 
@@ -159,7 +164,7 @@ export function registerProjectTaskTools(server: McpServer) {
           title: params.title,
           status: params.status,
           priority: params.priority,
-          planId: params.planId,
+          planId: normalizedPlanId,
           sourceFiles: params.sourceFiles,
         });
 
