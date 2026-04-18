@@ -16,16 +16,17 @@ export function registerProjectDiff(server: McpServer) {
     "Return plans, knowledge entries, and tasks updated since a given timestamp.",
     {
       slug: z.string().describe("Project slug"),
-      sinceIso: z.string().describe("ISO 8601 timestamp cutoff"),
+      sinceIso: z.string().refine(
+        (s) => {
+          const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+          return isoRegex.test(s) && Number.isFinite(Date.parse(s));
+        },
+        { message: "sinceIso must be a strict ISO 8601 datetime (e.g. 2026-04-18T00:00:00Z)" },
+      ).describe("Strict ISO 8601 timestamp cutoff"),
     },
     async (params) => {
       try {
-        // Validate sinceIso
-        const sinceDate = new Date(params.sinceIso);
-        if (Number.isNaN(sinceDate.getTime())) {
-          return errorResult(new Error(`Invalid sinceIso: "${params.sinceIso}" is not a valid ISO 8601 date`));
-        }
-        const sinceMs = sinceDate.getTime();
+        const sinceMs = new Date(params.sinceIso).getTime();
 
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
@@ -43,7 +44,7 @@ export function registerProjectDiff(server: McpServer) {
           item.updatedAt || item.createdAt;
 
         const isAfter = (item: { updatedAt: string; createdAt: string }) =>
-          new Date(effectiveTs(item)).getTime() >= sinceMs;
+          new Date(effectiveTs(item)).getTime() > sinceMs;
 
         // Filter and map plans
         const plans = planIndex.plans

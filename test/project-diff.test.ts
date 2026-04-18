@@ -20,7 +20,7 @@ describe("get_project_diff", () => {
           slug: "diff-test",
           sinceIso: "not-a-date",
         }),
-      ).rejects.toThrow("Invalid sinceIso");
+      ).rejects.toThrow("sinceIso must be a strict ISO 8601 datetime");
     });
   });
 
@@ -173,6 +173,85 @@ describe("get_project_diff", () => {
       expect(new Date(data.plans[0].updatedAt).getTime()).toBeGreaterThan(
         new Date(data.plans[1].updatedAt).getTime(),
       );
+    });
+  });
+
+  it("rejects date-only string (no time component)", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "ISO Reject",
+        description: "test",
+      });
+      await expect(
+        invokeJsonTool(server, "get_project_diff", {
+          slug: "iso-reject",
+          sinceIso: "2026-04-18",
+        }),
+      ).rejects.toThrow("sinceIso must be a strict ISO 8601 datetime");
+    });
+  });
+
+  it("rejects slash-formatted date", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "ISO Slash",
+        description: "test",
+      });
+      await expect(
+        invokeJsonTool(server, "get_project_diff", {
+          slug: "iso-slash",
+          sinceIso: "2026/04/18",
+        }),
+      ).rejects.toThrow("sinceIso must be a strict ISO 8601 datetime");
+    });
+  });
+
+  it("rejects natural language date", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "ISO Natural",
+        description: "test",
+      });
+      await expect(
+        invokeJsonTool(server, "get_project_diff", {
+          slug: "iso-natural",
+          sinceIso: "yesterday",
+        }),
+      ).rejects.toThrow("sinceIso must be a strict ISO 8601 datetime");
+    });
+  });
+
+  it("uses exclusive cutoff (boundary items not re-emitted)", async () => {
+    await withTempDataDir(async () => {
+      const server = createTestServer();
+      await invokeJsonTool(server, "init_project", {
+        name: "Exclusive Test",
+        description: "test",
+      });
+
+      await invokeJsonTool(server, "create_project_plan", {
+        slug: "exclusive-test",
+        title: "Boundary Plan",
+      });
+
+      // Get the plan's timestamp
+      const allResult = await invokeJsonTool(server, "get_project_diff", {
+        slug: "exclusive-test",
+        sinceIso: "2000-01-01T00:00:00Z",
+      });
+      const allData = parseResult(allResult);
+      const planTs = allData.plans[0].updatedAt;
+
+      // Query with exact boundary timestamp — should exclude the plan (exclusive >)
+      const boundaryResult = await invokeJsonTool(server, "get_project_diff", {
+        slug: "exclusive-test",
+        sinceIso: planTs,
+      });
+      const boundaryData = parseResult(boundaryResult);
+      expect(boundaryData.plans).toHaveLength(0);
     });
   });
 });
