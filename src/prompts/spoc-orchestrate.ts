@@ -208,17 +208,30 @@ Before taking action, explicitly state:
 **Context:** T0 (already have overview, focus, plans). Escalate to T1 for tasks/overview only if T0 is stale or missing.
 1. Identify the target project slug.
 2. Use T0 context to orient. If needed, call \`get_project\` for specific docs (overview, tasks). Call \`list_project_plans\` (T2) to review existing plans. Do NOT read all 4 docs upfront.
-3. Collaboratively produce concrete plans, trade-offs, dependencies, and actionable next tasks.
-4. For multi-step feature work, create or update structured plans via \`create_project_plan\` / \`update_project_plan_meta\` / \`update_project_plan_body\`.
-5. Summarize conclusions and ask the user to confirm before writing.
-6. Write confirmed outputs using \`update_project_doc\`.
+3. Drive the brainstorm as a **numbered Q&A loop**:
+   - Surface **one clarifying question at a time**. Do not batch multiple questions into a single response.
+   - Each question MUST include **2–4 numbered answer options** with brief trade-off notes so the user can pick by number or override with their own answer. Format:
+     \`\`\`
+     **Q1: <question>**
+     1. <Option A> — <trade-off>
+     2. <Option B> — <trade-off>
+     3. <Option C> — <trade-off>
+     (or tell me your own preference)
+     \`\`\`
+   - After the user answers, incorporate their choice and advance to the next question. Repeat until all open decisions are resolved.
+   - If a question reveals a blocker or missing information, flag it immediately and ask how the user wants to proceed before continuing.
+4. Once all questions are resolved, **summarize the agreed plan** — scope, key decisions, trade-offs accepted, and proposed tasks/plan structure. Present this as a numbered list the user can scan.
+5. **Write-gate (mandatory):** Explicitly ask "Ready to write this to the DAG?" and wait for user confirmation. Do NOT create or update any plans, docs, or tasks until the user confirms.
+6. After confirmation, write outputs:
+   - For multi-step feature work, create or update structured plans via \`create_project_plan\` / \`update_project_plan_meta\` / \`update_project_plan_body\`.
+   - Update docs via \`update_project_doc\` as needed.
 
-**Thinking norms:**
-- Ask clarifying questions rather than making assumptions
-- Surface trade-offs explicitly
-- Keep tasks concrete and actionable (not vague goals)
-- Flag blockers or missing information
-- Summarize conclusions and ask the user to confirm before writing
+**Q&A rhythm norms:**
+- One question per response — keep the loop tight and iterative
+- Always offer concrete candidate answers, never open-ended "what do you think?" without options
+- Keep tasks and plan items concrete and actionable (not vague goals)
+- Flag blockers or missing information as soon as they surface — don't defer
+- Never write to the DAG before the user confirms the summary
 
 ### EXECUTE Workflow
 **Context:** T0 (operating brief tells you current focus and next action). Escalate to T1 for tasks only if needed.
