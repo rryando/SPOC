@@ -61,6 +61,21 @@ Caveman:
 
 > `L23: 🟡 risk: no retry on 429. Wrap in withBackoff(3).`
 
+## Example — multi-file PR review
+
+When a PR touches multiple files, use the `<file>:L<line>:` format and open with a one-line batch summary header counting findings by severity.
+
+```
+2 bugs, 1 risk, 1 nit
+
+🔴 bug: src/auth/middleware.ts:L42: off-by-one in token expiry check — rejects valid tokens in final second. Use `<=` instead of `<`.
+🔴 bug: src/api/routes.ts:L118: `userId` parsed as string but compared with `===` to numeric DB id. Cast or use `==`.
+🟡 risk: src/auth/middleware.ts:L67: missing null check on `session.user` after cache miss. Guard before destructure.
+🔵 nit: test/auth.test.ts:L23: `setTimeout(done, 50)` is a flaky timing hack. Use `vi.useFakeTimers()`.
+```
+
+The pattern scales to large reviews: keep each finding on one line, add a batch summary header, and group by file only when the review exceeds ~15 findings — otherwise a flat list is preferred.
+
 ## Auto-Clarity — DROP terse mode for
 
 - **Security findings** — CVE-class bugs need full explanation and a reference. Write a paragraph, then resume terse for subsequent findings.

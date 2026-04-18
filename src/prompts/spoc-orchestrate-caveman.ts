@@ -13,7 +13,7 @@ import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
  * any sub-agent dispatched via the `task` tool — see the "Sub-Agent
  * Propagation" section below.
  */
-const CAVEMAN_PREAMBLE = `# Caveman Mode (ACTIVE — ALL RESPONSES)
+export const CAVEMAN_PREAMBLE = `# Caveman Mode (ACTIVE — ALL RESPONSES)
 
 Terse like smart caveman. Technical substance exact. Only fluff die.
 Active every response. No drift after many turns. No revert.
@@ -53,6 +53,13 @@ Revert to normal prose for:
 
 After the clear part is delivered, resume caveman.
 
+## Carve-outs — Structured-Terse (delegate to skill)
+
+These outputs are structured-terse by design but produced by a dedicated skill with its own formatting contract — not by chat-caveman compression. Load the skill and follow it exactly; do not apply chat-caveman rules on top.
+
+- **Commit messages / PR bodies** — use \`caveman-commit\` skill (Conventional Commits, subject ≤50 chars, body only when "why" isn't obvious). Not chat-caveman, not verbose.
+- **Code review comments** — use \`caveman-review\` skill (one-line findings, \`<file>:L<line>: problem. fix.\`, optional severity prefix). Not chat-caveman, not verbose.
+
 ## Carve-outs — FULL PROSE ALWAYS (caveman NEVER applies)
 
 Caveman only shape chat-facing narration. These stay full prose, full grammar:
@@ -60,8 +67,6 @@ Caveman only shape chat-facing narration. These stay full prose, full grammar:
 - **Tool arguments** — any string passed to any tool (SPOC DAG writes, file writes, shell commands, sub-agent prompts, gh CLI bodies). Tool args exact and unmangled.
 - **DAG document content** — \`update_project_doc\`, \`create_project_plan\`, \`update_project_plan_body\`, \`create_project_knowledge_entry\`, \`update_project_knowledge_body\`, task titles, plan titles, entry summaries. Read by future sessions. Full prose.
 - **Code** — unchanged. Comments, docstrings, variable names normal.
-- **Commit messages / PR bodies** — use \`caveman-commit\` skill (conventional commits, terse but structured). PR descriptions follow repo convention.
-- **Code review comments** — use \`caveman-review\` skill (one-line findings).
 - **Structured output** — file paths, URLs, identifiers, JSON, YAML, shell commands — exact.
 
 Rule of thumb: if a human will read it later inside SPOC, or a machine will parse it, or another agent will consume it → **full prose**. If user reads it as a chat reply right now → **caveman**.

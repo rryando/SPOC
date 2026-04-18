@@ -2,6 +2,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeOpencodeAgent } from "../src/cli/instructions.js";
+import {
+  CAVEMAN_PREAMBLE,
+  ORCHESTRATE_CAVEMAN_PROMPT_TEXT,
+} from "../src/prompts/spoc-orchestrate-caveman.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 describe("writeOpencodeAgent — agent key order", () => {
@@ -133,5 +137,63 @@ describe("writeOpencodeAgent — agent key order", () => {
       expect(cavemanContent).toContain("caveman-commit");
       expect(cavemanContent).toContain("caveman-review");
     });
+  });
+});
+
+describe("Caveman preamble content regression", () => {
+  it("contains all three intensity levels", () => {
+    expect(CAVEMAN_PREAMBLE).toContain("| **lite** |");
+    expect(CAVEMAN_PREAMBLE).toContain("| **full** |");
+    expect(CAVEMAN_PREAMBLE).toContain("| **ultra** |");
+  });
+
+  it("contains required section headings", () => {
+    expect(CAVEMAN_PREAMBLE).toContain("Auto-Clarity");
+    expect(CAVEMAN_PREAMBLE).toContain("Sub-Agent Propagation");
+    expect(CAVEMAN_PREAMBLE).toContain("Carve-outs — Structured-Terse");
+  });
+
+  it("contains sub-agent inheritance block", () => {
+    expect(CAVEMAN_PREAMBLE).toContain(
+      "# Caveman Mode (INHERITED from SPOC Caveman orchestrator)",
+    );
+    expect(CAVEMAN_PREAMBLE).toContain("Respond terse like caveman");
+  });
+
+  it("has correct agent metadata for SPOC Orchestrator and Caveman", async () => {
+    await withTempHomeDir(async (homeDir) => {
+      writeOpencodeAgent();
+
+      const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
+      const raw = readFileSync(configFile, "utf-8");
+      const config = JSON.parse(raw) as Record<string, unknown>;
+      const agents = config.agent as Record<string, any>;
+
+      expect(agents["SPOC Orchestrator"].color).toBe("#00bcd4");
+      expect(agents["SPOC Orchestrator"].mode).toBe("primary");
+      expect(agents["SPOC Caveman"].color).toBe("#d2691e");
+      expect(agents["SPOC Caveman"].mode).toBe("primary");
+      expect(agents["SPOC Caveman"].description).toContain("token-efficient");
+    });
+  });
+
+  it("caveman prompt file starts with CAVEMAN_PREAMBLE", async () => {
+    await withTempHomeDir(async (homeDir) => {
+      writeOpencodeAgent();
+
+      const cavemanPrompt = resolve(
+        homeDir,
+        ".config",
+        "opencode",
+        "prompts",
+        "spoc-orchestrate-caveman.txt",
+      );
+      const content = readFileSync(cavemanPrompt, "utf-8");
+      expect(content.startsWith(CAVEMAN_PREAMBLE)).toBe(true);
+    });
+  });
+
+  it("contains structured-terse token for commit carve-out", () => {
+    expect(CAVEMAN_PREAMBLE).toContain("structured-terse");
   });
 });
