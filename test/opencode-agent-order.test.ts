@@ -125,6 +125,13 @@ describe("writeOpencodeAgent — agent key order", () => {
       expect(cavemanContent).toContain("Caveman Mode");
       // Caveman wraps the full orchestrator prompt
       expect(cavemanContent).toContain("orchestration agent for the SPOC MCP server");
+      // Caveman must include the sub-agent propagation rule so caveman mode
+      // cascades into dispatched sub-agents
+      expect(cavemanContent).toContain("Sub-Agent Propagation");
+      expect(cavemanContent).toContain("INHERITED from SPOC Caveman orchestrator");
+      // Caveman must reference the bundled commit/review skills
+      expect(cavemanContent).toContain("caveman-commit");
+      expect(cavemanContent).toContain("caveman-review");
     });
   });
 });

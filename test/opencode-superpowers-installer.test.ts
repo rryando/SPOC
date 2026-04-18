@@ -51,7 +51,11 @@ function readExpectedSourceBundleVersion(): string {
 
 // SPOC-native skill files: authored in this repo, not sourced from upstream.
 // Must match the skill entries in scripts/build-opencode-superpowers-bundle.mjs preservedOutputFiles.
-const spocNativeSkillFiles = ["skills/loop/SKILL.md"];
+const spocNativeSkillFiles = [
+  "skills/loop/SKILL.md",
+  "skills/caveman-commit/SKILL.md",
+  "skills/caveman-review/SKILL.md",
+];
 
 function curatedBundlePayloadFiles(): string[] {
   const runtimeManifest = readRuntimeManifest();

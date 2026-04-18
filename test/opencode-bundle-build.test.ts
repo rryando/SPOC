@@ -82,7 +82,7 @@ function listSourceSkillNames(sourceRoot: string) {
 // but are not declared in bundle-runtime.json and are not sourced from the upstream
 // superpowers install. Must stay in sync with preservedOutputFiles in
 // scripts/build-opencode-superpowers-bundle.mjs.
-const SPOC_NATIVE_SKILL_NAMES = new Set(["loop"]);
+const SPOC_NATIVE_SKILL_NAMES = new Set(["loop", "caveman-commit", "caveman-review"]);
 
 function listTopLevelAgentPaths(sourceRoot: string) {
   const sourceAgentsRoot = resolve(sourceRoot, "agents");
@@ -498,6 +498,7 @@ describe("opencode bundle runtime manifest", () => {
       sourceRoot: "~/.config/opencode/skills/superpowers",
       skills: {
         aesthetic: ["SKILL.md", "CATALOG.md"],
+        "auditing-a-feature": ["SKILL.md"],
         brainstorming: [
           "SKILL.md",
           "spec-document-reviewer-prompt.md",

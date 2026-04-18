@@ -21,6 +21,11 @@ const preservedOutputFiles = new Set([
   ".opencode/plugins/superpowers.js",
   // SPOC-native skills (not sourced from upstream, authored in this repo)
   "skills/loop/SKILL.md",
+  // Caveman skills — adapted from https://github.com/JuliusBrussee/caveman (MIT).
+  // Shipped alongside SPOC Caveman orchestrator so sub-agents can produce
+  // terse commits and PR review comments when caveman mode is active.
+  "skills/caveman-commit/SKILL.md",
+  "skills/caveman-review/SKILL.md",
 ]);
 
 function expandHome(filePath) {
