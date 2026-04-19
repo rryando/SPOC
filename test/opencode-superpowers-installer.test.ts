@@ -310,7 +310,7 @@ describe("opencode superpowers installer", () => {
           },
           "code-reviewer": {
             mode: "subagent",
-            model: "github-copilot/gpt-5.4-mini",
+            model: "github-copilot/claude-haiku-4.5",
           },
           "docs-researcher": {
             mode: "subagent",
@@ -318,7 +318,7 @@ describe("opencode superpowers installer", () => {
           },
           analyzer: {
             mode: "subagent",
-            model: "github-copilot/gpt-5.4-mini",
+            model: "github-copilot/claude-haiku-4.5",
           },
         },
       });

@@ -3,6 +3,10 @@ name: update-docs
 description: Update project documents with structured content
 ---
 
+> **Canonical source of truth:** document content guidelines in the runtime
+> orchestrator prompt (`src/prompts/spoc-orchestrate.ts`, `## Content
+> Guidelines`) take precedence when this skill file disagrees.
+
 ## When to Use
 
 Use this skill when:

@@ -27,6 +27,8 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 ## How to Access Skills
 
+**In OpenCode:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. This is the primary platform for this skill bundle.
+
 **In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
 
 **In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
@@ -35,7 +37,7 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 ## Platform Adaptation
 
-Skills use Claude Code tool names. Non-CC platforms should map the workflow to their local tool equivalents, and Gemini CLI users receive the tool mapping from their runtime bootstrap.
+Skills reference Claude Code tool names as a common baseline. OpenCode maps these to its native equivalents automatically. Other non-CC platforms should map the workflow to their local tool equivalents, and Gemini CLI users receive the tool mapping from their runtime bootstrap.
 
 # Using Skills
 

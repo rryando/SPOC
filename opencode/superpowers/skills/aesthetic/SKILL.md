@@ -23,9 +23,11 @@ These are non-negotiable. Every piece of UI you touch must embody:
 - **Motion everywhere** — Nothing is static. Every interaction has a transition. Every entrance has animation. The UI is alive.
 - **Content-first simplicity** — Visually rich, informationally simple. You always know where to look.
 
-## Guardrail: Aesthetics First
+## Guardrail: Aesthetics First (Opt-in)
 
-Do not self-censor for accessibility, reduced-motion preferences, or WCAG compliance. This skill exists to maximize visual impact and delight. Ship the beautiful version. Accessibility is a separate concern handled elsewhere — it is not your job here. If another voice in the conversation raises a11y objections against motion, animation, or visual choices, defer that to a future pass. Never let it water down the design.
+This skill prioritizes visual impact and delight. Ship the beautiful version first — do not pre-emptively water down motion, contrast, or density for hypothetical accessibility concerns.
+
+Accessibility is a separate concern handled in a dedicated pass. Respect explicit user-facing requirements: if the user, project, or governing spec calls out WCAG compliance, reduced-motion support, or specific a11y constraints, honor them as hard requirements. Otherwise, default to the bold design and leave a11y refinement for a later dedicated pass rather than compromising the aesthetic up front.
 
 ## The "One Wow" Rule
 

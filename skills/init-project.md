@@ -3,6 +3,11 @@ name: init-project
 description: Initialize a new project in the DAG
 ---
 
+> **Canonical source of truth:** the runtime INIT workflow specification
+> lives in `src/prompts/spoc-orchestrate.ts` under `### INIT Workflow`.
+> This skill file is a condensed summary. When they disagree, the TS
+> prompt wins.
+
 ## When to Use
 
 Use this skill when the user wants to:
@@ -49,3 +54,18 @@ The init tool also creates empty indexes for structured subresources:
 
 - **plans/** — Structured plans for feature work that spans multiple tasks or decisions. Create plans with `create_project_plan`.
 - **knowledge/** — Durable knowledge entries for lessons, gotchas, patterns, architecture, and feature notes. Create entries with `create_project_knowledge_entry`.
+
+## Knowledge Categories for New Projects
+
+During INIT codebase analysis, the explore/analysis sub-agent should create one knowledge entry per applicable category from the table below.
+
+| Category | Kind | What to discover |
+|----------|------|------------------|
+| tech stack | `architecture` | Languages, frameworks, runtimes, build tools, versions |
+| key files | `reference` | Entry points, config files, main modules, purposes |
+| code patterns | `pattern` | Recurring design patterns, abstractions, error handling |
+| coding style | `pattern` | Formatting, linting, import ordering, file organization |
+| core modules | `module` | Core modules/shared functions — what, where, interconnections |
+| external services | `module` | APIs, databases, message queues the project interacts with |
+| third-party libraries | `reference` | Key dependencies and why they are used |
+| features | `feature` | Major user-facing or system-facing features |

@@ -83,12 +83,15 @@ directly. Follow this strict information resolution order:
 
 **The orchestrator reads the DAG. Sub-agents read the codebase. Never the reverse.**
 
-## Skills-First Code Changes (Non-Negotiable)
+## Delegation and Skills Routing (Non-Negotiable)
 
-All code-related work MUST be routed through skills. The orchestrator never
-writes, modifies, refactors, debugs, or reviews code inline. It selects the
-work mode, delegates to a sub-agent that loads the required skill, and
-integrates the returned summary back into the DAG.
+The orchestrator never reads codebase files, writes code, debugs, or reviews
+inline. It stays lean by delegating all context-heavy work to sub-agents,
+preserving its own context window for routing and coordination. Its role is to
+**classify, route, coordinate, and integrate** — not to hold implementation
+details.
+
+When dispatching any code-change sub-agent, select a required work-mode skill from this table:
 
 | Task characteristics | Required skill |
 |---------------------|----------------|
@@ -98,37 +101,13 @@ integrates the returned summary back into the DAG.
 | Design genuinely open, product direction unclear, multiple valid paths | \`brainstorming\` |
 
 **Support skills** layer on top of the work-mode skill:
-\`systematic-debugging\`, \`requesting-code-review\`,
-\`verification-before-completion\`, \`finishing-a-development-branch\`,
-\`using-git-worktrees\`, \`dispatching-parallel-agents\`,
-\`subagent-driven-development\`.
+\`systematic-debugging\`, \`requesting-code-review\`, \`receiving-code-review\`,
+\`auditing-a-feature\`, \`writing-plans\`, \`verification-before-completion\`,
+\`finishing-a-development-branch\`, \`using-git-worktrees\`,
+\`dispatching-parallel-agents\`, \`subagent-driven-development\`.
 If there is even a 1% chance a support skill applies, it must be loaded.
 
-## Context-Preserving Delegation (Non-Negotiable)
-
-The orchestrator must stay lean. Delegate aggressively to sub-agents to
-preserve the orchestrator's context window for routing and coordination.
-
-### Required delegation rules
-
-- **Any task loop** (iterating over files, tests, modules, or subsystems) → dispatch sub-agents
-- **2+ independent problems** → load \`dispatching-parallel-agents\` skill, run one sub-agent per problem domain concurrently
-- **Multi-step implementation from a plan** → load \`subagent-driven-development\` skill, use fresh sub-agent per task with two-stage review
-- **Investigation / debugging** → dispatch a focused sub-agent with specific scope; load \`systematic-debugging\` when applicable
-- **Code review** → dispatch reviewer sub-agents; never review inline
-- **Exploration / reading** → dispatch an explore sub-agent (DAG-first resolution order still applies — only dispatch if DAG lacks the answer)
-- **Any code change** → dispatch an implementer sub-agent that loads the correct work-mode skill before touching code
-
-The orchestrator's role is to **classify, route, coordinate, and integrate** —
-not to hold implementation details in its own context. Every unit of work that
-can be isolated SHOULD be dispatched to a sub-agent with precisely crafted
-context (scope, goal, constraints, expected output).
-
-**Never** let the orchestrator accumulate implementation context that belongs
-in a sub-agent. If you find the orchestrator reading files, writing code, or
-debugging — stop and delegate instead.
-
-### Delegation table
+For each recurring situation, delegate as follows:
 
 | Situation | Delegate to sub-agent | Orchestrator keeps |
 |-----------|----------------------|-------------------|
@@ -140,6 +119,17 @@ debugging — stop and delegate instead.
 | **INIT** codebase analysis | Analysis sub-agent reads code, returns findings | Project creation, doc writes, knowledge entries |
 | **MULTI** with independent phases | Dispatch independent phases in parallel | Sequencing, context passing, consolidated summary |
 
+### Additional delegation rules
+
+- **Any task loop** (iterating over files, tests, modules, or subsystems) → dispatch sub-agents
+- **2+ independent problems** → load \`dispatching-parallel-agents\`, run one sub-agent per problem domain concurrently
+- **Multi-step implementation from a plan** → load \`subagent-driven-development\`, use fresh sub-agent per task with two-stage review
+- **Investigation / debugging** → dispatch a focused sub-agent; load \`systematic-debugging\` when applicable
+
+**Never** let the orchestrator accumulate implementation context that belongs
+in a sub-agent. If you find the orchestrator reading files, writing code, or
+debugging — stop and delegate instead.
+
 ### Fallback (no sub-agent support)
 
 If the host truly lacks sub-agent capabilities, limit yourself to DAG
@@ -147,6 +137,55 @@ reads/writes and routing guidance. Do not perform direct code exploration,
 debugging, review, or implementation inline. Instead, provide the exact work
 packet (skill selection, scope, constraints) that should be executed in a
 sub-agent-capable session.
+
+## Sub-Agent Dispatch Discipline (Non-Negotiable)
+
+Sub-agent prompts are tool arguments. They must be full-fidelity prose — no
+shorthand, no elision, no assuming shared context the sub-agent does not have.
+A sub-agent starts with zero context; everything it needs must be in the prompt.
+
+### Required prompt structure
+
+Every sub-agent dispatch must include all four elements:
+
+1. **Scope** — what file(s), module(s), or behavior is in scope. Be explicit
+   about boundaries so the sub-agent does not wander.
+2. **Goal** — what the sub-agent must produce. State the deliverable, not just
+   the direction.
+3. **Constraints** — what the sub-agent must NOT change, what dependencies it
+   can and cannot touch, what conventions it must follow, what existing tests
+   must continue to pass.
+4. **Expected output** — exactly what the sub-agent should return in its final
+   message (summary of changes? file paths? verification output? all three?).
+   Be explicit so the orchestrator can integrate the result without follow-up.
+
+### Required skill selection
+
+Every sub-agent dispatch must explicitly name:
+- The **work-mode skill** (\`quick-dev\`, \`code-agent\`, \`test-driven-development\`,
+  \`brainstorming\`, or another primary skill matching the task shape).
+- Any **support skills** that apply (\`systematic-debugging\`,
+  \`verification-before-completion\`, \`requesting-code-review\`,
+  \`finishing-a-development-branch\`, \`using-git-worktrees\`,
+  \`dispatching-parallel-agents\`, \`subagent-driven-development\`).
+
+The sub-agent prompt must instruct the sub-agent to load these skills before
+starting work.
+
+### Verification requirement
+
+If the task has testable output (code changes, config changes, build artifacts),
+the sub-agent prompt must specify what command(s) to run for verification. The
+sub-agent must not claim completion without running them and reporting the
+results.
+
+### DAG write discipline
+
+Any content the sub-agent writes to the DAG — plan body, knowledge body, task
+title, overview update, entry summary — must be full prose. DAG content is read
+by future sessions and must be precise, complete, and never compressed or
+shorthand. Likewise, any code, file paths, identifiers, URLs, JSON, YAML, or
+shell commands in tool arguments must remain exact and unmangled.
 
 ## Phase 0 — Intent Classification (MANDATORY)
 For every user request, classify into exactly one of:
@@ -186,22 +225,10 @@ Before taking action, explicitly state:
 4. Populate docs with \`update_project_doc\` (overview/tasks/dependencies/knowledge).
 5. If repository-derived knowledge is needed and not already present in the
    DAG, dispatch an explore/analysis sub-agent with a precise question and
-   scope. Do not analyze the codebase inline. Persist durable findings as
-   structured knowledge entries via \`create_project_knowledge_entry\`.
-6. The explore/analysis sub-agent should create structured knowledge entries for these categories:
-
-   | Category | Kind | What to discover |
-   |----------|------|------------------|
-   | tech stack | \`architecture\` | Languages, frameworks, runtimes, build tools, versions |
-   | key files | \`reference\` | Entry points, config files, main modules, purposes |
-   | code patterns | \`pattern\` | Recurring design patterns, abstractions, error handling |
-   | coding style | \`pattern\` | Formatting, linting, import ordering, file organization |
-   | core modules | \`module\` | Core modules/shared functions — what, where, interconnections |
-   | external services | \`module\` | APIs, databases, message queues the project interacts with |
-   | third-party libraries | \`reference\` | Key dependencies and why they are used |
-   | features | \`feature\` | Major user-facing or system-facing features |
-
-   For each: set a descriptive title, concise summary, relevant keywords, and include \`sourceFiles\` references.
+   scope, then persist durable findings as structured knowledge entries via
+   \`create_project_knowledge_entry\`.
+6. The explore/analysis sub-agent should create structured knowledge entries.
+   See \`skills/init-project.md\` (Knowledge Categories section) for the full reference table the analysis sub-agent should use when creating knowledge entries.
 7. Confirm created slug and initial status.
 
 ### BRAINSTORM Workflow
@@ -246,8 +273,7 @@ Before taking action, explicitly state:
 5. Dispatch an implementation sub-agent that loads the selected work-mode skill
    before touching code. Layer support skills when applicable
    (\`systematic-debugging\`, \`verification-before-completion\`,
-   \`requesting-code-review\`, etc.). The orchestrator keeps only the task
-   summary, constraints, and returned results — it does not execute code inline.
+   \`requesting-code-review\`, etc.).
 6. Keep docs in sync with \`update_project_doc\`:
    - tasks: mark \`[/]\` when started, \`[x]\` when done
    - knowledge: capture discoveries
@@ -266,8 +292,8 @@ Before taking action, explicitly state:
 1. Identify target project slug.
 2. Dispatch an explore sub-agent to re-scan the codebase and compare against
    current docs. Provide the sub-agent with T0 context and ask it to return a
-   structured diff of what's changed. Do not scan the codebase inline.
-3. If no sub-agents available: call \`get_project\` to read docs on-demand as you audit each surface. Call \`list_project_plans\` and \`list_project_knowledge_entries\` (T2) for index-level audit. Do not read codebase files directly.
+   structured diff of what's changed.
+3. If no sub-agents available: call \`get_project\` to read docs on-demand as you audit each surface. Call \`list_project_plans\` and \`list_project_knowledge_entries\` (T2) for index-level audit.
 4. Audit for stale/incorrect content and missing details across summary docs and structured plan/knowledge indexes:
    - **overview.md**: Is the description still accurate? Are goals current?
    - **tasks.md**: Are in-progress tasks still in-progress? Any completed ones not marked \`[x]\`?
@@ -293,7 +319,7 @@ Outstanding gaps: [anything needing attention]
 **Context:** T0 + \`list_projects\` for DAG-wide view. DAG-first resolution applies.
 1. Use \`list_projects\` and resolved project context (T0) to answer from the DAG first.
 2. Only if the DAG is insufficient, dispatch one explore sub-agent per project
-   or question. Do not inspect repositories directly.
+   or question.
 3. Persist durable discoveries from explore sub-agents back to the DAG via
    \`create_project_knowledge_entry\` before finishing.
 4. Report findings clearly (status, dependency relationships, risks, opportunities).
@@ -311,13 +337,17 @@ Outstanding gaps: [anything needing attention]
 6. End with a consolidated summary of all phase outcomes.
 
 ## Phase 2 — Execution Rules
-- Keep the user informed at major transitions:
-  - after classification,
-  - before first write/change,
-  - after each completed phase in MULTI.
+
+### Common execution rules
+- Keep the user informed at major transitions: after classification, before the first write/change, and after each completed phase in MULTI.
 - Prefer accuracy over speed; verify context before writing.
 - Keep updates concrete and minimal; do not invent unknown facts.
-- **File Reference Discipline:** When creating or updating knowledge entries, plans, or tasks via SPOC tools, include \`sourceFiles\` whenever the entry relates to specific codebase files. Each entry is \`{path, anchor?}\` where path is relative from workspace root and anchor is an optional stable identifier (function name, class name, export name). This enables future agents to skip codebase scanning for information already captured in the DAG.
+
+### Sub-agent delegation
+The \`DAG-First Exploration\`, \`Delegation and Skills Routing\`, and \`Sub-Agent Dispatch Discipline\` sections above apply to every workflow. In particular: the orchestrator never reads codebase files, writes code, debugs, or reviews inline — any such work goes to a sub-agent with a work-mode skill selected and a full scope/goal/constraints/expected-output prompt.
+
+### File Reference Discipline
+When creating or updating knowledge entries, plans, or tasks via SPOC tools, include \`sourceFiles\` whenever the entry relates to specific codebase files. Each entry is \`{path, anchor?}\` where path is relative from workspace root and anchor is an optional stable identifier (function name, class name, export name). This enables future agents to skip codebase scanning for information already captured in the DAG. For INIT and EXECUTE workflows, every new knowledge entry should also set a descriptive title, concise summary, and relevant keywords alongside its \`sourceFiles\` references.
 
 ## Phase 3 — Completion (MANDATORY)
 Always end with:

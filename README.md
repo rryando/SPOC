@@ -301,6 +301,16 @@ The `init` wizard can auto-configure these IDEs/tools:
 
 When OpenCode agent registration is enabled, SPOC appears in the agent switcher as `SPOC - (Orchestrator)`.
 
+### SPOC Caveman
+
+SPOC ships a second OpenCode primary agent, **SPOC Caveman**, that layers [caveman-speak](https://github.com/JuliusBrussee/caveman) (MIT) on top of the standard orchestrator for ~65% fewer tokens on chat-facing narration. Tab in the OpenCode agent switcher to cycle between `SPOC Orchestrator` (default) and `SPOC Caveman`.
+
+- **Same capabilities** — identical workflow routing (INIT / BRAINSTORM / EXECUTE / SYNC / EXPLORE / MULTI), tool access, and sub-agent delegation as the standard orchestrator.
+- **Intensity levels** — `lite`, `full` (default), `ultra`. Caveman auto-escalates to full prose when the user asks a clarifying question or signals confusion.
+- **Strict carve-outs** — caveman-speak applies only to chat narration. Tool arguments, DAG document content (overview/tasks/plans/knowledge), code, commit messages, and structured output stay in full prose.
+- **Sub-agent propagation** — when SPOC Caveman dispatches a sub-agent, it prepends an inheritance block so the sub-agent narrates in caveman-speak too, while respecting the same carve-outs.
+- **Companion skills** — `caveman-commit` (terse Conventional Commits) and `caveman-review` (one-line PR findings with severity prefix) are bundled with the OpenCode superpowers install.
+
 ---
 
 ## MCP Tools

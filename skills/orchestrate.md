@@ -3,6 +3,12 @@ name: orchestrate
 description: Classify intent and route work across all SPOC workflows
 ---
 
+> **Canonical source of truth:** the runtime orchestrator prompt lives in
+> `src/prompts/spoc-orchestrate.ts` (`ORCHESTRATE_PROMPT_TEXT`). This skill
+> file is a condensed user-facing summary for hosts that load skills by
+> name. Keep this file consistent with the TS prompt; when they disagree,
+> the TS prompt wins.
+
 ## When to Use
 
 Use this skill when:
@@ -85,7 +91,7 @@ Run the matching tool sequence:
 When routing to EXECUTE, annotate the selected task with a suggested work mode for the host agent:
 - Fully bounded, no open decisions → `quick-dev`
 - Mostly clear, 1-2 decisions resolvable from repo → `code-agent`
-- New non-trivial feature with known criteria → `tdd`
+- New non-trivial feature with known criteria → `test-driven-development`
 - Design direction unclear → reclassify as BRAINSTORM
 
 This is informational — the host agent makes the final skill decision.
@@ -95,6 +101,28 @@ Always end with:
 1. What was done
 2. Current project state
 3. Suggested next steps
+
+### 8) Loop tools (self-referential development)
+
+For long-running, iterative work that should continue until a completion
+promise is emitted, use the SPOC loop tools rather than manually re-prompting:
+
+- `spoc_start_project_loop` — Start a self-referential development loop for a
+  project. Accepts a `prompt` (task description), `sessionId`, and optional
+  `completionPromise` (default `DONE`), `maxIterations`, and `strategy`
+  (`continue` to stay in the same session, `reset` to start fresh per
+  iteration). The loop automatically re-prompts the agent when idle until the
+  completion promise appears in output.
+- `spoc_cancel_project_loop` — Cancel an active loop. Requires the current
+  `sessionId` to match the loop's owning session.
+- `spoc_get_project_loop_state` — Inspect loop state for a project, or search
+  across all projects for any active loop when called without a slug.
+
+Pair these tools with the `loop` skill, which documents the iteration
+discipline (how to structure prompts for self-continuation, when to emit the
+completion promise, how to handle idle detection). Prefer loops over manual
+re-prompting whenever a task has a well-defined completion signal and
+independent iteration steps.
 
 ## Tips
 

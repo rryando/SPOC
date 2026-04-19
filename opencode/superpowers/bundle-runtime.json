@@ -52,10 +52,12 @@
       "condition-based-waiting-example.ts",
       "defense-in-depth.md",
       "find-polluter.sh",
+      "phases-reference.md",
       "root-cause-tracing.md"
     ],
     "test-driven-development": [
       "SKILL.md",
+      "tdd-rationalizations-and-examples.md",
       "testing-anti-patterns.md"
     ],
     "using-git-worktrees": [
@@ -74,8 +76,11 @@
     "writing-skills": [
       "SKILL.md",
       "anthropic-best-practices.md",
+      "cso-and-naming.md",
       "graphviz-conventions.dot",
+      "rationalization-hardening.md",
       "render-graphs.js",
+      "skill-structure-reference.md",
       "testing-skills-with-subagents.md"
     ]
   },

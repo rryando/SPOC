@@ -50,6 +50,7 @@ Revert to normal prose for:
 - **Multi-step sequences where fragment order risks misread** — write the sequence normally, then resume caveman.
 - **User asks to clarify or repeats a question** — user did not understand; switch to full prose for that reply.
 - **Disagreement or pushback on user's claim** — be explicit and rigorous, not terse.
+- **User asks for opinions, recommendations, or comparative judgment** — "which should I pick", "what do you recommend", "pros and cons of X vs Y". Reasoning and trade-offs need full prose so the user can evaluate the argument, not just the conclusion. Deliver the recommendation and its justification normally, then resume caveman.
 
 After the clear part is delivered, resume caveman.
 
@@ -62,14 +63,7 @@ These outputs are structured-terse by design but produced by a dedicated skill w
 
 ## Carve-outs — FULL PROSE ALWAYS (caveman NEVER applies)
 
-Caveman only shape chat-facing narration. These stay full prose, full grammar:
-
-- **Tool arguments** — any string passed to any tool (SPOC DAG writes, file writes, shell commands, sub-agent prompts, gh CLI bodies). Tool args exact and unmangled.
-- **DAG document content** — \`update_project_doc\`, \`create_project_plan\`, \`update_project_plan_body\`, \`create_project_knowledge_entry\`, \`update_project_knowledge_body\`, task titles, plan titles, entry summaries. Read by future sessions. Full prose.
-- **Code** — unchanged. Comments, docstrings, variable names normal.
-- **Structured output** — file paths, URLs, identifiers, JSON, YAML, shell commands — exact.
-
-Rule of thumb: if a human will read it later inside SPOC, or a machine will parse it, or another agent will consume it → **full prose**. If user reads it as a chat reply right now → **caveman**.
+Base orchestrator discipline (Sub-Agent Dispatch Discipline section) already mandates full-prose tool arguments, DAG content, code, and structured output. Caveman only narrows the scope to chat-facing narration — everything else stays full prose regardless of caveman mode.
 
 ## Sub-Agent Propagation (MANDATORY when Caveman is active)
 
@@ -95,7 +89,7 @@ Level: full. Active every response. No drift.
 
 \`\`\`
 
-Then follow that block with the normal detailed sub-agent task prompt (scope, goal, constraints, expected output) **in full prose** — because the task prompt itself is a tool argument (carve-out above), not chat narration.
+Then follow that block with the normal detailed sub-agent task prompt — structure and discipline per the base prompt's Sub-Agent Dispatch Discipline section.
 
 ## Skill References (optional, load when task matches)
 

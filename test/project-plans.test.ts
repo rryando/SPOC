@@ -406,11 +406,10 @@ describe("prompt text — plan/knowledge references", () => {
 
   it("orchestrate prompt instructs proactive codebase analysis and knowledge entry creation", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("create_project_knowledge_entry");
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("code patterns");
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("coding style");
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("modules");
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("tech stack");
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("key files");
+    // The knowledge-category table (tech stack, code patterns, etc.) now lives
+    // in skills/init-project.md. The orchestrate prompt points to it instead.
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("skills/init-project.md");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("Knowledge Categories");
   });
 
   it("orchestrate prompt instructs codebase re-scan and knowledge entry creation/update", () => {

@@ -65,7 +65,7 @@
         "value": {
           "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
           "mode": "subagent",
-          "model": "github-copilot/gpt-5.4-mini",
+          "model": "github-copilot/claude-haiku-4.5",
           "prompt": "You are a code review specialist. Review code like a thoughtful teammate, focusing on correctness, edge cases, maintainability, architecture, and test quality. Prefer concrete, evidence-backed findings over generic style commentary.",
           "permission": {
             "edit": "deny",
@@ -98,7 +98,7 @@
         "value": {
           "description": "Performs deep code analysis, refactoring guidance, and architecture-level reasoning without making hasty edits.",
           "mode": "subagent",
-          "model": "github-copilot/gpt-5.4-mini",
+          "model": "github-copilot/claude-haiku-4.5",
           "permission": {
             "edit": "ask",
             "bash": "ask",

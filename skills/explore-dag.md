@@ -3,6 +3,11 @@ name: explore-dag
 description: Navigate and understand the project DAG
 ---
 
+> **Canonical source of truth:** the runtime EXPLORE workflow
+> specification and context-loading tiers live in
+> `src/prompts/spoc-orchestrate.ts`. This skill file is a condensed
+> summary. When they disagree, the TS prompt wins.
+
 ## When to Use
 
 Use this skill when:

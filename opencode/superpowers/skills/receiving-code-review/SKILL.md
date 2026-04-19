@@ -33,50 +33,23 @@ Before agreeing with or pushing back on any feedback, ask:
 - Is the reviewer's suggestion consistent with patterns already in the codebase?
 - Is the current code following the project's established convention (even if the reviewer dislikes it)?
 
-**If the suggestion contradicts an established project convention:**
-- Surface this explicitly: "The existing codebase uses X pattern consistently — this suggestion would diverge from that. Should we update all instances or discuss first?"
-- Do not blindly implement feedback that breaks project consistency
+**If the suggestion contradicts an established project convention:** surface this explicitly — "The existing codebase uses X pattern consistently; this suggestion would diverge from that. Should we update all instances or discuss first?" Do not blindly implement feedback that breaks project consistency.
 
-**If the suggestion aligns with project conventions:**
-- Implement it. The conventions are there for a reason.
+**If the suggestion aligns with project conventions:** implement it. The conventions are there for a reason.
 
-## Forbidden Responses
+## Response Language (Forbidden vs Approved)
 
-**NEVER:**
-- "You're absolutely right!" (explicit CLAUDE.md violation)
-- "Great point!" / "Excellent feedback!" (performative)
-- "Let me implement that now" (before verification)
+Applies to both acknowledging feedback and replying to inline comments. Actions speak — just fix the code and state the fix factually.
 
-**INSTEAD:**
-- Restate the technical requirement
-- Ask clarifying questions
-- Push back with technical reasoning if wrong
-- Just start working (actions > words)
+| Forbidden | Why | Approved instead |
+|-----------|-----|------------------|
+| "You're absolutely right!" | Explicit CLAUDE.md violation; performative | State the fix: "Fixed — added null guard at line 87." |
+| "Great point!" / "Excellent feedback!" | Performative agreement | Restate the technical requirement, or just act |
+| "Let me implement that now" (before verification) | Skips the verify/evaluate steps | "Checking against [file/test/convention] first." |
+| "Thanks for catching that!" / any gratitude | Unnecessary social padding | Just fix it and show the change |
+| Long apology after being wrong on pushback | Over-explaining | "You were right — verified [X]. Fixing now." |
 
-## Handling Inline Diff Comments
-
-When feedback is posted as inline diff comments (attached to specific lines):
-
-- Read each comment in its full diff context before responding
-- Note the exact file:line the comment targets
-- Check whether the flagged line follows the project's own patterns
-- Reply in the comment thread — not as a top-level PR comment:
-
-```bash
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  --method POST \
-  --field body="..."
-```
-
-**Reply tone:** Match the collegial tone of the review. Be direct, specific, and brief.
-
-```
-# Good reply to inline comment
-"Fixed — added null guard before token access at line 87. The expired session case now returns null early."
-
-# Bad reply
-"You're absolutely right, great catch! I'll fix this right away!"
-```
+**If you catch yourself about to write "Thanks" or "You're right":** delete it. State the fix instead.
 
 ## Handling Unclear Feedback
 
@@ -90,7 +63,7 @@ WHY: Items may be related. Partial understanding = wrong implementation.
 
 **Example:**
 ```
-your human partner: "Fix 1-6"
+Partner: "Fix 1-6"
 You understand 1,2,3,6. Unclear on 4,5.
 
 ❌ WRONG: Implement 1,2,3,6 now, ask about 4,5 later
@@ -99,33 +72,13 @@ You understand 1,2,3,6. Unclear on 4,5.
 
 ## Source-Specific Handling
 
-### From your human partner
-- **Trusted** - implement after understanding and conventions check
-- **Still ask** if scope unclear
-- **No performative agreement**
-- **Skip to action** or technical acknowledgment
+**From your human partner:** trusted — implement after understanding and conventions check. Still ask if scope unclear. No performative agreement. Skip to action or technical acknowledgment.
 
-### From External Reviewers
-```
-BEFORE implementing:
-  1. Check: Does feedback align with this project's conventions?
-  2. Check: Technically correct for THIS codebase?
-  3. Check: Breaks existing functionality?
-  4. Check: Reason for current implementation?
-  5. Check: Works on all platforms/versions?
-  6. Check: Does reviewer understand full context?
+**From external reviewers:** be skeptical but check carefully. Before implementing, verify each point against: (1) project conventions, (2) correctness for THIS codebase, (3) regression risk, (4) reason for current implementation, (5) platform/version support, (6) reviewer's full context.
 
-IF suggestion seems wrong:
-  Push back with technical reasoning
-
-IF can't easily verify:
-  Say so: "I can't verify this without [X]. Should I [investigate/ask/proceed]?"
-
-IF conflicts with your human partner's prior decisions:
-  Stop and discuss with your human partner first
-```
-
-**your human partner's rule:** "External feedback - be skeptical, but check carefully"
+- If suggestion seems wrong → push back with technical reasoning
+- If you can't verify → say so: "I can't verify this without [X]. Should I [investigate/ask/proceed]?"
+- If it conflicts with your human partner's prior decisions → stop and discuss with partner first
 
 ## YAGNI Check for "Professional" Features
 
@@ -137,7 +90,7 @@ IF reviewer suggests "implementing properly":
   IF used: Then implement properly
 ```
 
-**your human partner's rule:** "You and reviewer both report to me. If we don't need this feature, don't add it."
+**Partner's rule:** "You and reviewer both report to me. If we don't need this feature, don't add it."
 
 ## Implementation Order
 
@@ -155,55 +108,32 @@ FOR multi-item feedback:
 
 ## When To Push Back
 
-Push back when:
-- Suggestion contradicts an established project convention
-- Suggestion breaks existing functionality
-- Reviewer lacks full context
-- Violates YAGNI (unused feature)
-- Technically incorrect for this stack
-- Legacy/compatibility reasons exist
-- Conflicts with your human partner's architectural decisions
+Push back when the suggestion: contradicts an established project convention, breaks existing functionality, comes from a reviewer lacking full context, violates YAGNI, is technically incorrect for the stack, ignores legacy/compatibility reasons, or conflicts with your human partner's architectural decisions.
 
-**How to push back:**
-- Use technical reasoning, not defensiveness
-- Ask specific questions
-- Reference working tests/code or project conventions
-- Involve your human partner if architectural
+**How to push back:** technical reasoning, not defensiveness. Ask specific questions. Reference working tests/code or project conventions. Involve your human partner if architectural.
 
 **Signal if uncomfortable pushing back out loud:** "Strange things are afoot at the Circle K"
 
-## Acknowledging Correct Feedback
+**If you pushed back and were wrong:** state the correction factually and move on — "You were right — I checked [X] and it does [Y]. Implementing now." No long apologies, no defending why you pushed back.
 
-When feedback IS correct:
-```
-✅ "Fixed. [Brief description of what changed]"
-✅ "Good catch — [specific issue]. Fixed in [location]."
-✅ [Just fix it and show in the code]
+## Handling Inline Diff Comments
 
-❌ "You're absolutely right!"
-❌ "Great point!"
-❌ "Thanks for catching that!"
-❌ "Thanks for [anything]"
-❌ ANY gratitude expression
-```
+When feedback is posted as inline diff comments attached to specific lines:
 
-**Why no thanks:** Actions speak. Just fix it. The code itself shows you heard the feedback.
+- Read each comment in its full diff context before responding
+- Note the exact `file:line` the comment targets
+- Check whether the flagged line follows the project's own patterns
+- Reply in the comment thread, **not** as a top-level PR comment
+- Match the collegial tone of the review. Be direct, specific, brief.
 
-**If you catch yourself about to write "Thanks":** DELETE IT. State the fix instead.
-
-## Gracefully Correcting Your Pushback
-
-If you pushed back and were wrong:
-```
-✅ "You were right - I checked [X] and it does [Y]. Implementing now."
-✅ "Verified this and you're correct. My initial understanding was wrong because [reason]. Fixing."
-
-❌ Long apology
-❌ Defending why you pushed back
-❌ Over-explaining
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
+  --method POST \
+  --field body="Fixed at [location]. [One sentence on what changed.]"
 ```
 
-State the correction factually and move on.
+Good reply: `"Fixed — added null guard before token access at line 87. Expired sessions now return null early."`
+Bad reply: `"You're absolutely right, great catch! I'll fix this right away!"`
 
 ## Common Mistakes
 
@@ -219,46 +149,8 @@ State the correction factually and move on.
 | Can't verify, proceed anyway | State limitation, ask for direction |
 | Replying top-level to inline comments | Reply in the comment thread |
 
-## Real Examples
-
-**Performative Agreement (Bad):**
-```
-Reviewer: "Remove legacy code"
-❌ "You're absolutely right! Let me remove that..."
-```
-
-**Conventions Check First (Good):**
-```
-Reviewer: "Remove legacy code"
-✅ "Checking... build target is 10.15+, this API needs 13+. This follows the project's backward-compat pattern in CLAUDE.md. Do we want to drop pre-13 support or keep the fallback?"
-```
-
-**YAGNI (Good):**
-```
-Reviewer: "Implement proper metrics tracking with database, date filters, CSV export"
-✅ "Grepped codebase - nothing calls this endpoint. Remove it (YAGNI)? Or is there usage I'm missing?"
-```
-
-**Inline Comment Reply (Good):**
-```
-Reviewer leaves inline comment on auth.ts:87: "null check was removed here"
-✅ Reply in thread: "Fixed — added guard at line 87. Expired sessions now return null early rather than throwing."
-```
-
-## GitHub Thread Replies
-
-When replying to inline review comments on GitHub, reply in the comment thread, not as a top-level PR comment:
-
-```bash
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies \
-  --method POST \
-  --field body="Fixed at [location]. [One sentence on what changed.]"
-```
-
 ## The Bottom Line
 
 **Check project conventions first. External feedback = suggestions to evaluate, not orders to follow.**
 
-Verify against conventions and codebase. Question. Then implement.
-
-No performative agreement. Technical rigor always.
+Verify against conventions and codebase. Question. Then implement. No performative agreement. Technical rigor always.

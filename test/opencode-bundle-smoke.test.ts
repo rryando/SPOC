@@ -117,7 +117,7 @@ describe("opencode superpowers bundle", () => {
           path: ["agent", "code-reviewer"],
           value: expect.objectContaining({
             mode: "subagent",
-            model: "github-copilot/gpt-5.4-mini",
+            model: "github-copilot/claude-haiku-4.5",
           }),
         },
         {
@@ -131,7 +131,7 @@ describe("opencode superpowers bundle", () => {
           path: ["agent", "analyzer"],
           value: expect.objectContaining({
             mode: "subagent",
-            model: "github-copilot/gpt-5.4-mini",
+            model: "github-copilot/claude-haiku-4.5",
           }),
         },
       ]),
