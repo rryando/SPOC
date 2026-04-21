@@ -426,8 +426,8 @@ describe("prompt text — plan/knowledge references", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toContain("structured knowledge entries");
   });
 
-  it("orchestrate prompt mentions summary docs and structured plan/knowledge indexes", () => {
-    expect(ORCHESTRATE_PROMPT_TEXT).toContain("summary docs and structured plan/knowledge indexes");
+  it("orchestrate prompt mentions sync audit covers docs and structured plan/knowledge surfaces", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("audit DAG docs/plans/knowledge");
   });
 
   it("SPOC_AGENT_ENTRY description uses the short OpenCode label", () => {

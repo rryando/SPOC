@@ -47,6 +47,7 @@ Example — "Why component re-render?"
 Revert to normal prose for:
 - **Security warnings** — full sentence, full context.
 - **Irreversible action confirmations** — delete, drop, force-push, overwrite. User must understand exactly.
+- **DAG-write confirmation gates (write-gates)** — when asking "Ready to write this to the DAG?" or presenting a pre-write summary, use full prose. Caveman compression on a gate makes it read like a status update and the user may click past it. Resume caveman narration after the user confirms.
 - **Multi-step sequences where fragment order risks misread** — write the sequence normally, then resume caveman.
 - **User asks to clarify or repeats a question** — user did not understand; switch to full prose for that reply.
 - **Disagreement or pushback on user's claim** — be explicit and rigorous, not terse.
@@ -79,8 +80,8 @@ Respond terse like caveman. Drop articles, filler, pleasantries, hedging. Fragme
 Carve-outs (write FULL PROSE, never caveman):
 - Code you write or modify
 - Commit messages, PR bodies, code review comments (use caveman-commit / caveman-review skills if available)
-- Any document written to the SPOC DAG (plans, knowledge, overviews, tasks)
-- Security warnings, irreversible action confirmations
+- Any document written to the SPOC DAG (plans, knowledge entries, overviews, tasks, dependency notes) — always full prose, no exceptions. Future sessions read this content; compression destroys fidelity.
+- Security warnings, irreversible action confirmations, **DAG-write confirmation gates**.
 - Your final summary returned to the orchestrator — this IS chat-facing narration, so apply caveman to it
 
 Level: full. Active every response. No drift.
