@@ -1,33 +1,38 @@
 ---
 name: spoc-dashboard
-description: Use when starting or managing the SPOC Plan Dashboard — a local web server that visualizes running plan diagrams, task status, and markdown details with live hot-reload.
+description: Use when starting or managing the SPOC Plan Dashboard — an optional multi-plan browser for viewing all plans across projects with live status and diagrams.
 ---
 
-# SPOC Dashboard
+# SPOC Dashboard (Optional Multi-Plan Browser)
 
 ## Overview
 
-The SPOC Plan Dashboard is a local web server that visualizes your active plans as live Mermaid diagrams with task status, markdown details, and hot-reload on DAG changes. It reads directly from the SPOC DAG (`~/.spoc/`) and serves a retro TUI-styled web UI.
+The SPOC Plan Dashboard is an **optional** local web server for browsing plans across all SPOC projects. It renders Mermaid diagrams, task status, and markdown details with live hot-reload. It reads directly from the SPOC DAG (`~/.spoc/`) and serves a retro TUI-styled web UI.
+
+**Primary diagram rendering** for individual plans goes through the visual companion (brainstorming server). The dashboard serves a different purpose: multi-plan overview and project-wide status browsing.
 
 ## When to Use
 
-- Starting the dashboard to monitor plan progress visually
-- Showing a stakeholder the current state of active plans
-- Checking diagram status during a long execution run
-- Stopping a running dashboard server
+- User explicitly asks for a multi-plan overview or project-wide status
+- Comparing plan statuses across multiple projects
+- Showing a stakeholder the full picture of all active plans
+- Browsing all plans in one place
+
+## When NOT to Use
+
+- Presenting a single plan diagram — use visual companion instead
+- Auto-starting for diagram creation — visual companion handles that
+- Any scenario where only one plan is being discussed
 
 ## Starting the Dashboard
 
 ```bash
-# From the skill directory (after SPOC install)
+# Only when user explicitly requests multi-plan overview
 bash ~/.config/opencode/skills/superpowers/spoc-dashboard/start-server.sh
 ```
 
 The server starts on port `7777` by default (configurable via `SPOC_DASHBOARD_PORT`).
 It prints the URL and writes it to `~/.spoc/.dashboard-info`.
-
-When the dashboard is running, the SPOC orchestrator automatically injects the URL
-into every session's system prompt so agents can mention it to users.
 
 ## Stopping the Dashboard
 
@@ -54,16 +59,22 @@ bash ~/.config/opencode/skills/superpowers/spoc-dashboard/stop-server.sh
 
 ## Agent Instructions
 
-The dashboard is a silent presentation layer — start it automatically when a diagram is first created, not as a separate user-facing action. Users should not need to manage the dashboard themselves.
+The dashboard is an **optional multi-plan browser**. Do NOT auto-start it.
 
-**Detection:** Check the system prompt for a `<spoc_dashboard>` tag containing the URL. If present, the dashboard is already running — just reference the URL when presenting diagrams.
+**Do NOT** start the dashboard when creating or presenting diagrams — that is the visual companion's job.
 
-**Auto-start:** If no `<spoc_dashboard>` tag is present and you need to show a diagram, start the dashboard silently:
+**Only mention** the dashboard if:
+- User asks for multi-plan overview or project-wide status
+- User wants to compare plans across projects
+- User explicitly asks to start the dashboard
+
+**Detection:** Check the system prompt for a `<spoc_dashboard>` tag containing the URL. If present, the dashboard is already running — mention it only when relevant to multi-plan browsing.
+
+**Starting:** Only when user explicitly requests multi-plan overview:
 ```bash
 bash ~/.config/opencode/skills/superpowers/spoc-dashboard/start-server.sh
 ```
-Then present the URL to the user alongside the diagram context (e.g., "Review the plan diagram at http://localhost:7777").
 
-**Fallback:** If the start script fails, fall back to presenting the Mermaid block inline in chat. Do not ask the user to troubleshoot the dashboard.
+**Single-plan diagrams:** Always use visual companion, never dashboard.
 
 **Stopping:** `bash ~/.config/opencode/skills/superpowers/spoc-dashboard/stop-server.sh` — only when user explicitly requests it.

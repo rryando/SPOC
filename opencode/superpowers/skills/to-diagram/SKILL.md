@@ -1,16 +1,16 @@
 ---
 name: to-diagram
-description: Use when creating or updating a Mermaid diagram in a SPOC plan body — selecting dialect, encoding task status via classDef, placing the diagram section, and detecting or resolving diagram/metadata drift.
+description: Use when creating or updating a Mermaid diagram for a SPOC plan — selecting dialect, encoding task status via classDef, managing the standalone .mmd file, and detecting or resolving diagram/metadata drift.
 ---
 
 # To-Diagram
 
 ## Overview
 
-Generate and maintain Mermaid diagrams as dual-format plan representations in SPOC plan bodies. Diagrams serve two audiences:
+Generate and maintain Mermaid diagrams as standalone `.mmd` files alongside SPOC plan bodies. Diagrams serve two audiences:
 
-1. **Users** — visual plan structure, status at a glance, progress tracking on the SPOC Dashboard
-2. **Agents** — quick plan orientation without reading full prose. Agents scan diagrams to understand structure, dependencies, current execution state, and what's ready to execute next
+1. **Users** — visual plan structure rendered by the visual companion (brainstorming server) via Mermaid.js
+2. **Agents** — quick plan orientation by reading the `.mmd` file directly. Agents scan diagrams to understand structure, dependencies, current execution state, and what's ready to execute next
 
 Prose and task metadata remain the authoritative source of truth. Diagrams are derived from them and regenerated on drift. But diagrams must be **rich and contextual enough** that an agent can make task-selection and sequencing decisions from the diagram alone.
 
@@ -24,7 +24,7 @@ Prose and task metadata remain the authoritative source of truth. Diagrams are d
 
 ## Agent Consumption
 
-Agents read diagrams as structured plan summaries. When scanning a diagram:
+Agents read `.mmd` files as structured plan summaries. When scanning a diagram:
 
 1. **Status scan** — read `:::className` on each node to determine execution state (done/inProgress/blocked/backlog)
 2. **Ready-to-execute detection** — identify `:::backlog` nodes whose ALL incoming edges come from `:::done` nodes. These are the next candidates for execution
@@ -39,9 +39,10 @@ When updating diagrams, maintain `%%` comments (see Mermaid Comments section) so
 `to-diagram` is an INTERNAL skill — its conventions guide diagram generation but are never narrated to the user. Follow these rules:
 
 - Do not explain dialect selection, classDef conventions, or node labeling rules to the user
-- The user sees the final diagram (via dashboard URL or inline Mermaid block), not the generation process
-- When presenting a new diagram: "I've created a plan diagram showing [brief description]. Review it at [dashboard URL]" — or present the Mermaid block inline if no dashboard is available
-- When presenting an update: "I've updated the plan diagram — [what changed]. Check [dashboard URL]"
+- The user sees the rendered diagram (via visual companion URL or inline Mermaid block), not the generation process
+- **Visual companion rendering:** read the `.mmd` file → write an HTML fragment to the visual companion project directory wrapping the Mermaid source with `<script type="module">` loading Mermaid.js from CDN → present the visual companion URL to the user
+- When presenting a new diagram: "I've created a plan diagram showing [brief description]. Review it at [visual companion URL]" — or present the raw Mermaid block inline if no visual companion is available
+- When presenting an update: "I've updated the plan diagram — [what changed]. Check [visual companion URL]"
 - The skill load itself should be silent — no "Loading to-diagram skill..." messages
 
 ## Dialect Selection
@@ -93,28 +94,22 @@ D --> E[Deploy]:::blocked
 
 These hex colors are from the Tailwind CSS palette. They render correctly on GitHub, GitLab, and standard Mermaid renderers. If colors fail on a specific renderer, substitute Mermaid's standard color names.
 
-## Placement Rule
+## File Convention
 
-The `## Diagram` section goes immediately after `## Overview` in the plan body:
+Diagrams are standalone `.mmd` files, not embedded in plan body markdown.
 
-```
-## Overview
-[1-2 sentence plan summary]
-
-## Diagram
-[mermaid block]
-
-## Phases / Tasks
-[detailed task breakdown]
-```
-
-One diagram per plan. Do not add per-phase diagrams.
+- **File path:** `plans/<plan-id>.diagram.mmd` (same directory as the plan body)
+- **File format:** pure Mermaid syntax — no markdown wrapping, no ` ```mermaid ` fences
+- **Plan body reference:** add `> Diagram: plans/<plan-id>.diagram.mmd` in the overview section of the plan body
+- **Diagram header comment:** first line of the `.mmd` file must be `%% plan: <plan-id>`
+- **One diagram file per plan.** Do not create per-phase diagram files.
 
 ## Mermaid Comments for Agent Context
 
 Mermaid supports `%%` line comments. Use them to embed agent-readable status summaries that don't render visually:
 
 ```
+%% plan: my-plan-id
 %% status: A=done, B=done, C=inProgress, D=backlog, E=blocked
 %% ready: D (all deps done)
 %% blocked: E (waiting on C)
@@ -122,6 +117,7 @@ Mermaid supports `%%` line comments. Use them to embed agent-readable status sum
 ```
 
 **Rules:**
+- First line: `%% plan: <plan-id>` linking back to the governing plan
 - Include `%% status:` line listing all nodes and their current status
 - Include `%% ready:` line listing backlog nodes whose dependencies are all done
 - Include `%% blocked:` line listing nodes that cannot start and why
@@ -131,7 +127,7 @@ Mermaid supports `%%` line comments. Use them to embed agent-readable status sum
 
 ## Syntax Validation
 
-After writing or updating a diagram, validate:
+After writing or updating a `.mmd` file, validate:
 
 1. All node IDs are unique within the diagram
 2. All edges reference existing node IDs
@@ -139,28 +135,28 @@ After writing or updating a diagram, validate:
 4. No unclosed brackets, quotes, or parentheses
 5. `:::className` suffixes match one of the four declared classes
 
-Invalid diagrams break dashboard rendering and agent parsing. If a Mermaid renderer is available, verify the diagram renders before committing to the plan body.
+Invalid diagrams break visual companion rendering and agent parsing. If a Mermaid renderer is available, verify the diagram renders before writing the file.
 
 ## Update vs Regenerate
 
 Decision tree:
 
-1. **Status-only update:** Task metadata shows different status, but all task names, counts, and dependencies unchanged → surgical update (`:::className` only)
-2. **Scope change:** Task added, removed, or renamed; any dependency edge added/removed → full regeneration from current plan structure, then apply current status classes
+1. **Status-only update:** Task metadata shows different status, but all task names, counts, and dependencies unchanged → surgical update: edit the `.mmd` file, change `:::className` assignments only
+2. **Scope change:** Task added, removed, or renamed; any dependency edge added/removed → rewrite the `.mmd` file from scratch using current plan structure, then apply current status classes
 3. **Mixed update:** If ANY scope change happened alongside status changes → treat as regeneration (scope takes priority)
 
 | Trigger | Action |
 |---------|--------|
-| Task status changes | Update `:::className` assignments only — topology unchanged |
-| New tasks added | Regenerate full diagram from current plan structure |
-| Tasks removed | Regenerate full diagram from current plan structure |
-| Dependencies reordered | Regenerate full diagram from current plan structure |
-| Scope change | Regenerate full diagram from current plan structure |
-| Status + scope together | Regenerate (scope takes priority) |
+| Task status changes | Edit `.mmd` — update `:::className` assignments only |
+| New tasks added | Rewrite `.mmd` from current plan structure |
+| Tasks removed | Rewrite `.mmd` from current plan structure |
+| Dependencies reordered | Rewrite `.mmd` from current plan structure |
+| Scope change | Rewrite `.mmd` from current plan structure |
+| Status + scope together | Rewrite `.mmd` (scope takes priority) |
 
-**Surgical update (status only):** Change `:::backlog` to `:::inProgress` on the relevant node. Nothing else changes.
+**Surgical update (status only):** Edit the `.mmd` file — change `:::backlog` to `:::inProgress` on the relevant node, update `%%` comments. Nothing else changes.
 
-**Regeneration:** Rebuild the full `flowchart TD` or `stateDiagram-v2` block from scratch based on current plan task list and dependencies.
+**Regeneration:** Rewrite the entire `.mmd` file from scratch based on current plan task list and dependencies.
 
 ## Drift Detection and Resolution
 
@@ -171,16 +167,19 @@ Four types of drift:
 3. **Missing node** — metadata has a task with no corresponding diagram node
 4. **Topology mismatch** — diagram edges don't match task dependency metadata
 
-All four types → regenerate from metadata. Never patch metadata to match the diagram.
+All four types → rewrite the `.mmd` file from metadata. Never patch metadata to match the diagram.
 
-**During SYNC workflow:** Check every node and edge against task metadata. Flag any of the four drift types. Regenerate the diagram block and update the plan body via `update_project_plan_body`.
+**During SYNC workflow:** Read the `.mmd` file and compare every node and edge against task metadata. Flag any of the four drift types. Rewrite the `.mmd` file.
 
 ## Scalability
 
 - Plans with 15+ nodes: consider clustering into `subgraph` blocks by phase
 - If diagram becomes unreadable, the plan may need splitting into sub-plans
 
-```mermaid
+Example subgraph structure (raw `.mmd` content):
+
+```
+%% plan: large-plan
 flowchart TD
     classDef done fill:#22c55e,color:#fff
     classDef backlog fill:#94a3b8,color:#fff
@@ -198,7 +197,15 @@ flowchart TD
 
 ### flowchart TD — Task Dependency Graph
 
-```mermaid
+Raw `.mmd` file content:
+
+```
+%% plan: order-system
+%% status: A=done, B=inProgress, C=backlog, D=backlog, E=blocked
+%% ready: C (A done, B will complete soon)
+%% blocked: E (waiting on C and D)
+%% next-action: Start C (tests can begin once API shape is stable)
+
 flowchart TD
     classDef done fill:#22c55e,color:#fff
     classDef inProgress fill:#f59e0b,color:#fff
@@ -211,16 +218,14 @@ flowchart TD
     B --> C
     C --> E[Deploy to staging environment]:::blocked
     D --> E
-
-    %% status: A=done, B=inProgress, C=backlog, D=backlog, E=blocked
-    %% ready: C (A done, B will complete soon)
-    %% blocked: E (waiting on C and D)
-    %% next-action: Start C (tests can begin once API shape is stable)
 ```
 
-### stateDiagram-v2 — Feature Lifecycle (macro)
+### stateDiagram-v2 — Feature Lifecycle
 
-```mermaid
+Raw `.mmd` file content:
+
+```
+%% plan: feature-lifecycle
 stateDiagram-v2
     [*] --> Draft
     Draft --> Spec
@@ -228,21 +233,8 @@ stateDiagram-v2
     Build --> Review
     Review --> Shipped
     Review --> Build : revisions
-
     state Build {
         Schema --> API
         API --> UI
     }
-```
-
-### stateDiagram-v2 — Entity Lifecycle (micro)
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending
-    Pending --> Processing
-    Processing --> Completed
-    Processing --> Failed
-    Failed --> Processing : retry
-    Completed --> [*]
 ```

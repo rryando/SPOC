@@ -25,20 +25,20 @@ You MUST create a task for each of these items and complete them in order:
 2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Then present the diagram to the user:
-   - **Dashboard available** (system prompt contains `<spoc_dashboard>` tag with URL): write the diagram to the plan body and tell the user: "Review the plan diagram at [dashboard URL]"
-   - **Dashboard not running** (no `<spoc_dashboard>` tag): start it silently via `bash ~/.config/opencode/skills/superpowers/spoc-dashboard/start-server.sh`, write the diagram to the plan body, then present the URL
-   - **Dashboard can't start** (script fails): fall back to presenting the Mermaid block inline in chat
+5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Then persist and present the diagram:
+   - **Write `.mmd` file**: save the diagram to the SPOC DAG at `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd`. If the plan doesn't exist yet (design hasn't been written to SPOC), write the diagram to the visual companion project dir as an HTML fragment instead, and persist to the DAG `.mmd` path later when the plan is created.
+   - **Render via visual companion**: write an HTML fragment to the brainstorming server's project dir that wraps the Mermaid code with a Mermaid.js CDN `<script>` tag, then tell the user: "Review the plan diagram at [visual companion URL]"
+   - **Fallback** (visual companion not running): present the Mermaid block inline in chat
 
 <HARD-GATE>
-A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as agent-readable plan structure. Do not skip this step.
+A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as agent-readable plan structure. It must be persisted as a `.mmd` file (or visual companion HTML fragment if the plan doesn't exist yet). Do not skip this step.
 </HARD-GATE>
 
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to spoc as a project plan (see Storage section below)
 8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
-10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase diagram. When transitioning to writing-plans, pass the diagram structure forward. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase `.mmd` file. When transitioning to writing-plans, pass this file path forward as the artifact to extend. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
 
 ## Process Flow
 

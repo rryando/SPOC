@@ -200,7 +200,7 @@ ${toolMapping}
       // Inject SPOC Dashboard URL if server is running
       const dashboardInfo = getDashboardInfo();
       if (dashboardInfo?.url) {
-        (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Plan Dashboard is running. Users can view live plan diagrams and progress at this URL.\n</spoc_dashboard>`);
+        (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Dashboard is available as an optional multi-plan browser. Use for project-wide plan overview only — single-plan diagrams go through the visual companion.\n</spoc_dashboard>`);
       }
     },
 
@@ -213,7 +213,7 @@ ${toolMapping}
           dashboardToastShown = true;
           await client.tui?.showToast?.({
             body: {
-              title: "SPOC Dashboard Available",
+              title: "SPOC Dashboard (Multi-Plan Browser)",
               message: dashboardInfo.url,
               variant: "info",
               duration: 4000,

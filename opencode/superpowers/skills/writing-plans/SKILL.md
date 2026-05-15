@@ -61,21 +61,23 @@ This structure informs the task decomposition. Each task should produce self-con
 ---
 ```
 
-> After this header block, add a `## Diagram` section using the `to-diagram` skill before the task phases. See **Diagram Section** below.
+> After this header block, add a diagram reference line before the task phases. See **Diagram Section** below.
 
 ## Diagram Section
 
-Diagrams serve dual purpose: user visualization AND agent quick-orientation. Node labels must be descriptive (matching task titles), not abbreviated. Agents read `:::className` to determine current state and infer next actions.
+Diagrams live in separate `.mmd` files, not embedded in the plan body. This keeps plan markdown clean and lets visual companions render diagrams independently.
 
-**Continuity rule — design-phase diagram exists (from brainstorming):**
-- Review the brainstorming diagram and use its topology as the foundation.
-- EXTEND it — add implementation-specific task nodes (e.g., split "Build API" into "Design schema", "Implement endpoints", "Write tests") and refine dependency edges.
+- Diagram file: `plans/<plan-id>.diagram.mmd`
+- Plan body references it in the overview area (see placement below)
+- No Mermaid code in the plan body itself
+- Load `to-diagram` skill for `.mmd` file conventions, dialect selection, and `:::className` encoding rules
+
+**Continuity rule — design-phase `.mmd` file exists (from brainstorming):**
+- Read the existing `.mmd` file and EXTEND it — add implementation-specific task nodes (e.g., split "Build API" into "Design schema", "Implement endpoints", "Write tests") and refine dependency edges.
 - Preserve the validated high-level structure. Do not regenerate from scratch.
 
 **No prior diagram exists (plan created directly, not via brainstorming):**
-- Load the `to-diagram` skill (use the `skill` tool) to select the appropriate Mermaid dialect and generate the diagram from the plan's task structure.
-
-**In either case:** Load `to-diagram` for dialect conventions and `:::className` encoding rules.
+- Generate a fresh `.mmd` file per `to-diagram` conventions from the plan's task structure.
 
 **Placement in plan body:**
 
@@ -83,8 +85,7 @@ Diagrams serve dual purpose: user visualization AND agent quick-orientation. Nod
 ## Overview
 [plan overview prose]
 
-## Diagram
-[mermaid block]
+> Diagram: plans/<plan-id>.diagram.mmd
 
 ## Phases / Tasks
 [detailed task breakdown]
@@ -92,9 +93,7 @@ Diagrams serve dual purpose: user visualization AND agent quick-orientation. Nod
 
 **At plan creation time**, all nodes start as `:::backlog` — the diagram is a structural sketch showing dependencies, not execution status.
 
-**During EXECUTE**, when task status updates in metadata, also update the corresponding node's `:::className` in the diagram — only the class assignment changes, topology stays.
-
-**Dialect:** Use `flowchart TD` + classDef for task dependency graphs. Use `stateDiagram-v2` for lifecycle or state machine plans.
+**During EXECUTE**, when task status updates in metadata, also update the corresponding node's `:::className` in the `.mmd` file — only the class assignment changes, topology stays.
 
 ````markdown
 ### Task N: [Component Name]
