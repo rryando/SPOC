@@ -287,7 +287,7 @@ Before taking action, explicitly state:
      \`\`\`
    - **Low confidence** (fundamental direction unclear): ask a single framing question, then re-dispatch the scoping sub-agent with the answer before continuing.
    - **Never** ask questions the orchestrator could reasonably assume and state. Decide, declare the assumption, and let the user override in one reply if needed.
-5. **Summarize the agreed plan** — scope, key decisions, trade-offs accepted, assumptions made, and proposed tasks/plan structure. Include a Mermaid diagram sketch (using \`to-diagram\` conventions) showing the high-level flow or architecture of the plan. Use \`flowchart TD\` for task dependency graphs, \`stateDiagram-v2\` for lifecycle phases. Present as a numbered list.
+5. **Summarize the agreed plan** — scope, key decisions, trade-offs accepted, assumptions made, and proposed tasks/plan structure. Load the \`to-diagram\` skill and generate a Mermaid plan diagram (required in the plan body under \`## Diagram\`). Use \`flowchart TD\` for task dependency graphs, \`stateDiagram-v2\` for lifecycle phases. All nodes start as \`:::backlog\` at plan creation time. Present as a numbered list.
 6. **Write-gate (mandatory):** Ask "Ready to write this to the DAG?" and wait for confirmation. Do NOT create or update any plans, docs, or tasks until the user confirms.
 7. After confirmation, write outputs:
    - For multi-step feature work, create or update structured plans via \`create_project_plan\` / \`update_project_plan_meta\` / \`update_project_plan_body\`.
@@ -400,7 +400,7 @@ Always end with:
 - **tasks.md**: Use \`[ ]\` backlog / \`[/]\` in-progress / \`[x]\` done; this is the queue surface
 - **dependencies.md**: Upstream and downstream sections
 - **knowledge.md**: High-level tech stack, architecture, patterns, gotchas, key files (summary view — point to structured entries for detail, don't duplicate full content)
-- **plans/**: Structured plan records for multi-step feature work (the plan surface). Each plan body includes a \`## Diagram\` section (Mermaid flowchart TD or stateDiagram-v2) as a visual companion to the prose.
+- **plans/**: Structured plan records for multi-step feature work (the plan surface). Each plan body includes a \`## Diagram\` section (Mermaid flowchart TD or stateDiagram-v2) as a visual companion to the prose. This diagram is rendered live on the SPOC Dashboard when running.
 - **knowledge/**: Structured knowledge entries for durable discoveries (the memory surface)
 
 ## Plan Keyword Conventions

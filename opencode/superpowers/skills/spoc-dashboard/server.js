@@ -59,7 +59,12 @@ const sseClients = new Set();
 function broadcastSSE(data) {
   const msg = `data: ${JSON.stringify(data)}\n\n`;
   for (const res of sseClients) {
-    try { res.write(msg); } catch (e) { sseClients.delete(res); }
+    try {
+      res.write(msg);
+    } catch (e) {
+      try { res.end(); } catch (_) {}
+      sseClients.delete(res);
+    }
   }
 }
 
@@ -102,6 +107,8 @@ function startWatching() {
 
 // ========== API Handlers ==========
 
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
 function readJsonFile(filePath) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -110,12 +117,32 @@ function readJsonFile(filePath) {
   }
 }
 
-function handleApiProjects(_req, res) {
+/**
+ * Wraps an API handler with standard JSON headers, error handling,
+ * and parsed URL params. Handler receives (req, res, params) where
+ * params is the parsed URL searchParams, and a jsonResponse helper.
+ */
+function createApiHandler(handler) {
+  return function (req, res) {
+    try {
+      const parsed = new URL(req.url, 'http://localhost');
+      const jsonResponse = (status, data) => {
+        res.writeHead(status, JSON_HEADERS);
+        res.end(typeof data === 'string' ? data : JSON.stringify(data));
+      };
+      handler(req, res, parsed.searchParams, jsonResponse);
+    } catch (e) {
+      res.writeHead(500, JSON_HEADERS);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+  };
+}
+
+const handleApiProjects = createApiHandler((_req, _res, _params, json) => {
   const dataDir = getSpocDataDir();
   const meta = readJsonFile(path.join(dataDir, 'meta.json'));
   if (!meta || !meta.projects) {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end('[]');
+    json(200, '[]');
     return;
   }
   const projects = meta.projects.map(p => ({
@@ -123,29 +150,24 @@ function handleApiProjects(_req, res) {
     name: p.name,
     status: p.status
   }));
-  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-  res.end(JSON.stringify(projects));
-}
+  json(200, projects);
+});
 
-function handleApiPlans(req, res) {
-  const parsed = new URL(req.url, 'http://localhost');
-  const slug = validateId(parsed.searchParams.get('slug'));
+const handleApiPlans = createApiHandler((_req, _res, params, json) => {
+  const slug = validateId(params.get('slug'));
   if (!slug) {
-    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'valid slug parameter required (alphanumeric and dashes only)' }));
+    json(400, { error: 'valid slug parameter required (alphanumeric and dashes only)' });
     return;
   }
   const dataDir = getSpocDataDir();
   const indexPath = safePath(dataDir, 'projects', slug, 'plans', 'index.json');
   if (!indexPath) {
-    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'invalid path' }));
+    json(400, { error: 'invalid path' });
     return;
   }
   const index = readJsonFile(indexPath);
   if (!index || !index.plans) {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end('[]');
+    json(200, '[]');
     return;
   }
   const plans = index.plans.map(p => ({
@@ -153,36 +175,30 @@ function handleApiPlans(req, res) {
     summary: p.summary, keywords: p.keywords,
     updatedAt: p.updatedAt, createdAt: p.createdAt
   }));
-  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-  res.end(JSON.stringify(plans));
-}
+  json(200, plans);
+});
 
-function handleApiPlan(req, res) {
-  const parsed = new URL(req.url, 'http://localhost');
-  const slug = validateId(parsed.searchParams.get('slug'));
-  const planId = validateId(parsed.searchParams.get('id'));
+const handleApiPlan = createApiHandler((_req, _res, params, json) => {
+  const slug = validateId(params.get('slug'));
+  const planId = validateId(params.get('id'));
   if (!slug || !planId) {
-    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'valid slug and id parameters required (alphanumeric and dashes only)' }));
+    json(400, { error: 'valid slug and id parameters required (alphanumeric and dashes only)' });
     return;
   }
   const dataDir = getSpocDataDir();
   const indexPath = safePath(dataDir, 'projects', slug, 'plans', 'index.json');
   if (!indexPath) {
-    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'invalid path' }));
+    json(400, { error: 'invalid path' });
     return;
   }
   const index = readJsonFile(indexPath);
   if (!index || !index.plans) {
-    res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'plan not found' }));
+    json(404, { error: 'plan not found' });
     return;
   }
   const planMeta = index.plans.find(p => p.id === planId);
   if (!planMeta) {
-    res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'plan not found' }));
+    json(404, { error: 'plan not found' });
     return;
   }
   let body = '';
@@ -190,16 +206,13 @@ function handleApiPlan(req, res) {
   if (bodyPath) {
     try { body = fs.readFileSync(bodyPath, 'utf-8'); } catch (e) {}
   }
-  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-  res.end(JSON.stringify({ meta: planMeta, body }));
-}
+  json(200, { meta: planMeta, body });
+});
 
-function handleApiTasks(req, res) {
-  const parsed = new URL(req.url, 'http://localhost');
-  const slug = validateId(parsed.searchParams.get('slug'));
+const handleApiTasks = createApiHandler((_req, _res, params, json) => {
+  const slug = validateId(params.get('slug'));
   if (!slug) {
-    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ error: 'valid slug parameter required (alphanumeric and dashes only)' }));
+    json(400, { error: 'valid slug parameter required (alphanumeric and dashes only)' });
     return;
   }
   const dataDir = getSpocDataDir();
@@ -208,16 +221,14 @@ function handleApiTasks(req, res) {
   if (tasksPath) {
     try { content = fs.readFileSync(tasksPath, 'utf-8'); } catch (e) {}
   }
-  res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-  res.end(JSON.stringify({ content }));
-}
+  json(200, { content });
+});
 
 function handleEvents(_req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    'Connection': 'keep-alive'
   });
   res.write(': connected\n\n');
   sseClients.add(res);
@@ -244,10 +255,10 @@ function handleRequest(req, res) {
     if (req.method === 'GET' && pathname === '/') {
       const indexPath = path.join(__dirname, 'index.html');
       if (fs.existsSync(indexPath)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(fs.readFileSync(indexPath, 'utf-8'));
       } else {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end('<html><body><h1>SPOC Dashboard</h1><p>index.html not found</p></body></html>');
       }
     } else if (req.method === 'GET' && pathname === '/api/projects') {
@@ -261,11 +272,11 @@ function handleRequest(req, res) {
     } else if (req.method === 'GET' && pathname === '/events') {
       handleEvents(req, res);
     } else {
-      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'not found' }));
     }
   } catch (e) {
-    res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: e.message }));
   }
 }
