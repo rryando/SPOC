@@ -25,10 +25,13 @@ You MUST create a task for each of these items and complete them in order:
 2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Generate Mermaid plan diagram** — after selecting the recommended approach, load the `to-diagram` skill and generate a Mermaid plan diagram showing the structure and flow of that approach. Present the diagram to the user before diving into full design sections — it validates your understanding of scope before prose elaboration. Use `flowchart TD` if the primary structure is a task/component dependency graph; use `stateDiagram-v2` if the primary structure is a lifecycle or state machine. At this stage all nodes start as `:::backlog` — topology matters, not status.
+5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Then present the diagram to the user:
+   - **Dashboard available** (system prompt contains `<spoc_dashboard>` tag with URL): write the diagram to the plan body and tell the user: "Review the plan diagram at [dashboard URL]"
+   - **Dashboard not running** (no `<spoc_dashboard>` tag): start it silently via `bash ~/.config/opencode/skills/superpowers/spoc-dashboard/start-server.sh`, write the diagram to the plan body, then present the URL
+   - **Dashboard can't start** (script fails): fall back to presenting the Mermaid block inline in chat
 
 <HARD-GATE>
-You MUST call the `skill` tool to load `to-diagram`, then generate and present a Mermaid plan diagram before proceeding to step 6. The diagram serves both as visual validation for the user AND as agent-readable plan structure. Do not skip this step.
+A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as agent-readable plan structure. Do not skip this step.
 </HARD-GATE>
 
 6. **Present design** — in sections scaled to their complexity, get user approval after each section

@@ -54,8 +54,16 @@ bash ~/.config/opencode/skills/superpowers/spoc-dashboard/stop-server.sh
 
 ## Agent Instructions
 
-When a user asks about plan progress or wants to see diagrams:
-1. Check if `~/.spoc/.dashboard-info` exists — if so, dashboard is already running
-2. If not running, offer to start it: `bash <skill-dir>/start-server.sh`
-3. Share the URL with the user
-4. To stop: `bash <skill-dir>/stop-server.sh`
+The dashboard is a silent presentation layer — start it automatically when a diagram is first created, not as a separate user-facing action. Users should not need to manage the dashboard themselves.
+
+**Detection:** Check the system prompt for a `<spoc_dashboard>` tag containing the URL. If present, the dashboard is already running — just reference the URL when presenting diagrams.
+
+**Auto-start:** If no `<spoc_dashboard>` tag is present and you need to show a diagram, start the dashboard silently:
+```bash
+bash ~/.config/opencode/skills/superpowers/spoc-dashboard/start-server.sh
+```
+Then present the URL to the user alongside the diagram context (e.g., "Review the plan diagram at http://localhost:7777").
+
+**Fallback:** If the start script fails, fall back to presenting the Mermaid block inline in chat. Do not ask the user to troubleshoot the dashboard.
+
+**Stopping:** `bash ~/.config/opencode/skills/superpowers/spoc-dashboard/stop-server.sh` — only when user explicitly requests it.

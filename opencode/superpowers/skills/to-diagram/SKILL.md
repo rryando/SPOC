@@ -34,6 +34,16 @@ Agents read diagrams as structured plan summaries. When scanning a diagram:
 
 When updating diagrams, maintain `%%` comments (see Mermaid Comments section) so future agents can parse status summaries without re-analyzing the full graph.
 
+## Presentation
+
+`to-diagram` is an INTERNAL skill — its conventions guide diagram generation but are never narrated to the user. Follow these rules:
+
+- Do not explain dialect selection, classDef conventions, or node labeling rules to the user
+- The user sees the final diagram (via dashboard URL or inline Mermaid block), not the generation process
+- When presenting a new diagram: "I've created a plan diagram showing [brief description]. Review it at [dashboard URL]" — or present the Mermaid block inline if no dashboard is available
+- When presenting an update: "I've updated the plan diagram — [what changed]. Check [dashboard URL]"
+- The skill load itself should be silent — no "Loading to-diagram skill..." messages
+
 ## Dialect Selection
 
 Pick dialect based on the primary structure of the plan:
