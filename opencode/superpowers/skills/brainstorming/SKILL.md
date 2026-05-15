@@ -26,11 +26,16 @@ You MUST create a task for each of these items and complete them in order:
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Generate Mermaid plan diagram** — after selecting the recommended approach, load the `to-diagram` skill and generate a Mermaid plan diagram showing the structure and flow of that approach. Present the diagram to the user before diving into full design sections — it validates your understanding of scope before prose elaboration. Use `flowchart TD` if the primary structure is a task/component dependency graph; use `stateDiagram-v2` if the primary structure is a lifecycle or state machine. At this stage all nodes start as `:::backlog` — topology matters, not status.
+
+<HARD-GATE>
+You MUST call the `skill` tool to load `to-diagram`, then generate and present a Mermaid plan diagram before proceeding to step 6. The diagram serves both as visual validation for the user AND as agent-readable plan structure. Do not skip this step.
+</HARD-GATE>
+
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to spoc as a project plan (see Storage section below)
 8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
-10. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase diagram. When transitioning to writing-plans, pass the diagram structure forward. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
 
 ## Process Flow
 

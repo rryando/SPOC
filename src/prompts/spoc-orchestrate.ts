@@ -319,7 +319,7 @@ Before taking action, explicitly state:
     - tasks: stage \`[/]\` when started, \`[x]\` when done — these updates are staged locally and applied only after the write-gate in step 9
     - knowledge: capture discoveries
     - dependencies: record relationship changes
-    - diagram: when a task status changes, update the corresponding node's \`:::className\` in the plan body's \`## Diagram\` section — only the class assignment changes, never the topology
+     - diagram: the **orchestrator** owns diagram updates — implementation sub-agents never touch diagrams. When a task status changes, update the corresponding node's \`:::className\` in the plan body's \`## Diagram\` section at the **write-gate** (step 9), alongside task status updates. For status-only changes, update \`:::className\` assignments only — topology stays. If tasks were added, removed, or renamed during this execution session, the diagram must be regenerated from current plan structure — load \`to-diagram\` skill for the regeneration decision tree. Include diagram regeneration in the write-gate summary (step 9) when scope changed.
 7. Record durable discoveries as structured knowledge entries via \`create_project_knowledge_entry\`.
 8. Update plan status via \`update_project_plan_meta\` as work progresses.
 9. **Write-gate (mandatory, session-level):** Before committing any accumulated \`update_project_doc\` calls that change task status (\`[/]\`, \`[x]\`) or task content, summarize all pending task-status changes for this EXECUTE session as a bulleted list (task name → new state). Ask "Ready to apply these task updates to the DAG?" Wait for user confirmation. Knowledge entries and plan status updates made during execution follow the same gate in the same summary.
@@ -342,7 +342,8 @@ Before taking action, explicitly state:
    - **knowledge.md**: Is the landing page summary still accurate vs structured entries?
    - **plans/**: Are plan statuses current? Any that should be marked done or archived? Check externally-created plans via keyword filters (\`spec\`, \`implementation-plan\`).
    - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
-   - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
+    - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
+    - **plans/ diagrams**: For each plan with a \`## Diagram\` section, audit diagram nodes against task metadata. Check for: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but diagram has no corresponding node), topology mismatch (edges don't match task dependencies). Load \`to-diagram\` skill for drift detection rules. If drift found, regenerate the full diagram block from current task metadata.
 5. Based on the sub-agent's structured diff, propose corrections clearly.
 6. **Write-gate (mandatory):** Present the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as a single summary. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Do NOT call \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, or \`update_project_status\` until confirmed.
 7. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.

@@ -7,14 +7,32 @@ description: Use when creating or updating a Mermaid diagram in a SPOC plan body
 
 ## Overview
 
-Generate and maintain Mermaid diagrams as supplementary visual companions to SPOC plan bodies. The diagram communicates plan structure and task status at a glance. Prose, metadata, and task status remain authoritative — the diagram is always derived from them.
+Generate and maintain Mermaid diagrams as dual-format plan representations in SPOC plan bodies. Diagrams serve two audiences:
+
+1. **Users** — visual plan structure, status at a glance, progress tracking on the SPOC Dashboard
+2. **Agents** — quick plan orientation without reading full prose. Agents scan diagrams to understand structure, dependencies, current execution state, and what's ready to execute next
+
+Prose and task metadata remain the authoritative source of truth. Diagrams are derived from them and regenerated on drift. But diagrams must be **rich and contextual enough** that an agent can make task-selection and sequencing decisions from the diagram alone.
 
 ## When to Use
 
-- Creating a new SPOC plan body (called from writing-plans skill)
+- Creating a new SPOC plan body (called from brainstorming or writing-plans skill)
 - Adding a visual layer to an existing plan
 - Updating diagram node status after task status changes in metadata
 - Auditing diagram vs metadata drift during SYNC workflow
+- Agent entering a session needs quick orientation on plan state
+
+## Agent Consumption
+
+Agents read diagrams as structured plan summaries. When scanning a diagram:
+
+1. **Status scan** — read `:::className` on each node to determine execution state (done/inProgress/blocked/backlog)
+2. **Ready-to-execute detection** — identify `:::backlog` nodes whose ALL incoming edges come from `:::done` nodes. These are the next candidates for execution
+3. **Parallelism inference** — nodes with no shared dependency edges can run concurrently
+4. **Blocked identification** — `:::blocked` nodes or `:::backlog` nodes with `:::inProgress`/`:::backlog` predecessors cannot start yet
+5. **Scope understanding** — node labels encode task scope. Read them to understand what each task involves without consulting prose
+
+When updating diagrams, maintain `%%` comments (see Mermaid Comments section) so future agents can parse status summaries without re-analyzing the full graph.
 
 ## Dialect Selection
 
@@ -54,8 +72,10 @@ D --> E[Deploy]:::blocked
 
 ### Node Labeling
 
-- Node labels should match task titles from the plan
-- If label exceeds ~40 characters, truncate to a readable short form
+- Node labels MUST be descriptive enough for agent comprehension — an agent reading only the diagram should understand what each task involves
+- Use full task titles from the plan (e.g., "Build REST API endpoints" not "API", "Write unit tests for auth module" not "Tests")
+- Include scope hints when the title alone is ambiguous (e.g., "Design database schema for orders" not "Design schema")
+- If label exceeds ~50 characters, shorten to a readable form that preserves scope and intent
 - Use consistent style within a diagram (all verb phrases or all noun phrases)
 - For `stateDiagram-v2`, state names should be PascalCase descriptors
 
@@ -79,6 +99,37 @@ The `## Diagram` section goes immediately after `## Overview` in the plan body:
 ```
 
 One diagram per plan. Do not add per-phase diagrams.
+
+## Mermaid Comments for Agent Context
+
+Mermaid supports `%%` line comments. Use them to embed agent-readable status summaries that don't render visually:
+
+```
+%% status: A=done, B=done, C=inProgress, D=backlog, E=blocked
+%% ready: D (all deps done)
+%% blocked: E (waiting on C)
+%% next-action: Start D; C still in progress
+```
+
+**Rules:**
+- Include `%% status:` line listing all nodes and their current status
+- Include `%% ready:` line listing backlog nodes whose dependencies are all done
+- Include `%% blocked:` line listing nodes that cannot start and why
+- Include `%% next-action:` line with a recommended next step
+- Update comments on every surgical status update, not just regeneration
+- Optional for plans with fewer than 6 nodes; recommended for 6+ nodes
+
+## Syntax Validation
+
+After writing or updating a diagram, validate:
+
+1. All node IDs are unique within the diagram
+2. All edges reference existing node IDs
+3. All four `classDef` declarations are present (done, inProgress, blocked, backlog)
+4. No unclosed brackets, quotes, or parentheses
+5. `:::className` suffixes match one of the four declared classes
+
+Invalid diagrams break dashboard rendering and agent parsing. If a Mermaid renderer is available, verify the diagram renders before committing to the plan body.
 
 ## Update vs Regenerate
 
@@ -144,11 +195,17 @@ flowchart TD
     classDef blocked fill:#ef4444,color:#fff
     classDef backlog fill:#94a3b8,color:#fff
 
-    A[Design schema]:::done --> B[Build API]:::inProgress
-    B --> C[Build UI]:::backlog
-    B --> D[Write tests]:::backlog
-    C --> E[Deploy]:::backlog
+    A[Design database schema for orders]:::done --> B[Build REST API endpoints]:::inProgress
+    A --> C[Write API integration tests]:::backlog
+    B --> D[Build order management UI]:::backlog
+    B --> C
+    C --> E[Deploy to staging environment]:::blocked
     D --> E
+
+    %% status: A=done, B=inProgress, C=backlog, D=backlog, E=blocked
+    %% ready: C (A done, B will complete soon)
+    %% blocked: E (waiting on C and D)
+    %% next-action: Start C (tests can begin once API shape is stable)
 ```
 
 ### stateDiagram-v2 — Feature Lifecycle (macro)

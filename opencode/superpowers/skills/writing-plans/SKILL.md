@@ -65,7 +65,17 @@ This structure informs the task decomposition. Each task should produce self-con
 
 ## Diagram Section
 
-After the plan header, load the `to-diagram` skill (use the `skill` tool to load it) to select the appropriate Mermaid dialect and generate the diagram.
+Diagrams serve dual purpose: user visualization AND agent quick-orientation. Node labels must be descriptive (matching task titles), not abbreviated. Agents read `:::className` to determine current state and infer next actions.
+
+**Continuity rule — design-phase diagram exists (from brainstorming):**
+- Review the brainstorming diagram and use its topology as the foundation.
+- EXTEND it — add implementation-specific task nodes (e.g., split "Build API" into "Design schema", "Implement endpoints", "Write tests") and refine dependency edges.
+- Preserve the validated high-level structure. Do not regenerate from scratch.
+
+**No prior diagram exists (plan created directly, not via brainstorming):**
+- Load the `to-diagram` skill (use the `skill` tool) to select the appropriate Mermaid dialect and generate the diagram from the plan's task structure.
+
+**In either case:** Load `to-diagram` for dialect conventions and `:::className` encoding rules.
 
 **Placement in plan body:**
 
