@@ -25,11 +25,12 @@ You MUST create a task for each of these items and complete them in order:
 2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to spoc as a project plan (see Storage section below)
-7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+5. **Generate architecture diagram** — after selecting the recommended approach, load the `to-diagram` skill and generate a Mermaid diagram showing the architecture or flow of that approach. Present the diagram to the user before diving into full design sections — it is a visual sketch that validates your understanding of scope before prose elaboration. Use `flowchart TD` if the primary structure is a task/component dependency graph; use `stateDiagram-v2` if the primary structure is a lifecycle or state machine. At this stage all nodes start as `:::backlog` — topology matters, not status.
+6. **Present design** — in sections scaled to their complexity, get user approval after each section
+7. **Write design doc** — save to spoc as a project plan (see Storage section below)
+8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
+9. **User reviews written spec** — ask user to review the spec file before proceeding
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan
 
 ## Process Flow
 
@@ -53,7 +54,9 @@ digraph brainstorming {
     "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
     "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
     "Ask clarifying questions" -> "Propose 2-3 approaches";
-    "Propose 2-3 approaches" -> "Present design sections";
+    "Generate architecture diagram" [shape=box];
+    "Propose 2-3 approaches" -> "Generate architecture diagram";
+    "Generate architecture diagram" -> "Present design sections";
     "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
     "User approves design?" -> "Write design doc" [label="yes"];

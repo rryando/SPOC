@@ -40,6 +40,13 @@
       "SKILL.md",
       "code-reviewer.md"
     ],
+    "spoc-dashboard": [
+      "SKILL.md",
+      "server.js",
+      "index.html",
+      "start-server.sh",
+      "stop-server.sh"
+    ],
     "subagent-driven-development": [
       "SKILL.md",
       "code-quality-reviewer-prompt.md",
@@ -54,6 +61,9 @@
       "find-polluter.sh",
       "phases-reference.md",
       "root-cause-tracing.md"
+    ],
+    "to-diagram": [
+      "SKILL.md"
     ],
     "test-driven-development": [
       "SKILL.md",

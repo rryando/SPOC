@@ -61,7 +61,30 @@ This structure informs the task decomposition. Each task should produce self-con
 ---
 ```
 
-## Task Structure
+> After this header block, add a `## Diagram` section using the `to-diagram` skill before the task phases. See **Diagram Section** below.
+
+## Diagram Section
+
+After the plan header, load the `to-diagram` skill (use the `skill` tool to load it) to select the appropriate Mermaid dialect and generate the diagram.
+
+**Placement in plan body:**
+
+```
+## Overview
+[plan overview prose]
+
+## Diagram
+[mermaid block]
+
+## Phases / Tasks
+[detailed task breakdown]
+```
+
+**At plan creation time**, all nodes start as `:::backlog` — the diagram is a structural sketch showing dependencies, not execution status.
+
+**During EXECUTE**, when task status updates in metadata, also update the corresponding node's `:::className` in the diagram — only the class assignment changes, topology stays.
+
+**Dialect:** Use `flowchart TD` + classDef for task dependency graphs. Use `stateDiagram-v2` for lifecycle or state machine plans.
 
 ````markdown
 ### Task N: [Component Name]

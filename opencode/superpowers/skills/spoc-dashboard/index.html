@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOC Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230d1117'/><text y='.9em' font-size='90'>⬛</text></svg>">
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: false, theme: 'dark', darkMode: true });
+window._mermaid = mermaid;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.4/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --bg-hover: #1c2128;
+  --border: #30363d;
+  --border-active: #00ff41;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-dim: #484f58;
+  --green: #00ff41;
+  --amber: #f0b429;
+  --red: #f85149;
+  --blue: #79c0ff;
+  --gray: #6e7681;
+  --status-done: #22c55e;
+  --status-progress: #f59e0b;
+  --status-blocked: #ef4444;
+  --status-backlog: #6e7681;
+  --glow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 3px; }
+
+/* Top Bar */
+.top-bar {
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.top-bar .logo {
+  color: var(--green);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.top-bar .center { flex: 1; display: flex; justify-content: center; }
+
+.top-bar select {
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+.top-bar select:focus { border-color: var(--border-active); }
+
+.top-bar .status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--gray);
+  display: inline-block;
+}
+.live-dot.connected {
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Main Area */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left Panel */
+.plan-list {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 12px 12px 6px;
+}
+
+.plan-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.plan-item:hover { background: var(--bg-hover); }
+.plan-item.selected {
+  background: var(--bg-hover);
+  border-left-color: var(--border-active);
+  box-shadow: inset 3px 0 0 var(--border-active);
+}
+.plan-item.selected .plan-title { color: var(--green); }
+
+.plan-item .plan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.plan-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.plan-summary {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 16px;
+  margin-top: 2px;
+}
+
+/* Right Panel (diagram) */
+.diagram-panel {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.diagram-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.diagram-container svg { max-width: 100%; height: auto; }
+
+.muted { color: var(--text-muted); font-style: italic; }
+.error { color: var(--red); }
+
+/* Bottom Panel */
+.bottom-panel {
+  height: 40%;
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+.bottom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.bottom-header .title {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.status-badge {
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--bg);
+}
+
+/* Markdown styles */
+.md-body h1, .md-body h2, .md-body h3 { font-family: inherit; margin: 16px 0 8px; }
+.md-body h1 { font-size: 16px; }
+.md-body h2 { font-size: 14px; color: var(--green); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.md-body h3 { font-size: 13px; }
+.md-body code { background: var(--bg-panel); color: var(--amber); padding: 2px 4px; border-radius: 3px; }
+.md-body pre { background: var(--bg-panel); border: 1px solid var(--border); padding: 12px; overflow: auto; margin: 8px 0; border-radius: 3px; }
+.md-body pre code { background: none; padding: 0; }
+.md-body a { color: var(--blue); text-decoration: none; }
+.md-body a:hover { text-decoration: underline; }
+.md-body ul, .md-body ol { padding-left: 20px; }
+.md-body li::marker { color: var(--border-active); }
+.md-body blockquote { border-left: 3px solid var(--border-active); color: var(--text-muted); margin-left: 0; padding-left: 12px; margin: 8px 0; }
+.md-body p { margin: 6px 0; }
+.md-body .task-done { text-decoration: line-through; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="logo">▸ SPOC DASHBOARD</span>
+  <div class="center">
+    <select id="project-selector"><option>Loading...</option></select>
+  </div>
+  <div class="status">
+    <span class="live-dot" id="live-dot"></span>
+    <span id="live-label">OFFLINE</span>
+    <span id="last-updated"></span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="plan-list" id="plan-list">
+    <div class="section-header">PLANS</div>
+    <div id="plans-container"><span class="muted" style="padding:12px">Loading...</span></div>
+  </div>
+  <div class="diagram-panel">
+    <div class="section-header">DIAGRAM</div>
+    <div class="diagram-container" id="diagram-container">
+      <span class="muted">[no diagram]</span>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-panel" id="bottom-panel">
+  <div class="bottom-header">
+    <span class="title" id="detail-title">PLAN DETAILS</span>
+    <span class="status-badge" id="detail-badge" style="display:none"></span>
+  </div>
+  <div class="md-body" id="detail-body">
+    <span class="muted">Select a plan from the list →</span>
+  </div>
+</div>
+
+<script>
+const state = {
+  projects: [],
+  selectedSlug: null,
+  plans: [],
+  selectedPlanId: null,
+  selectedPlan: null,
+  connected: false,
+  lastUpdated: null
+};
+
+const $ = id => document.getElementById(id);
+
+function statusColor(status) {
+  const map = { done: 'var(--status-done)', in_progress: 'var(--status-progress)', blocked: 'var(--status-blocked)' };
+  return map[status] || 'var(--status-backlog)';
+}
+
+function statusBg(status) {
+  const map = { done: '#22c55e', in_progress: '#f59e0b', blocked: '#ef4444', planned: '#6e7681', proposed: '#6e7681' };
+  return map[status] || '#6e7681';
+}
+
+async function loadProjects() {
+  try {
+    const res = await fetch('/api/projects');
+    state.projects = await res.json();
+    const sel = $('project-selector');
+    sel.innerHTML = state.projects.map(p => `<option value="${esc(p.slug)}">${esc(p.name || p.slug)}</option>`).join('');
+    if (state.projects.length) {
+      state.selectedSlug = state.projects[0].slug;
+      await loadPlans(state.selectedSlug);
+    }
+  } catch (e) {
+    $('plans-container').innerHTML = '<span class="error">Failed to load projects</span>';
+  }
+}
+
+async function loadPlans(slug) {
+  try {
+    const res = await fetch(`/api/plans?slug=${encodeURIComponent(slug)}`);
+    state.plans = await res.json();
+    renderPlanList();
+    if (state.plans.length) {
+      selectPlan(state.plans[0].id);
+    } else {
+      state.selectedPlanId = null;
+      state.selectedPlan = null;
+      $('plans-container').innerHTML = '<span class="muted" style="padding:12px">No plans found</span>';
+      $('diagram-container').innerHTML = '<span class="muted">[no diagram]</span>';
+      $('detail-body').innerHTML = '<span class="muted">No plans found</span>';
+      $('detail-badge').style.display = 'none';
+      $('detail-title').textContent = 'PLAN DETAILS';
+    }
+  } catch (e) {
+    $('plans-container').innerHTML = '<span class="error">Failed to load plans</span>';
+  }
+}
+
+function renderPlanList() {
+  $('plans-container').innerHTML = state.plans.map(p => `
+    <div class="plan-item ${p.id === state.selectedPlanId ? 'selected' : ''}" data-id="${p.id}">
+      <div class="plan-row">
+        <span class="status-dot" style="background:${statusColor(p.status)}"></span>
+        <span class="plan-title">${esc(p.title)}</span>
+      </div>
+      ${p.summary ? `<div class="plan-summary">${esc(p.summary)}</div>` : ''}
+    </div>
+  `).join('');
+
+  $('plans-container').querySelectorAll('.plan-item').forEach(el => {
+    el.addEventListener('click', () => selectPlan(el.dataset.id));
+  });
+}
+
+async function selectPlan(id) {
+  state.selectedPlanId = id;
+  renderPlanList();
+  $('diagram-container').innerHTML = '<span class="muted">Loading...</span>';
+  $('detail-body').innerHTML = '<span class="muted">Loading...</span>';
+  try {
+    const res = await fetch(`/api/plan?slug=${encodeURIComponent(state.selectedSlug)}&id=${encodeURIComponent(id)}`);
+    state.selectedPlan = await res.json();
+    renderPlanDetail();
+    renderDiagram();
+  } catch (e) {
+    $('detail-body').innerHTML = '<span class="error">Failed to load plan</span>';
+  }
+}
+
+function renderPlanDetail() {
+  const { meta, body } = state.selectedPlan;
+  $('detail-title').textContent = `PLAN DETAILS: ${meta.title}`;
+  const badge = $('detail-badge');
+  badge.style.display = 'inline-block';
+  badge.style.background = statusBg(meta.status);
+  badge.textContent = meta.status;
+
+  let html = DOMPurify.sanitize(marked.parse(body || ''));
+  // Checkbox post-processing
+  html = html.replace(/<li><input[^>]*checked[^>]*>\s*/g, '<li class="task-done">■ ');
+  html = html.replace(/<li><input[^>]*>\s*/g, '<li class="task-pending">□ ');
+  $('detail-body').innerHTML = html;
+}
+
+function extractMermaidCode(markdown) {
+  const match = markdown.match(/```mermaid\n([\s\S]*?)```/);
+  return match ? match[1].trim() : null;
+}
+
+async function renderDiagram() {
+  const container = $('diagram-container');
+  const code = extractMermaidCode(state.selectedPlan.body || '');
+  if (!code) {
+    container.innerHTML = '<span class="muted">[no diagram]</span>';
+    return;
+  }
+  let attempts = 0;
+  while (!window._mermaid && attempts < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    attempts++;
+  }
+  if (!window._mermaid) {
+    container.innerHTML = '<span class="muted">[mermaid not loaded]</span>';
+    return;
+  }
+  try {
+    const id = 'mermaid-' + Date.now();
+    const { svg } = await window._mermaid.render(id, code);
+    container.innerHTML = svg;
+  } catch (err) {
+    container.innerHTML = `<span class="error">[diagram error: ${esc(err.message)}]</span>`;
+  }
+}
+
+let sseBackoff = 1000;
+const SSE_MAX_BACKOFF = 30000;
+
+function connectSSE() {
+  const es = new EventSource('/events');
+  es.onopen = () => {
+    state.connected = true;
+    sseBackoff = 1000; // reset backoff on successful connection
+    updateLiveIndicator();
+  };
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'update') {
+        state.lastUpdated = new Date();
+        updateLiveIndicator();
+        refreshCurrentView();
+      }
+    } catch (_) {}
+  };
+  es.onerror = () => {
+    state.connected = false;
+    updateLiveIndicator();
+    es.close();
+    setTimeout(connectSSE, sseBackoff);
+    sseBackoff = Math.min(sseBackoff * 2, SSE_MAX_BACKOFF);
+  };
+}
+
+function updateLiveIndicator() {
+  const dot = $('live-dot');
+  const label = $('live-label');
+  dot.className = 'live-dot' + (state.connected ? ' connected' : '');
+  label.textContent = state.connected ? 'LIVE' : 'OFFLINE';
+  if (state.lastUpdated) {
+    $('last-updated').textContent = state.lastUpdated.toLocaleTimeString();
+  }
+}
+
+async function refreshCurrentView() {
+  if (state.selectedSlug) {
+    await loadPlans(state.selectedSlug);
+    if (state.selectedPlanId) {
+      // Re-select without re-rendering list again
+      try {
+        const res = await fetch(`/api/plan?slug=${encodeURIComponent(state.selectedSlug)}&id=${encodeURIComponent(state.selectedPlanId)}`);
+        state.selectedPlan = await res.json();
+        renderPlanDetail();
+        renderDiagram();
+      } catch (_) {}
+    }
+  }
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// Project selector
+$('project-selector').addEventListener('change', (e) => {
+  state.selectedSlug = e.target.value;
+  loadPlans(state.selectedSlug);
+});
+
+// Keyboard nav
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!state.plans.length) return;
+    const idx = state.plans.findIndex(p => p.id === state.selectedPlanId);
+    const next = e.key === 'ArrowDown' ? Math.min(idx + 1, state.plans.length - 1) : Math.max(idx - 1, 0);
+    if (next !== idx) selectPlan(state.plans[next].id);
+    e.preventDefault();
+  }
+});
+
+// Init
+loadProjects();
+connectSSE();
+</script>
+</body>
+</html>

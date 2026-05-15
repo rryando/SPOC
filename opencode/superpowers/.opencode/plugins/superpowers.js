@@ -179,6 +179,20 @@ ${toolMapping}
       if (directory) {
         (output.system ||= []).push(`<env>\n  Working directory: ${directory}\n</env>`);
       }
+
+      // Inject SPOC Dashboard URL if server is running
+      const dashboardInfoPath = path.join(getSpocDataDir(), '.dashboard-info');
+      if (fs.existsSync(dashboardInfoPath)) {
+        try {
+          const dashboardInfo = JSON.parse(fs.readFileSync(dashboardInfoPath, 'utf-8'));
+          if (dashboardInfo.url) {
+            (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Plan Dashboard is running. Users can view live plan diagrams and progress at this URL.\n</spoc_dashboard>`);
+          }
+        } catch (e) {
+          // Malformed .dashboard-info — server may have crashed. Remove stale file.
+          try { fs.unlinkSync(dashboardInfoPath); } catch {}
+        }
+      }
     },
 
     event: async ({ event }) => {
