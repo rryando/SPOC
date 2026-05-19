@@ -516,6 +516,14 @@ describe("opencode bundle runtime manifest", () => {
         "quick-dev": ["SKILL.md"],
         "receiving-code-review": ["SKILL.md"],
         "requesting-code-review": ["SKILL.md", "code-reviewer.md"],
+        "spoc-dashboard": [
+          "SKILL.md",
+          "package.json",
+          "server.js",
+          "index.html",
+          "start-server.sh",
+          "stop-server.sh",
+        ],
         "subagent-driven-development": [
           "SKILL.md",
           "code-quality-reviewer-prompt.md",
@@ -536,6 +544,7 @@ describe("opencode bundle runtime manifest", () => {
           "tdd-rationalizations-and-examples.md",
           "testing-anti-patterns.md",
         ],
+        "to-diagram": ["SKILL.md", "scripts/manage-diagram.mjs"],
         "using-git-worktrees": ["SKILL.md"],
         "using-superpowers": ["SKILL.md"],
         "verification-before-completion": ["SKILL.md"],

@@ -25,13 +25,14 @@ You MUST create a task for each of these items and complete them in order:
 2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Then persist and present the diagram:
-   - **Write `.mmd` file**: save the diagram to the SPOC DAG at `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd`. If the plan doesn't exist yet (design hasn't been written to SPOC), write the diagram to the visual companion project dir as an HTML fragment instead, and persist to the DAG `.mmd` path later when the plan is created.
+5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Use stable node IDs (`T001`, `T002`, etc.). Then preview and persist the diagram:
+   - **Draft to temp**: generate the `.mmd` content in memory or write to `/tmp/<plan-id>.diagram.mmd` for preview. Do NOT write to the DAG path yet.
    - **Render via visual companion**: write an HTML fragment to the brainstorming server's project dir that wraps the Mermaid code with a Mermaid.js CDN `<script>` tag, then tell the user: "Review the plan diagram at [visual companion URL]"
    - **Fallback** (visual companion not running): present the Mermaid block inline in chat
+   - **Persist to DAG**: the `.mmd` file is written to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` only after the user confirms the write-gate in step 6. The write-gate summary must include: diagram path, node count, ready/blocked node counts, and that this is a new diagram.
 
 <HARD-GATE>
-A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as agent-readable plan structure. It must be persisted as a `.mmd` file (or visual companion HTML fragment if the plan doesn't exist yet). Do not skip this step.
+A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as an agent-readable execution map. It must be drafted in memory or `/tmp` first (never written to the DAG before the write-gate). It is persisted to the DAG `.mmd` path only after write-gate confirmation in step 6. Do not skip this step.
 </HARD-GATE>
 
 6. **Present design** — in sections scaled to their complexity, get user approval after each section

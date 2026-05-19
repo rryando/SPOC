@@ -42,6 +42,7 @@
     ],
     "spoc-dashboard": [
       "SKILL.md",
+      "package.json",
       "server.js",
       "index.html",
       "start-server.sh",
@@ -63,7 +64,8 @@
       "root-cause-tracing.md"
     ],
     "to-diagram": [
-      "SKILL.md"
+      "SKILL.md",
+      "scripts/manage-diagram.mjs"
     ],
     "test-driven-development": [
       "SKILL.md",

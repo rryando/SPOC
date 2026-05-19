@@ -65,19 +65,41 @@ This structure informs the task decomposition. Each task should produce self-con
 
 ## Diagram Section
 
-Diagrams live in separate `.mmd` files, not embedded in the plan body. This keeps plan markdown clean and lets visual companions render diagrams independently.
+Diagrams are **agentic execution maps**, not thin visual aids. They live in separate `.mmd` files — never embedded as Mermaid code blocks in the plan body. A well-annotated diagram enables diagram-first execution: an agent reads the `.mmd` file alone and dispatches sub-agents without loading plan prose.
 
 - Diagram file: `plans/<plan-id>.diagram.mmd`
-- Plan body references it in the overview area (see placement below)
-- No Mermaid code in the plan body itself
-- Load `to-diagram` skill for `.mmd` file conventions, dialect selection, and `:::className` encoding rules
+- Plan body references it by blockquote only (see placement below) — no embedded Mermaid
+- Load `to-diagram` skill for `.mmd` file conventions, dialect selection, `:::className` encoding, and rich per-node metadata format
+
+**Persistence write-gate:** The diagram is drafted in memory (or `/tmp`) during plan writing. The `.mmd` file is persisted to the DAG path (`plans/<plan-id>.diagram.mmd`) **only after** the plan write-gate / storage confirmation succeeds. Do not write to DAG before the plan itself is confirmed.
+
+**Stable node IDs:**
+- Use `T001`, `T002`, `T003`, etc. — sequential, zero-padded to 3 digits
+- When canonical structured task IDs exist (from `create_project_task`), use those as node IDs instead
+- Once assigned, IDs never change across renames, reorders, or regeneration
+
+**Rich per-node metadata (required for every node):**
+Each node must have a `%%` comment block (placed before `flowchart TD`, per `to-diagram` conventions) containing at minimum:
+- `node` — stable node ID
+- `title` — full task title
+- `status` — current status (backlog at creation time)
+- `skill` — recommended work-mode skill (quick-dev, code-agent, test-driven-development, brainstorming)
+- `scope` — directories or modules in scope
+- `files` / `sourceFiles` — specific files to create or modify (when known)
+- `acceptance` — observable "done" criteria
+- `verify` — exact shell command(s) to verify completion
+- `blocked-by` — node IDs this task depends on
+- `delegate` — whether to dispatch to sub-agent (yes/no; default yes)
+
+This metadata must be populated at plan creation time even though all nodes start as `:::backlog`. The goal: EXECUTE can dispatch from diagram-first context without loading plan prose.
 
 **Continuity rule — design-phase `.mmd` file exists (from brainstorming):**
 - Read the existing `.mmd` file and EXTEND it — add implementation-specific task nodes (e.g., split "Build API" into "Design schema", "Implement endpoints", "Write tests") and refine dependency edges.
-- Preserve the validated high-level structure. Do not regenerate from scratch.
+- Preserve stable node IDs from the design phase. Enrich any nodes missing per-node metadata fields.
+- Do not regenerate from scratch.
 
 **No prior diagram exists (plan created directly, not via brainstorming):**
-- Generate a fresh `.mmd` file per `to-diagram` conventions from the plan's task structure.
+- Generate a fresh `.mmd` file per `to-diagram` conventions from the plan's task structure, with full per-node metadata for every node.
 
 **Placement in plan body:**
 
@@ -91,7 +113,7 @@ Diagrams live in separate `.mmd` files, not embedded in the plan body. This keep
 [detailed task breakdown]
 ```
 
-**At plan creation time**, all nodes start as `:::backlog` — the diagram is a structural sketch showing dependencies, not execution status.
+**At plan creation time**, all nodes start as `:::backlog` — but per-node metadata must already include skill, scope, acceptance, and verify so EXECUTE can dispatch from diagram-first context.
 
 **During EXECUTE**, when task status updates in metadata, also update the corresponding node's `:::className` in the `.mmd` file — only the class assignment changes, topology stays.
 
