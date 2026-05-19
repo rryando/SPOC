@@ -5,7 +5,8 @@ import { z } from "zod";
 import { readRootMeta, writeRootMeta } from "../utils/dag.js";
 import { formatError, projectNotFound } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
-import { errorResult } from "../utils/tool-response.js";
+import { errorResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 export function registerDeleteProject(server: McpServer) {
   server.tool(
@@ -13,9 +14,12 @@ export function registerDeleteProject(server: McpServer) {
     "Delete a project from the DAG. Removes the project directory, its entry in root meta, and any dependency edges pointing to it from other projects. This action is irreversible.",
     {
       slug: z.string().describe("Project slug to delete"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:delete_project");
+
         const dataDir = getDataDir();
         const rootMeta = await readRootMeta(dataDir);
 
@@ -47,6 +51,7 @@ export function registerDeleteProject(server: McpServer) {
           ],
         };
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         return errorResult(err);
       }
     },

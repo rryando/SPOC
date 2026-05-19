@@ -6,7 +6,8 @@ import { z } from "zod";
 import { formatError, invalidDocType, projectNotFound } from "../utils/errors.js";
 import { getProjectDir } from "../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../utils/project-documents.js";
-import { errorResult } from "../utils/tool-response.js";
+import { errorResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 const VALID_DOCS = Object.keys(PROJECT_DOC_FILES) as [ProjectDocType, ...ProjectDocType[]];
 
@@ -15,6 +16,7 @@ export const UpdateDocSchema = {
   doc: z.enum(VALID_DOCS).describe("Document type to update"),
   content: z.string().describe("New document content (full replacement)"),
   dryRun: z.boolean().optional().default(false).describe("Return what would be written without writing to disk"),
+  confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
 };
 
 export function registerUpdateDoc(server: McpServer) {
@@ -24,6 +26,8 @@ export function registerUpdateDoc(server: McpServer) {
     UpdateDocSchema,
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:update_project_doc");
+
         const projectDir = getProjectDir(params.slug);
 
         if (!existsSync(projectDir)) {
@@ -67,6 +71,7 @@ export function registerUpdateDoc(server: McpServer) {
           ],
         };
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         return errorResult(err);
       }
     },

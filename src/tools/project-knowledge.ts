@@ -16,7 +16,8 @@ import {
 } from "../utils/project-memory.js";
 import { fileRefSchema } from "../utils/schemas.js";
 import { normalizeIdentifier } from "../utils/slug.js";
-import { errorResult, jsonResult } from "../utils/tool-response.js";
+import { errorResult, jsonResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 export function registerProjectKnowledgeTools(server: McpServer) {
   // ---- create_project_knowledge_entry ----
@@ -39,9 +40,12 @@ export function registerProjectKnowledgeTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("Source file references (path + optional anchor)"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:create_project_knowledge_entry");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -64,6 +68,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
 
         return jsonResult({ meta, body: bodyContent });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
@@ -170,9 +175,12 @@ export function registerProjectKnowledgeTools(server: McpServer) {
         .array(fileRefSchema)
         .optional()
         .describe("New source file references (replaces existing; empty array clears)"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:update_project_knowledge_meta");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -189,6 +197,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
 
         return jsonResult({ meta });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
@@ -204,9 +213,12 @@ export function registerProjectKnowledgeTools(server: McpServer) {
       entryId: z.string().describe("Entry identifier"),
       body: z.string().describe("New markdown body content"),
       dryRun: z.boolean().optional().default(false).describe("Return what would be written without writing to disk"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:update_project_knowledge_body");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -244,6 +256,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
 
         return jsonResult({ meta, body: params.body });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
@@ -257,9 +270,12 @@ export function registerProjectKnowledgeTools(server: McpServer) {
     {
       slug: z.string().describe("Project slug"),
       entryId: z.string().describe("Entry identifier"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:delete_project_knowledge_entry");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -274,6 +290,7 @@ export function registerProjectKnowledgeTools(server: McpServer) {
           ],
         };
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }

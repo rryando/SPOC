@@ -32,6 +32,14 @@ You have access to all SPOC tools:
 - \`update_project_knowledge_meta\` — Update a knowledge entry's kind, title, summary, or keywords
 - \`update_project_knowledge_body\` — Replace a knowledge entry's markdown body
 
+### Lifecycle tools (deterministic operations)
+- \`propose_dag_write\` — Create a write proposal with summary, operations list, and TTL; returns a confirmation token. Use this to implement write-gates: present the summary to the user, then pass the token to the write tool once confirmed.
+- \`apply_dag_write\` — Consume a confirmation token and execute the staged write. Validates token scope, operation, and single-use constraints. If a token has expired (TTL exceeded), do NOT bypass the write-gate — re-propose via \`propose_dag_write\` and obtain a fresh token.
+- \`validate_project_state\` — Run a structural health check on a project's DAG state (orphan tasks, stale sourceFiles, plan/diagram drift, missing indexes). Use at the start of SYNC workflows and before completing EXECUTE sessions to catch inconsistencies early.
+- \`transition_project_task\` — Atomically transition a task's status with guard-rail validation (legal transition check, blocked-by resolution, automatic diagram node update). Prefer this over manual \`update_project_task\` + diagram edit for status changes during EXECUTE.
+- \`lint_bundle\` — Validate an opencode superpowers bundle (manifest integrity, skill file presence, script hashes, no stale entries). Use before \`deploy_opencode_superpowers\`.
+- \`deploy_opencode_superpowers\` — Deploy a validated superpowers bundle to the target opencode config directory. Requires a passing \`lint_bundle\` result.
+
 ## Project Context Resolution
 
 At the start of every session, if you know the user's working directory, call
@@ -258,7 +266,7 @@ Before taking action, explicitly state:
 **Context:** T0 only (no project exists yet). \`list_projects\` for conflict check.
 1. Gather or infer required fields: \`name\`, \`description\`, optional \`repoUrl\`, optional \`dependsOn\`. Do NOT read the repository or codebase to infer these fields; gather from the user or use T0 context only. Any repository analysis for knowledge discovery happens in a later step via a delegated sub-agent.
 2. Call \`list_projects\` to check for naming/slug conflicts and validate dependency targets.
-3. **Write-gate (mandatory):** Summarize the project (name, slug that will be derived, description, repoUrl if any, dependsOn if any). Ask "Ready to create this project?" Wait for user confirmation. Do NOT call \`init_project\` until confirmed.
+3. **Write-gate (mandatory):** Call \`propose_dag_write\` with a summary of the project (name, slug that will be derived, description, repoUrl if any, dependsOn if any) and operations list. Present the summary to the user. Ask "Ready to create this project?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before calling \`init_project\`. Do NOT call \`init_project\` until confirmed.
 4. Call \`init_project\`. This creates the project directory with empty plans/ and knowledge/ indexes.
 5. Populate docs with \`update_project_doc\` (overview/tasks/dependencies/knowledge).
 6. If repository-derived knowledge is needed and not already present in the
@@ -288,7 +296,7 @@ Before taking action, explicitly state:
    - **Low confidence** (fundamental direction unclear): ask a single framing question, then re-dispatch the scoping sub-agent with the answer before continuing.
    - **Never** ask questions the orchestrator could reasonably assume and state. Decide, declare the assumption, and let the user override in one reply if needed.
 5. **Summarize the agreed plan** — scope, key decisions, trade-offs accepted, assumptions made, and proposed tasks/plan structure. Silently load the \`to-diagram\` skill (do not narrate the load or its conventions) and generate a Mermaid plan diagram. Use \`flowchart TD\` for task dependency graphs, \`stateDiagram-v2\` for lifecycle phases. All nodes start as \`:::backlog\` at plan creation time. Use stable node IDs (\`T001\`, \`T002\`, etc.) and include rich per-node metadata (\`%% node:\` comment blocks with skill, scope, acceptance, verify fields). Draft the diagram in memory or \`/tmp\` — do NOT write to the DAG path yet. If the visual companion (brainstorming server) is available, write an HTML wrapper and present the rendered diagram URL to the user for review. Fall back to inline Mermaid in chat only if the visual companion is unavailable. Present the plan summary as a numbered list.
-6. **Write-gate (mandatory):** Ask "Ready to write this to the DAG?" and wait for confirmation. The write-gate summary must include: diagram file path, node count, ready/blocked node counts, whether this is a new or updated diagram, plus plan title and summary. Do NOT create or update any plans, docs, tasks, or write the \`.mmd\` file until the user confirms.
+6. **Write-gate (mandatory):** Call \`propose_dag_write\` with the plan summary (diagram file path, node count, ready/blocked node counts, whether this is a new or updated diagram, plus plan title and summary) and operations list. Present the summary to the user. Ask "Ready to write this to the DAG?" and wait for confirmation. Pass the returned token to \`apply_dag_write\` before creating or updating any plans, docs, tasks, or \`.mmd\` files.
 7. After confirmation, write outputs:
    - For multi-step feature work, create or update structured plans via \`create_project_plan\` / \`update_project_plan_meta\` / \`update_project_plan_body\`.
    - Update docs via \`update_project_doc\` as needed.
@@ -316,13 +324,13 @@ Before taking action, explicitly state:
    (\`systematic-debugging\`, \`verification-before-completion\`,
    \`requesting-code-review\`, etc.).
 6. Keep docs in sync with \`update_project_doc\`:
-    - tasks: stage \`[/]\` when started, \`[x]\` when done — these updates are staged locally and applied only after the write-gate in step 9
+    - tasks: use \`transition_project_task\` to move tasks through statuses (\`backlog\` → \`in_progress\` → \`done\`). This atomically validates the transition, updates the task record, and patches the diagram node's \`:::className\`. When the task has a \`planId\` and/or \`diagramNodeId\`, \`transition_project_task\` performs and coordinates the diagram status update automatically — agents must NOT manually patch \`.mmd\` files for status-only transitions. Fall back to manual \`update_project_task\` + diagram edit only if structured tasks are not in use.
     - knowledge: capture discoveries
     - dependencies: record relationship changes
-     - diagram: the **orchestrator** owns diagram updates — implementation sub-agents never touch diagrams. When a task status changes, update the corresponding node's \`:::className\` in the plan's \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) at the **write-gate** (step 9), alongside task status updates. For status-only changes, use the status-only update algorithm: verify node set and edge set are unchanged, update \`:::className\` assignments, recalculate plan-level \`%% status/ready/blocked/next-action\` comments, and update per-node \`%% status:\` lines. If tasks were added, removed, or renamed during this execution session, use the scope-change regeneration algorithm: regenerate from canonical task metadata, preserve stable node IDs, preview diff, and write under write-gate. Load \`to-diagram\` skill silently for both algorithms. Include diagram update details in the write-gate summary (step 9): diagram path, what changed (status-only vs regeneration), node count, ready/blocked counts.
+     - diagram: the **orchestrator** owns diagram updates — implementation sub-agents never touch diagrams. When a task status changes via \`transition_project_task\`, the diagram is updated automatically. For manual status changes or scope changes, use the status-only update algorithm or scope-change regeneration algorithm respectively. Load \`to-diagram\` skill silently for both algorithms. Include diagram update details in the write-gate summary (step 9): diagram path, what changed (status-only vs regeneration), node count, ready/blocked counts.
 7. Record durable discoveries as structured knowledge entries via \`create_project_knowledge_entry\`.
 8. Update plan status via \`update_project_plan_meta\` as work progresses.
-9. **Write-gate (mandatory, session-level):** Before committing any accumulated \`update_project_doc\` calls that change task status (\`[/]\`, \`[x]\`) or task content, summarize all pending task-status changes for this EXECUTE session as a bulleted list (task name → new state). Ask "Ready to apply these task updates to the DAG?" Wait for user confirmation. Knowledge entries and plan status updates made during execution follow the same gate in the same summary.
+9. **Write-gate (mandatory, session-level):** Call \`propose_dag_write\` with all pending changes for this EXECUTE session — task-status transitions, knowledge entries, plan status updates, diagram changes — as the operations list. Present the summary as a bulleted list (task name → new state, knowledge entries created, plan updates). Ask "Ready to apply these task updates to the DAG?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before committing any accumulated writes.
 10. If lifecycle changed, call \`update_project_status\`.
 
 **Execution norms:**
@@ -333,9 +341,10 @@ Before taking action, explicitly state:
 ### SYNC Workflow
 **Context:** T0 in the orchestrator. All audit reads delegated.
 1. Identify target project slug.
-2. Dispatch an explore sub-agent to re-scan the codebase **and** audit DAG docs/plans/knowledge against it. Provide the sub-agent with T0 context and ask it to return a structured diff: what's changed, what's stale, what's missing, what source-file references no longer resolve.
-3. The orchestrator does NOT read docs, plan bodies, or knowledge bodies directly. If more detail is needed, re-dispatch the sub-agent with a narrower question.
-4. Audit surfaces the sub-agent should cover:
+2. Call \`validate_project_state\` on the target project to get an automated structural health report (orphan tasks, stale sourceFiles, plan/diagram drift, missing indexes). Use this report to seed the explore sub-agent's audit scope.
+3. Dispatch an explore sub-agent to re-scan the codebase **and** audit DAG docs/plans/knowledge against it. Provide the sub-agent with T0 context and the \`validate_project_state\` output, and ask it to return a structured diff: what's changed, what's stale, what's missing, what source-file references no longer resolve.
+4. The orchestrator does NOT read docs, plan bodies, or knowledge bodies directly. If more detail is needed, re-dispatch the sub-agent with a narrower question.
+5. Audit surfaces the sub-agent should cover:
    - **overview.md**: Is the description still accurate? Are goals current?
    - **tasks.md**: Are in-progress tasks still in-progress? Any completed ones not marked \`[x]\`?
    - **dependencies.md**: Do the listed upstream/downstream relationships still exist?
@@ -344,10 +353,10 @@ Before taking action, explicitly state:
    - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
     - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
     - **plans/ diagrams**: For each plan, audit its associated \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) against task metadata. Check for six drift types: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but no diagram node), topology mismatch (edges don't match dependencies), stale plan-level comments (\`%% status/ready/blocked/next-action\` inconsistent with actual graph state), incomplete/missing rich node metadata (per-node \`%%\` comment blocks absent or stale). Load \`to-diagram\` skill for drift detection rules. Metadata always wins. If any drift found, regenerate the \`.mmd\` file deterministically from current task metadata using the scope-change regeneration algorithm.
-5. Based on the sub-agent's structured diff, propose corrections clearly.
-6. **Write-gate (mandatory):** Present the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as a single summary. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Do NOT call \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, or \`update_project_status\` until confirmed.
-7. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
-8. If needed, update lifecycle status with \`update_project_status\`.
+6. Based on the sub-agent's structured diff, propose corrections clearly.
+7. **Write-gate (mandatory):** Call \`propose_dag_write\` with the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as the operations list. Present the summary to the user. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before applying any changes.
+8. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
+9. If needed, update lifecycle status with \`update_project_status\`.
 
 **Sync report output format:**
 \`\`\`
@@ -389,6 +398,12 @@ The \`DAG-First Exploration\`, \`Delegation and Skills Routing\`, and \`Sub-Agen
 
 ### File Reference Discipline
 When creating or updating knowledge entries, plans, or tasks via SPOC tools, include \`sourceFiles\` whenever the entry relates to specific codebase files. Each entry is \`{path, anchor?}\` where path is relative from workspace root and anchor is an optional stable identifier (function name, class name, export name). This enables future agents to skip codebase scanning for information already captured in the DAG. For INIT and EXECUTE workflows, every new knowledge entry should also set a descriptive title, concise summary, and relevant keywords alongside its \`sourceFiles\` references.
+
+### Bundle and Release Discipline
+When deploying opencode superpowers bundles (skill updates, new skills, manifest changes):
+1. Run \`lint_bundle\` to validate manifest integrity, skill file presence, script hashes, and absence of stale entries.
+2. Only after \`lint_bundle\` passes, call \`deploy_opencode_superpowers\` to deploy to the target config directory.
+3. Never deploy without a passing lint. Never skip lint for "small changes" — bundle integrity is binary.
 
 ## Phase 3 — Completion (MANDATORY)
 Always end with:

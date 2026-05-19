@@ -78,6 +78,46 @@ Or in your MCP client config:
 }
 ```
 
+## Write-Gate Token Model
+
+Mutating DAG operations use a two-step confirmation protocol:
+
+1. **`propose_dag_write`** — Agent describes intended mutation. Server returns a single-use `confirmationToken` scoped to the specific project + operation. Accepts optional `ttlMs` to override the default expiry.
+2. **`apply_dag_write`** — Agent sends the token back to execute the write. Token is consumed on use; replays are rejected.
+
+### TTL Semantics
+
+- Default TTL is **120 seconds** from proposal creation.
+- Override with `ttlMs` parameter at proposal time.
+- Token lookup does **not** extend TTL — the clock starts at creation and never resets.
+- Partial failures do **not** extend or retry the token automatically.
+- Expired tokens require a fresh `propose_dag_write` call.
+
+### Gated Mutating Tools
+
+All of the following tools require a valid `confirmationToken` (consumed via `apply_dag_write`). Without a valid token the write is refused.
+
+| Tool | Category |
+|---|---|
+| `update_project_doc` | Project |
+| `update_project_status` | Project |
+| `delete_project` | Project |
+| `manage_dependency` | Project |
+| `create_project_plan` | Plans |
+| `update_project_plan_meta` | Plans |
+| `update_project_plan_body` | Plans |
+| `delete_project_plan` | Plans |
+| `create_project_knowledge_entry` | Knowledge |
+| `update_project_knowledge_meta` | Knowledge |
+| `update_project_knowledge_body` | Knowledge |
+| `delete_project_knowledge_entry` | Knowledge |
+| `create_project_task` | Tasks |
+| `update_project_task` | Tasks |
+| `delete_project_task` | Tasks |
+| `transition_project_task` | Tasks |
+
+This prevents accidental or unauthorized DAG mutations by requiring explicit agent intent for every state change.
+
 ## Development
 
 ### Prerequisites
@@ -372,6 +412,13 @@ SPOC ships a second OpenCode primary agent, **SPOC Caveman**, that layers [cavem
 | `delete_project_plan` | Delete a structured plan from a project |
 | `delete_project_knowledge_entry` | Delete a knowledge entry from a project |
 
+### Write-Gate Tools
+
+| Tool | Role | Description |
+|---|---|---|
+| `propose_dag_write` | Issues token | Propose a DAG mutation; returns a single-use `confirmationToken` (default TTL 120 s, override with `ttlMs`) |
+| `apply_dag_write` | Consumes token | Execute a proposed write by supplying the `confirmationToken`; consumed on use, replays rejected |
+
 ## MCP Resources
 
 | Resource | Description |
@@ -422,3 +469,23 @@ Prompts are registered as slash commands and can be individually enabled/disable
             └── knowledge/      # Structured knowledge entries
                 └── {entryId}.md
 ```
+
+## Superpowers Bundle Release Playbook
+
+The opencode superpowers bundle flows **repo → config only**. Never overwrite repo files from config.
+
+### Workflow
+
+1. **Edit** skills/agents/plugins in `opencode/superpowers/` (repo source of truth).
+2. **Build bundle** — `npm run build:bundle` (produces `bundle-runtime.json`, hashes, etc.).
+3. **Lint** — `node scripts/lint-bundle.mjs` or use the `lint_bundle` MCP tool. Must pass with zero errors before deploying.
+4. **Deploy dry-run** — `node scripts/deploy-opencode-superpowers.mjs` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
+5. **Deploy actual** — set `DEPLOY_DRY_RUN=false` or use the `deploy_opencode_superpowers` MCP tool with `dryRun: false`.
+6. **Restart** IDE/agent host — deployed skills are loaded at startup; changes require a process restart.
+
+### Key rules
+
+- **No config → repo**: deployed config is ephemeral output. Manual config edits are overwritten on next deploy.
+- **Lint before deploy**: bundle integrity is binary. Skipping lint for "small changes" risks manifest/file mismatch.
+- **Drift detection**: `lint_bundle` with `BUNDLE_LINT_CONFIG_ROOT` detects when deployed config diverges from bundle (warns, not errors).
+- **Write-gate**: all DAG mutations (plan/task/doc updates) require a `propose_dag_write` token consumed via `apply_dag_write` before the write proceeds. Expired tokens require fresh re-proposal.
