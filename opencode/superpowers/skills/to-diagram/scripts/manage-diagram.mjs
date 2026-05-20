@@ -2,7 +2,17 @@
 // manage-diagram.mjs — Deterministic diagram management for .diagram.mmd files
 // No external dependencies. Node ESM CLI.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+// --- Safe file read ---
+
+function safeReadFile(filePath) {
+  if (!existsSync(filePath)) {
+    process.stderr.write(`Error: File not found: ${filePath}\n`);
+    process.exit(1);
+  }
+  return readFileSync(filePath, "utf-8");
+}
 
 // --- Pure helpers ---
 
@@ -60,7 +70,13 @@ function parseMetadataBlocks(lines) {
 }
 
 function parsePlanLevelComments(lines) {
-  const result = { planId: null, statusComment: null, readyComment: null, blockedComment: null, nextActionComment: null };
+  const result = {
+    planId: null,
+    statusComment: null,
+    readyComment: null,
+    blockedComment: null,
+    nextActionComment: null,
+  };
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -118,7 +134,7 @@ function computeReady(nodes, edges) {
   return ready;
 }
 
-function computeBlocked(nodes, edges) {
+function _computeBlocked(nodes, edges) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const blocked = [];
 
@@ -160,8 +176,31 @@ function parseStatusComment(statusComment) {
 
 // --- Commands ---
 
+function requirePlanHeader(content) {
+  const lines = content.split("\n");
+  let found = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("%%")) {
+      const c = trimmed.slice(2).trim();
+      if (c.startsWith("plan:")) {
+        const val = c.slice(5).trim();
+        if (val) {
+          found = true;
+          break;
+        }
+      }
+    }
+  }
+  if (!found) {
+    process.stderr.write("Error: Diagram must have a non-empty plan header.\n");
+    process.exit(1);
+  }
+}
+
 function inspect(filePath) {
-  const content = readFileSync(filePath, "utf-8");
+  const content = safeReadFile(filePath);
+  requirePlanHeader(content);
   const { headerLines, graphLines } = splitSections(content);
 
   if (graphLines.length === 0) {
@@ -190,12 +229,13 @@ function inspect(filePath) {
     nextActionComment: planLevel.nextActionComment,
   };
 
-  process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 function ready(filePath) {
-  const content = readFileSync(filePath, "utf-8");
-  const { headerLines, graphLines } = splitSections(content);
+  const content = safeReadFile(filePath);
+  requirePlanHeader(content);
+  const { graphLines } = splitSections(content);
 
   if (graphLines.length === 0) {
     if (content.includes("stateDiagram-v2")) {
@@ -210,23 +250,39 @@ function ready(filePath) {
   const edges = parseEdges(graphLines);
   const readyNodes = computeReady(nodes, edges);
 
-  process.stdout.write(JSON.stringify(readyNodes, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify(readyNodes, null, 2)}\n`);
 }
 
-function validate(filePath) {
-  const content = readFileSync(filePath, "utf-8");
+function validate(filePath, metadataPath) {
+  const content = safeReadFile(filePath);
+
+  // If --metadata provided, do drift validation
+  if (metadataPath) {
+    return validateWithMetadata(content, metadataPath);
+  }
   const errors = [];
 
   // Check for unsupported diagram type
   if (content.includes("stateDiagram-v2")) {
-    process.stdout.write(JSON.stringify({ ok: false, errors: ["Unsupported diagram type: stateDiagram-v2. Only flowchart TD is supported."] }, null, 2) + "\n");
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          ok: false,
+          errors: ["Unsupported diagram type: stateDiagram-v2. Only flowchart TD is supported."],
+        },
+        null,
+        2,
+      )}\n`,
+    );
     process.exit(1);
   }
 
   const { headerLines, graphLines } = splitSections(content);
 
   if (graphLines.length === 0) {
-    process.stdout.write(JSON.stringify({ ok: false, errors: ["No flowchart TD found in file."] }, null, 2) + "\n");
+    process.stdout.write(
+      `${JSON.stringify({ ok: false, errors: ["No flowchart TD found in file."] }, null, 2)}\n`,
+    );
     process.exit(1);
   }
 
@@ -308,8 +364,10 @@ function validate(filePath) {
   // Graph node status differs from metadata block status
   for (const node of nodes) {
     const block = metadataBlocks[node.id];
-    if (block && block.status && block.status !== node.status) {
-      errors.push(`Status mismatch for ${node.id}: graph says '${node.status}', metadata says '${block.status}'`);
+    if (block?.status && block.status !== node.status) {
+      errors.push(
+        `Status mismatch for ${node.id}: graph says '${node.status}', metadata says '${block.status}'`,
+      );
     }
   }
 
@@ -318,12 +376,14 @@ function validate(filePath) {
     const commentStatuses = parseStatusComment(planLevel.statusComment);
     for (const node of nodes) {
       if (commentStatuses[node.id] && commentStatuses[node.id] !== node.status) {
-        errors.push(`Status comment mismatch for ${node.id}: comment says '${commentStatuses[node.id]}', graph says '${node.status}'`);
+        errors.push(
+          `Status comment mismatch for ${node.id}: comment says '${commentStatuses[node.id]}', graph says '${node.status}'`,
+        );
       }
     }
   }
 
-   // Ready comment differs from computed ready nodes
+  // Ready comment differs from computed ready nodes
   if (planLevel.readyComment) {
     const commentReady = parseReadyNodeIds(planLevel.readyComment);
     // Validate that all ready IDs actually exist in the graph
@@ -334,23 +394,304 @@ function validate(filePath) {
     }
     const computedReady = computeReady(nodes, edges).sort();
     if (JSON.stringify(commentReady) !== JSON.stringify(computedReady)) {
-      errors.push(`Ready comment mismatch: comment says [${commentReady.join(", ")}], computed is [${computedReady.join(", ")}]`);
+      errors.push(
+        `Ready comment mismatch: comment says [${commentReady.join(", ")}], computed is [${computedReady.join(", ")}]`,
+      );
     }
   }
 
   const ok = errors.length === 0;
-  process.stdout.write(JSON.stringify({ ok, errors }, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify({ ok, errors }, null, 2)}\n`);
   if (!ok) process.exit(1);
+}
+
+function validateWithMetadata(content, metadataPath) {
+  const metaRaw = safeReadFile(metadataPath);
+  let meta;
+  try {
+    meta = JSON.parse(metaRaw);
+  } catch (e) {
+    process.stderr.write(`Error: Failed to parse metadata JSON: ${e.message}\n`);
+    process.exit(1);
+  }
+
+  const errors = [];
+  const { headerLines, graphLines } = splitSections(content);
+
+  if (graphLines.length === 0) {
+    process.stdout.write(
+      `${JSON.stringify({ ok: false, errors: ["No flowchart TD found in file."] }, null, 2)}\n`,
+    );
+    process.exit(1);
+  }
+
+  const nodes = parseNodes(graphLines);
+  const edges = parseEdges(graphLines);
+  const planLevel = parsePlanLevelComments(headerLines);
+  const metadataBlocks = parseMetadataBlocks(headerLines);
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const metaTaskIds = new Set((meta.tasks || []).map((t) => t.id));
+  const diagramNodeIds = new Set(nodes.map((n) => n.id));
+
+  // 1. Class status mismatch
+  for (const task of meta.tasks || []) {
+    const node = nodeMap.get(task.id);
+    if (node && node.status !== task.status) {
+      errors.push(
+        `Class status mismatch for ${task.id}: diagram says '${node.status}', metadata says '${task.status}'`,
+      );
+    }
+  }
+
+  // 2. Phantom node
+  for (const node of nodes) {
+    if (!metaTaskIds.has(node.id)) {
+      errors.push(`Phantom node in diagram: ${node.id}`);
+    }
+  }
+
+  // 3. Missing node
+  for (const task of meta.tasks || []) {
+    if (!diagramNodeIds.has(task.id)) {
+      errors.push(`Missing node from diagram: ${task.id}`);
+    }
+  }
+
+  // 4. Topology mismatch
+  const metaEdges = new Set();
+  for (const task of meta.tasks || []) {
+    for (const dep of (task.dependencies || []).sort()) {
+      metaEdges.add(`${dep}->${task.id}`);
+    }
+  }
+  const diagramEdges = new Set(edges.map((e) => `${e.from}->${e.to}`));
+  const allEdgeKeys = new Set([...metaEdges, ...diagramEdges]);
+  let topoMismatch = false;
+  for (const key of allEdgeKeys) {
+    if (!metaEdges.has(key) || !diagramEdges.has(key)) {
+      topoMismatch = true;
+      break;
+    }
+  }
+  if (topoMismatch) {
+    errors.push("Topology mismatch: diagram edges differ from metadata dependencies");
+  }
+
+  // 5. Stale plan-level comments
+  if (planLevel.statusComment) {
+    const commentStatuses = parseStatusComment(planLevel.statusComment);
+    for (const task of meta.tasks || []) {
+      if (commentStatuses[task.id] && commentStatuses[task.id] !== task.status) {
+        errors.push(
+          `Stale plan-level comments: status comment says ${task.id}=${commentStatuses[task.id]}, metadata says ${task.status}`,
+        );
+        break;
+      }
+    }
+  }
+
+  // 6. Incomplete metadata in node blocks
+  const requiredFields = ["node", "title", "status", "skill", "scope", "acceptance", "verify"];
+  for (const task of meta.tasks || []) {
+    const block = metadataBlocks[task.id];
+    if (!block) {
+      errors.push(`Incomplete metadata: missing node block for ${task.id}`);
+    } else {
+      for (const field of requiredFields) {
+        if (!block[field]) {
+          errors.push(`Incomplete metadata: missing '${field}' in node block for ${task.id}`);
+          break;
+        }
+      }
+    }
+  }
+
+  const ok = errors.length === 0;
+  process.stdout.write(`${JSON.stringify({ ok, errors }, null, 2)}\n`);
+  if (!ok) process.exit(1);
+}
+
+// --- Metadata schema validation ---
+
+const VALID_STATUSES = ["done", "inProgress", "blocked", "backlog"];
+const REQUIRED_TASK_FIELDS = ["title", "status", "skill", "scope", "acceptance", "verify"];
+
+function validateMetadataSchema(meta) {
+  if (!meta.planId || typeof meta.planId !== "string" || !meta.planId.trim()) {
+    process.stderr.write("Error: Metadata requires a non-empty 'planId' string.\n");
+    process.exit(1);
+  }
+  if (!Array.isArray(meta.tasks)) {
+    process.stderr.write("Error: Metadata requires a 'tasks' array.\n");
+    process.exit(1);
+  }
+  for (let i = 0; i < meta.tasks.length; i++) {
+    const task = meta.tasks[i];
+    for (const field of REQUIRED_TASK_FIELDS) {
+      if (!task[field] || typeof task[field] !== "string" || !task[field].trim()) {
+        process.stderr.write(
+          `Error: Task ${task.id || `[${i}]`} missing required field '${field}'.\n`,
+        );
+        process.exit(1);
+      }
+    }
+    if (!VALID_STATUSES.includes(task.status)) {
+      process.stderr.write(
+        `Error: Task ${task.id || `[${i}]`} has invalid status '${task.status}'. Must be one of: ${VALID_STATUSES.join(", ")}\n`,
+      );
+      process.exit(1);
+    }
+  }
+}
+
+// --- Regenerate command ---
+
+function regenerate(filePath, metadataPath) {
+  const metaRaw = safeReadFile(metadataPath);
+  let meta;
+  try {
+    meta = JSON.parse(metaRaw);
+  } catch (e) {
+    process.stderr.write(`Error: Failed to parse metadata JSON: ${e.message}\n`);
+    process.exit(1);
+  }
+
+  validateMetadataSchema(meta);
+
+  // Determine existing IDs from previous diagram (if exists)
+  const existingIds = new Set();
+  if (existsSync(filePath)) {
+    const prev = readFileSync(filePath, "utf-8");
+    const { graphLines } = splitSections(prev);
+    const prevNodes = parseNodes(graphLines);
+    for (const n of prevNodes) existingIds.add(n.id);
+  }
+
+  // Assign IDs: preserve existing task IDs, assign new sequential ones for tasks without IDs
+  const allUsedIds = new Set(existingIds);
+  const tasks = meta.tasks.map((t) => {
+    if (t.id) {
+      allUsedIds.add(t.id);
+      return { ...t };
+    }
+    return { ...t, id: null }; // will assign below
+  });
+
+  // Assign IDs to tasks without one
+  let nextNum = 1;
+  for (const task of tasks) {
+    if (!task.id) {
+      while (allUsedIds.has(`T${String(nextNum).padStart(3, "0")}`)) nextNum++;
+      task.id = `T${String(nextNum).padStart(3, "0")}`;
+      allUsedIds.add(task.id);
+      nextNum++;
+    }
+  }
+
+  // Validate dependencies reference existing task IDs
+  const taskIdSet = new Set(tasks.map((t) => t.id));
+  for (const task of tasks) {
+    for (const dep of task.dependencies || []) {
+      if (!taskIdSet.has(dep)) {
+        process.stderr.write(`Error: Task dependency references missing task: ${dep}\n`);
+        process.exit(1);
+      }
+    }
+  }
+
+  // Sort tasks by ID for determinism
+  tasks.sort((a, b) => a.id.localeCompare(b.id));
+
+  // Build plan-level comments
+  const statusStr = tasks.map((t) => `${t.id}=${t.status}`).join(", ");
+
+  // Build edges (sorted) for ready/blocked computation
+  const edges = [];
+  for (const task of tasks) {
+    for (const dep of (task.dependencies || []).sort()) {
+      edges.push({ from: dep, to: task.id });
+    }
+  }
+  edges.sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+
+  const nodesForCompute = tasks.map((t) => ({ id: t.id, label: t.title, status: t.status }));
+  const readyNodes = computeReady(nodesForCompute, edges);
+  const blockedNodes = tasks.filter((t) => t.status === "blocked").map((t) => t.id);
+
+  const readyStr = readyNodes.length > 0 ? readyNodes.join(", ") : "none";
+  const blockedStr = blockedNodes.length > 0 ? blockedNodes.join(", ") : "none";
+  const nextAction = readyNodes.length > 0 ? `Start ${readyNodes[0]}` : "No ready tasks";
+
+  // Build output
+  const lines = [];
+  lines.push(`%% plan: ${meta.planId}`);
+  lines.push(`%% status: ${statusStr}`);
+  lines.push(`%% ready: ${readyStr}`);
+  lines.push(`%% blocked: ${blockedStr}`);
+  lines.push(`%% next-action: ${nextAction}`);
+  lines.push("");
+
+  // Per-node metadata
+  for (const task of tasks) {
+    lines.push(`%% node: ${task.id}`);
+    lines.push(`%% title: ${task.title}`);
+    lines.push(`%% status: ${task.status}`);
+    lines.push(`%% skill: ${task.skill}`);
+    lines.push(`%% scope: ${task.scope}`);
+    if (task.files) lines.push(`%% files: ${task.files}`);
+    lines.push(`%% acceptance: ${task.acceptance}`);
+    lines.push(`%% verify: ${task.verify}`);
+    const deps = (task.dependencies || []).sort();
+    if (deps.length > 0) lines.push(`%% blocked-by: ${deps.join(", ")}`);
+    if (task.delegate) lines.push(`%% delegate: ${task.delegate}`);
+    lines.push("");
+  }
+
+  // Flowchart
+  lines.push("flowchart TD");
+  lines.push("    classDef done fill:#22c55e,color:#fff");
+  lines.push("    classDef inProgress fill:#f59e0b,color:#fff");
+  lines.push("    classDef blocked fill:#ef4444,color:#fff");
+  lines.push("    classDef backlog fill:#94a3b8,color:#fff");
+  lines.push("");
+
+  // Node declarations + edges
+  // Declare all nodes first, then edges with bare IDs
+  for (const task of tasks) {
+    lines.push(`    ${task.id}[${task.title}]:::${task.status}`);
+  }
+
+  if (edges.length > 0) {
+    lines.push("");
+    for (const edge of edges) {
+      lines.push(`    ${edge.from} --> ${edge.to}`);
+    }
+  }
+
+  lines.push("");
+
+  const output = lines.join("\n");
+  writeFileSync(filePath, output);
+
+  process.stdout.write(
+    `${JSON.stringify(
+      { regenerated: true, planId: meta.planId, nodeCount: tasks.length, readyNodes },
+      null,
+      2,
+    )}\n`,
+  );
 }
 
 function status(filePath, nodeId, newStatus) {
   const validStatuses = ["done", "inProgress", "blocked", "backlog"];
   if (!validStatuses.includes(newStatus)) {
-    process.stderr.write(`Error: Invalid status '${newStatus}'. Must be one of: ${validStatuses.join(", ")}\n`);
+    process.stderr.write(
+      `Error: Invalid status '${newStatus}'. Must be one of: ${validStatuses.join(", ")}\n`,
+    );
     process.exit(1);
   }
 
-  const content = readFileSync(filePath, "utf-8");
+  const content = safeReadFile(filePath);
 
   if (content.includes("stateDiagram-v2")) {
     process.stderr.write("Error: stateDiagram-v2 is not supported by this tool.\n");
@@ -385,7 +726,9 @@ function status(filePath, nodeId, newStatus) {
   // Verify the graph was actually updated (node must have :::class suffix)
   const graphChanged = graphLines.some((line, i) => line !== updatedGraphLines[i]);
   if (!graphChanged) {
-    process.stderr.write(`Error: Node '${nodeId}' has no :::class suffix in graph declaration. Cannot update status.\n`);
+    process.stderr.write(
+      `Error: Node '${nodeId}' has no :::class suffix in graph declaration. Cannot update status.\n`,
+    );
     process.exit(1);
   }
 
@@ -424,7 +767,10 @@ function status(filePath, nodeId, newStatus) {
 
   // Replace plan-level comments in header
   const result = [];
-  let replacedStatus = false, replacedReady = false, replacedBlocked = false, replacedNext = false;
+  let replacedStatus = false,
+    replacedReady = false,
+    replacedBlocked = false,
+    replacedNext = false;
 
   for (const line of updatedHeaderLines) {
     const trimmed = line.trim();
@@ -473,8 +819,10 @@ function status(filePath, nodeId, newStatus) {
   const postNodeSet = new Set(postNodes.map((n) => n.id));
   const postEdgeSet = new Set(postEdges.map((e) => `${e.from}->${e.to}`));
 
-  const nodeSetEqual = preNodeSet.size === postNodeSet.size && [...preNodeSet].every((id) => postNodeSet.has(id));
-  const edgeSetEqual = preEdgeSet.size === postEdgeSet.size && [...preEdgeSet].every((e) => postEdgeSet.has(e));
+  const nodeSetEqual =
+    preNodeSet.size === postNodeSet.size && [...preNodeSet].every((id) => postNodeSet.has(id));
+  const edgeSetEqual =
+    preEdgeSet.size === postEdgeSet.size && [...preEdgeSet].every((e) => postEdgeSet.has(e));
 
   if (!nodeSetEqual || !edgeSetEqual) {
     process.stderr.write("Error: Topology changed during status update. Aborting.\n");
@@ -484,11 +832,11 @@ function status(filePath, nodeId, newStatus) {
   writeFileSync(filePath, finalContent);
 
   const summary = { updated: true, nodeId, status: newStatus, ready: readyNodes };
-  process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
 }
 
 function sortMetadata(filePath) {
-  const content = readFileSync(filePath, "utf-8");
+  const content = safeReadFile(filePath);
 
   if (content.includes("stateDiagram-v2")) {
     process.stderr.write("Error: stateDiagram-v2 is not supported by this tool.\n");
@@ -547,10 +895,7 @@ function sortMetadata(filePath) {
   nodeBlocks.sort((a, b) => a.id.localeCompare(b.id));
 
   // Reassemble
-  const sortedHeader = [
-    ...planComments,
-    ...nodeBlocks.flatMap((block) => block.lines),
-  ];
+  const sortedHeader = [...planComments, ...nodeBlocks.flatMap((block) => block.lines)];
 
   // Ensure blank line between header and flowchart
   const lastHeaderLine = sortedHeader[sortedHeader.length - 1];
@@ -562,7 +907,7 @@ function sortMetadata(filePath) {
   writeFileSync(filePath, finalContent);
 
   const sortedIds = nodeBlocks.map((b) => b.id);
-  process.stdout.write(JSON.stringify({ sorted: true, order: sortedIds }, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify({ sorted: true, order: sortedIds }, null, 2)}\n`);
 }
 
 // --- CLI ---
@@ -571,7 +916,7 @@ const [, , command, filePath, ...args] = process.argv;
 
 if (!command || !filePath) {
   process.stderr.write("Usage: manage-diagram.mjs <command> <file> [args...]\n");
-  process.stderr.write("Commands: inspect, ready, validate, status, sort-metadata\n");
+  process.stderr.write("Commands: inspect, ready, validate, status, sort-metadata, regenerate\n");
   process.exit(1);
 }
 
@@ -582,9 +927,12 @@ switch (command) {
   case "ready":
     ready(filePath);
     break;
-  case "validate":
-    validate(filePath);
+  case "validate": {
+    const metaIdx = args.indexOf("--metadata");
+    const metaPath = metaIdx !== -1 ? args[metaIdx + 1] : null;
+    validate(filePath, metaPath);
     break;
+  }
   case "status":
     if (args.length < 2) {
       process.stderr.write("Usage: manage-diagram.mjs status <file> <nodeId> <newStatus>\n");
@@ -595,6 +943,17 @@ switch (command) {
   case "sort-metadata":
     sortMetadata(filePath);
     break;
+  case "regenerate": {
+    const metaIdx = args.indexOf("--metadata");
+    if (metaIdx === -1 || !args[metaIdx + 1]) {
+      process.stderr.write(
+        "Usage: manage-diagram.mjs regenerate <file> --metadata <metadata.json>\n",
+      );
+      process.exit(1);
+    }
+    regenerate(filePath, args[metaIdx + 1]);
+    break;
+  }
   default:
     process.stderr.write(`Unknown command: ${command}\n`);
     process.exit(1);

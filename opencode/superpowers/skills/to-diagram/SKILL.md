@@ -319,17 +319,56 @@ node scripts/manage-diagram.mjs ready path/to/plan.diagram.mmd
 # Validate diagram integrity (exit 0 if valid)
 node scripts/manage-diagram.mjs validate path/to/plan.diagram.mmd
 
+# Validate against canonical metadata (detects all 6 drift types)
+node scripts/manage-diagram.mjs validate path/to/plan.diagram.mmd --metadata metadata.json
+
 # Update a single node's status (rewrites plan-level comments)
 node scripts/manage-diagram.mjs status path/to/plan.diagram.mmd T001 done
 
 # Sort metadata blocks by node ID
 node scripts/manage-diagram.mjs sort-metadata path/to/plan.diagram.mmd
+
+# Regenerate diagram from canonical metadata (scope-change regeneration)
+node scripts/manage-diagram.mjs regenerate path/to/plan.diagram.mmd --metadata metadata.json
 ```
+
+### Metadata JSON Format
+
+The `regenerate` and `validate --metadata` commands accept a JSON file with this structure:
+
+```json
+{
+  "planId": "my-plan",
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "Task title",
+      "status": "done|inProgress|blocked|backlog",
+      "skill": "quick-dev|code-agent|test-driven-development|brainstorming",
+      "scope": "src/module/",
+      "acceptance": "Observable behavior when done",
+      "verify": "npm test -- relevant-test",
+      "dependencies": ["T000"],
+      "files": "optional, comma-separated file paths",
+      "delegate": "yes|no (optional)"
+    }
+  ]
+}
+```
+
+**Top-level fields:** `planId` (required, non-empty string) and `tasks` (required, non-empty array). Malformed JSON produces a clean parse error without stack traces.
+
+**Required task fields:** `id`, `title`, `status`, `skill`, `scope`, `acceptance`, `verify`. All must be non-empty strings.
+
+**Valid status values:** `done`, `inProgress`, `blocked`, `backlog`. Any other value is rejected.
+
+**Dependency validation:** All entries in `dependencies` must reference an `id` present in the same `tasks` array. References to missing IDs are rejected with a clear error.
 
 ### When to Use
 
 - **Status-Only Update:** Use `status` command instead of manual regex replacement. It updates graph class, metadata block, and all plan-level comments atomically while asserting topology is unchanged.
-- **SYNC Workflow:** Use `validate` to detect drift, then `status` or regeneration to fix it.
+- **Scope-Change Regeneration:** Use `regenerate --metadata` when tasks are added, removed, renamed, or dependency edges change. It preserves stable node IDs for unchanged tasks, assigns new IDs for additions, retires IDs for removals, and produces deterministic byte-stable output.
+- **SYNC Workflow:** Use `validate --metadata` to detect all six drift types (class status mismatch, phantom node, missing node, topology mismatch, stale plan-level comments, incomplete rich node metadata), then `regenerate --metadata` to fix drift. Without `--metadata`, `validate` only checks internal consistency.
 - **Agent Orientation:** Use `inspect` to get structured JSON for programmatic consumption.
 - **Ready Detection:** Use `ready` to determine which nodes can start (replaces manual graph traversal).
 - **Metadata Ordering:** Use `sort-metadata` after any manual edits to ensure deterministic block ordering.
