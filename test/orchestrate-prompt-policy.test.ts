@@ -192,7 +192,6 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "writing-plans",
     "verification-before-completion",
     "finishing-a-development-branch",
-    "using-git-worktrees",
     "dispatching-parallel-agents",
     "subagent-driven-development",
     "to-diagram",
@@ -232,7 +231,6 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
       "writing-plans",
       "verification-before-completion",
       "finishing-a-development-branch",
-      "using-git-worktrees",
       "dispatching-parallel-agents",
       "subagent-driven-development",
     ];

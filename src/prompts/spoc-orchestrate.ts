@@ -138,7 +138,7 @@ When dispatching any code-change sub-agent, select a required work-mode skill fr
 **Support skills** layer on top of the work-mode skill:
 \`systematic-debugging\`, \`requesting-code-review\`, \`receiving-code-review\`,
 \`auditing-a-feature\`, \`writing-plans\`, \`verification-before-completion\`,
-\`finishing-a-development-branch\`, \`using-git-worktrees\`,
+\`finishing-a-development-branch\`,
 \`dispatching-parallel-agents\`, \`subagent-driven-development\`.
 If there is even a 1% chance a support skill applies, it must be loaded.
 
@@ -200,7 +200,7 @@ Every sub-agent dispatch must explicitly name:
   \`brainstorming\`, or another primary skill matching the task shape).
 - Any **support skills** that apply (\`systematic-debugging\`,
   \`verification-before-completion\`, \`requesting-code-review\`,
-  \`finishing-a-development-branch\`, \`using-git-worktrees\`,
+  \`finishing-a-development-branch\`,
   \`dispatching-parallel-agents\`, \`subagent-driven-development\`).
 
 The sub-agent prompt must instruct the sub-agent to load these skills before
