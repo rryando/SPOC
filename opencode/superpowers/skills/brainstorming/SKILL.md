@@ -37,7 +37,7 @@ A plan diagram MUST be generated and presented to the user for review before pro
 
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to spoc as a project plan (see Storage section below)
-8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
+8. **Spec review loop** — dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
 10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase `.mmd` file. When transitioning to writing-plans, pass this file path forward as the artifact to extend. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
 
@@ -139,7 +139,7 @@ digraph brainstorming {
 **Spec Review Loop:**
 After writing the spec document:
 
-1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+1. Dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template (see spec-document-reviewer-prompt.md)
 2. If Issues Found: fix, re-dispatch, repeat until Approved
 3. If loop exceeds 5 iterations, surface to human for guidance
 

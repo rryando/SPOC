@@ -1,5 +1,8 @@
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
+import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate-caveman.js";
 
 describe("orchestrate prompt policy — lifecycle tools", () => {
   const LIFECYCLE_TOOLS = [
@@ -99,5 +102,142 @@ describe("orchestrate prompt policy — lifecycle tools", () => {
     expect(lintIdx).toBeGreaterThan(-1);
     expect(deployIdx).toBeGreaterThan(-1);
     expect(lintIdx).toBeLessThan(deployIdx);
+  });
+});
+
+describe("orchestrate prompt policy — caveman sub-agent propagation", () => {
+  it("caveman preamble contains Sub-Agent Propagation section", () => {
+    expect(CAVEMAN_PREAMBLE).toContain("## Sub-Agent Propagation");
+  });
+
+  it("propagation block contains exact inheritance header for task tool prompts", () => {
+    expect(CAVEMAN_PREAMBLE).toContain("# Caveman Mode (INHERITED from SPOC Caveman orchestrator)");
+  });
+
+  it("propagation section references the host task tool", () => {
+    expect(CAVEMAN_PREAMBLE).toMatch(/`task`\s*tool/);
+  });
+
+  it("caveman carve-outs preserve DAG content as full prose", () => {
+    expect(CAVEMAN_PREAMBLE).toMatch(
+      /plans.*knowledge.*overviews.*tasks|SPOC DAG.*full prose/i,
+    );
+  });
+
+  it("caveman carve-outs preserve .mmd diagram files", () => {
+    expect(CAVEMAN_PREAMBLE).toContain(".mmd");
+  });
+
+  it("combined caveman prompt includes full orchestrate prompt after preamble", () => {
+    expect(ORCHESTRATE_CAVEMAN_PROMPT_TEXT).toContain(ORCHESTRATE_PROMPT_TEXT);
+    // Preamble comes first
+    const preambleIdx = ORCHESTRATE_CAVEMAN_PROMPT_TEXT.indexOf("# Caveman Mode");
+    const orchestrateIdx = ORCHESTRATE_CAVEMAN_PROMPT_TEXT.indexOf("You are the orchestration agent");
+    expect(preambleIdx).toBeLessThan(orchestrateIdx);
+  });
+});
+
+describe("orchestrate prompt policy — diagram drift types enumeration", () => {
+  it("SYNC workflow enumerates all six drift types", () => {
+    const syncStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
+    const syncEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", syncStart + 1);
+    const syncSection = ORCHESTRATE_PROMPT_TEXT.slice(syncStart, syncEnd > syncStart ? syncEnd : undefined);
+
+    const driftTypes = [
+      "classDef status mismatch",
+      "phantom node",
+      "missing node",
+      "topology mismatch",
+      "stale plan-level comments",
+      "incomplete",
+    ];
+    for (const drift of driftTypes) {
+      expect(syncSection.toLowerCase()).toContain(drift.toLowerCase());
+    }
+  });
+
+  it("EXECUTE diagram section references manage-diagram.mjs for regeneration", () => {
+    const execStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow");
+    const execEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
+    const execSection = ORCHESTRATE_PROMPT_TEXT.slice(execStart, execEnd);
+    expect(execSection).toContain("manage-diagram.mjs");
+  });
+
+  it("EXECUTE references manage-diagram.mjs ready for task selection", () => {
+    const execStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow");
+    const execEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
+    const execSection = ORCHESTRATE_PROMPT_TEXT.slice(execStart, execEnd);
+    expect(execSection).toContain("manage-diagram.mjs ready");
+  });
+});
+
+describe("orchestrate prompt policy — skill routing coverage", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const skillsDir = resolve(root, "opencode/superpowers/skills");
+  const allSkills = readdirSync(skillsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+
+  // Skills that are work-mode or support skills routed in the orchestrator
+  const ROUTED_SKILLS = [
+    "quick-dev",
+    "code-agent",
+    "test-driven-development",
+    "brainstorming",
+    "systematic-debugging",
+    "requesting-code-review",
+    "receiving-code-review",
+    "auditing-a-feature",
+    "writing-plans",
+    "verification-before-completion",
+    "finishing-a-development-branch",
+    "using-git-worktrees",
+    "dispatching-parallel-agents",
+    "subagent-driven-development",
+    "to-diagram",
+    "loop",
+  ];
+
+  // Skills that are host-specific, formatting-only, or special-purpose (not routed by orchestrator)
+  const NON_ROUTED_EXCEPTIONS = [
+    "caveman-commit",    // formatting skill for commit messages
+    "caveman-review",    // formatting skill for code review comments
+    "aesthetic",         // layering skill loaded by sub-agents for UI work
+    "executing-plans",   // session-management skill loaded by sub-agents
+    "writing-skills",    // meta-skill for skill authoring
+    "using-superpowers", // meta-skill for skill discovery
+    "spoc-dashboard",    // optional UI tool
+  ];
+
+  it("every skill on disk is either routed or listed as non-routed exception", () => {
+    const allAccounted = [...ROUTED_SKILLS, ...NON_ROUTED_EXCEPTIONS].sort();
+    const unaccounted = allSkills.filter((s) => !allAccounted.includes(s));
+    expect(unaccounted).toEqual([]);
+  });
+
+  it("routed work-mode skills appear in orchestrator prompt", () => {
+    const workModeSkills = ["quick-dev", "code-agent", "test-driven-development", "brainstorming"];
+    for (const skill of workModeSkills) {
+      expect(ORCHESTRATE_PROMPT_TEXT).toContain(skill);
+    }
+  });
+
+  it("routed support skills appear in orchestrator prompt", () => {
+    const supportSkills = [
+      "systematic-debugging",
+      "requesting-code-review",
+      "receiving-code-review",
+      "auditing-a-feature",
+      "writing-plans",
+      "verification-before-completion",
+      "finishing-a-development-branch",
+      "using-git-worktrees",
+      "dispatching-parallel-agents",
+      "subagent-driven-development",
+    ];
+    for (const skill of supportSkills) {
+      expect(ORCHESTRATE_PROMPT_TEXT).toContain(skill);
+    }
   });
 });
