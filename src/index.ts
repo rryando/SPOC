@@ -9,6 +9,7 @@ import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAuditKnowledge } from "./tools/audit-knowledge.js";
 import { registerDeployOpencodeSuperpowers } from "./tools/deploy-opencode-superpowers.js";
+import { registerDiagramPreview } from "./tools/diagram-preview.js";
 import { registerLintBundle } from "./tools/lint-bundle.js";
 import { registerDeleteProject } from "./tools/delete-project.js";
 import { registerProjectDiff } from "./tools/project-diff.js";
@@ -92,6 +93,7 @@ async function run(): Promise<void> {
   registerTransitionProjectTask(server);
   registerLintBundle(server);
   registerDeployOpencodeSuperpowers(server);
+  registerDiagramPreview(server);
 
   // Register resources
   registerProjectResources(server);
