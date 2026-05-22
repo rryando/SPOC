@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { DagError, formatError, projectNotFound } from "../utils/errors.js";
+import { isGitRepo, getFilesChanged, getHeadCommit } from "../utils/git.js";
 import { readJsonSafe, validateJson } from "../utils/json.js";
 import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getProjectDir } from "../utils/paths.js";
@@ -63,6 +64,19 @@ export function registerValidateProjectState(server: McpServer) {
           }
         }
 
+        // --- Check 1b: Git-based changed files since last sync ---
+        let changedSinceLastSync: string[] | undefined;
+        try {
+          const primaryWorkspace = workspacePaths[0];
+          if (primaryWorkspace && isGitRepo(primaryWorkspace)) {
+            if (projectMeta.lastSyncGitCommit) {
+              changedSinceLastSync = getFilesChanged(primaryWorkspace, projectMeta.lastSyncGitCommit);
+            }
+          }
+        } catch {
+          // Git unavailable — skip silently
+        }
+
         // --- Check 2: AGENTS.md exists in workspace paths ---
         for (const ws of workspacePaths) {
           totalChecks++;
@@ -83,6 +97,25 @@ export function registerValidateProjectState(server: McpServer) {
         const planIndex = await readPlanIndex(projectDir);
         const plansDir = resolve(projectDir, "plans");
         const activeStatuses = ["planned", "in_progress", "blocked"];
+
+        // --- Check 3a: Plan sourceFiles exist ---
+        for (const plan of planIndex.plans) {
+          const sourceFiles = plan.sourceFiles ?? [];
+          for (const ref of sourceFiles) {
+            totalChecks++;
+            const found = workspacePaths.some((ws) => existsSync(resolve(ws, ref.path)));
+            if (!found && workspacePaths.length > 0) {
+              issues.push({
+                severity: "warning",
+                kind: "stale_plan_source",
+                message: `Plan "${plan.title}" references missing file: ${ref.path}`,
+                file: ref.path,
+                repair: `Remove stale sourceFile reference from plan "${plan.id}"`,
+                safeToAutoRepair: false,
+              });
+            }
+          }
+        }
 
         for (const plan of planIndex.plans) {
           if (!activeStatuses.includes(plan.status)) continue;
@@ -145,24 +178,100 @@ export function registerValidateProjectState(server: McpServer) {
           }
         }
 
-        return jsonResult({
-          issues,
-          summary: {
-            totalChecks,
-            issueCount: issues.length,
-            bySeverity: {
-              error: issues.filter((i) => i.severity === "error").length,
-              warning: issues.filter((i) => i.severity === "warning").length,
-              info: issues.filter((i) => i.severity === "info").length,
-            },
+        // --- Compute totalByKind ---
+        const tasksByStatus = { backlog: 0, in_progress: 0, done: 0, cancelled: 0 };
+        for (const t of allTasks) {
+          if (t.status in tasksByStatus) {
+            tasksByStatus[t.status as keyof typeof tasksByStatus]++;
+          }
+        }
+
+        const docFiles = ["overview.md", "tasks.md", "dependencies.md", "knowledge"] as const;
+        let docsCount = 0;
+        for (const doc of docFiles) {
+          if (existsSync(resolve(projectDir, doc))) docsCount++;
+        }
+
+        const totalByKind = {
+          docs: docsCount,
+          knowledgeEntries: knowledgeIndex.entries.length,
+          plans: planIndex.plans.length,
+          tasksByStatus,
+        };
+
+        // --- Compute staleSince ---
+        const staleSince = computeStaleSince(projectMeta.lastSyncedAt);
+
+        // --- Compute driftByType ---
+        const driftByType = {
+          classDefMismatch: 0,
+          phantomNode: 0,
+          missingNode: 0,
+          topologyMismatch: 0,
+          stalePlanComments: 0,
+          incompleteMetadata: 0,
+        };
+        for (const issue of issues) {
+          if (issue.kind in driftByType) {
+            driftByType[issue.kind as keyof typeof driftByType]++;
+          }
+        }
+
+        const summary: Record<string, unknown> = {
+          totalChecks,
+          issueCount: issues.length,
+          bySeverity: {
+            error: issues.filter((i) => i.severity === "error").length,
+            warning: issues.filter((i) => i.severity === "warning").length,
+            info: issues.filter((i) => i.severity === "info").length,
           },
-        });
+          totalByKind,
+          driftByType,
+        };
+        if (staleSince !== undefined) {
+          summary.staleSince = staleSince;
+        }
+
+        const result: Record<string, unknown> = { issues, summary };
+        if (changedSinceLastSync !== undefined) {
+          result.changedSinceLastSync = changedSinceLastSync;
+        }
+        return jsonResult(result);
       } catch (err) {
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
     },
   );
+}
+
+/**
+ * Compute a human-readable duration string from an ISO 8601 timestamp to now.
+ * Returns undefined if the input is undefined or invalid.
+ */
+function computeStaleSince(lastSyncedAt: string | undefined): string | undefined {
+  if (!lastSyncedAt) return undefined;
+  const then = new Date(lastSyncedAt).getTime();
+  if (Number.isNaN(then)) return undefined;
+  const diffMs = Date.now() - then;
+  if (diffMs < 0) return undefined;
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  const remainingDays = days % 7;
+
+  if (weeks > 0) {
+    const parts: string[] = [`${weeks} week${weeks > 1 ? "s" : ""}`];
+    if (remainingDays > 0) parts.push(`${remainingDays} day${remainingDays > 1 ? "s" : ""}`);
+    return parts.join(" ");
+  }
+  if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+  return `${seconds} second${seconds !== 1 ? "s" : ""}`;
 }
 
 /**

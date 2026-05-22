@@ -343,10 +343,11 @@ Before taking action, explicitly state:
 ### SYNC Workflow
 **Context:** T0 in the orchestrator. All audit reads delegated.
 1. Identify target project slug.
-2. Call \`validate_project_state\` on the target project to get an automated structural health report (orphan tasks, stale sourceFiles, plan/diagram drift, missing indexes). Use this report to seed the explore sub-agent's audit scope.
-3. Dispatch an explore sub-agent to re-scan the codebase **and** audit DAG docs/plans/knowledge against it. Provide the sub-agent with T0 context and the \`validate_project_state\` output, and ask it to return a structured diff: what's changed, what's stale, what's missing, what source-file references no longer resolve.
-4. The orchestrator does NOT read docs, plan bodies, or knowledge bodies directly. If more detail is needed, re-dispatch the sub-agent with a narrower question.
-5. Audit surfaces the sub-agent should cover:
+2. **Read checkpoints:** Read \`lastSyncedAt\` and \`lastSyncGitCommit\` from the project's \`meta.json\` (via \`get_project\`). Use these to determine staleness (time since last sync, commits since last sync via \`get_project_git_log\`). If checkpoints exist, instruct sub-agents to focus on files changed since \`lastSyncGitCommit\` rather than full-codebase scans.
+3. Call \`validate_project_state\` on the target project to get an automated structural health report (orphan tasks, stale sourceFiles, plan/diagram drift, missing indexes). Use this report to seed the explore sub-agent's audit scope. When \`changedSinceLastSync\` is present in the output, instruct the explore sub-agent to focus its audit on those files first — they represent the delta since the last sync checkpoint. The \`get_project_git_log\` tool is available for commit-level context on those changes.
+4. Dispatch an explore sub-agent to re-scan the codebase **and** audit DAG docs/plans/knowledge against it. Provide the sub-agent with T0 context, the \`validate_project_state\` output, and staleness info (last sync timestamp + commit count since). The sub-agent can use \`get_project_git_log\` to query git history (files changed since last sync, commit messages for context). Ask it to return a structured diff: what's changed, what's stale, what's missing, what source-file references no longer resolve.
+5. The orchestrator does NOT read docs, plan bodies, or knowledge bodies directly. If more detail is needed, re-dispatch the sub-agent with a narrower question.
+6. Audit surfaces the sub-agent should cover:
    - **overview.md**: Is the description still accurate? Are goals current?
    - **tasks.md**: Are in-progress tasks still in-progress? Any completed ones not marked \`[x]\`?
    - **dependencies.md**: Do the listed upstream/downstream relationships still exist?
@@ -355,18 +356,25 @@ Before taking action, explicitly state:
    - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
     - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
     - **plans/ diagrams**: For each plan, audit its associated \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) against task metadata. Check for six drift types: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but no diagram node), topology mismatch (edges don't match dependencies), stale plan-level comments (\`%% status/ready/blocked/next-action\` inconsistent with actual graph state), incomplete/missing rich node metadata (per-node \`%%\` comment blocks absent or stale). Load \`to-diagram\` skill for drift detection rules. Metadata always wins. **Repair strategy:** For phantom nodes (diagram node without backing Task record), create the missing Task record via \`create_project_task\` with \`planId\` set and title from the node label — do NOT delete the diagram node, as it represents planned work. For other drift types, regenerate the \`.mmd\` file deterministically from current task metadata using the scope-change regeneration algorithm.
-6. Based on the sub-agent's structured diff, propose corrections clearly.
-7. **Write-gate (mandatory):** Call \`propose_dag_write\` with the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as the operations list. Present the summary to the user. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before applying any changes.
-8. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
-9. If needed, update lifecycle status with \`update_project_status\`.
+7. Based on the sub-agent's structured diff, propose corrections clearly.
+8. **Write-gate (mandatory):** Call \`propose_dag_write\` with the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as the operations list. Present the summary to the user. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before applying any changes.
+9. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
+10. If needed, update lifecycle status with \`update_project_status\`.
+11. **Write checkpoints:** After all corrections are applied, update the project's \`meta.json\` with:
+    - \`lastSyncedAt\`: current ISO timestamp
+    - \`lastSyncGitCommit\`: current HEAD short SHA (from \`get_project_git_log\`)
+    - \`lastSyncStats\`: \`{ docsUpdated, knowledgeEntriesCreated, knowledgeEntriesUpdated, tasksTransitioned, plansUpdated, diagramsDrifted }\`
 
 **Sync report output format:**
 \`\`\`
-Docs updated: [list]
-Knowledge entries created/updated: [list]
-Plans created/updated: [list]
-Key changes: [summary]
-Outstanding gaps: [anything needing attention]
+## Sync Report
+**Staleness:** N days since last sync (M commits)
+**Docs:** X updated
+**Knowledge:** Y created, Z updated
+**Tasks:** T transitioned
+**Plans:** P updated
+**Diagrams:** D drifted
+**Outstanding gaps:** [anything needing attention]
 \`\`\`
 
 ### EXPLORE Workflow
