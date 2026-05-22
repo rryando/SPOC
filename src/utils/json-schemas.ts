@@ -49,6 +49,17 @@ export type RootMetaJson = z.infer<typeof rootMetaSchema>;
 // Per-project meta.json
 // ---------------------------------------------------------------------------
 
+export const syncStatsSchema = z.object({
+  docsUpdated: z.number().int().min(0),
+  knowledgeEntriesCreated: z.number().int().min(0),
+  knowledgeEntriesUpdated: z.number().int().min(0),
+  tasksTransitioned: z.number().int().min(0),
+  plansUpdated: z.number().int().min(0),
+  diagramsDrifted: z.number().int().min(0),
+});
+
+export type SyncStats = z.infer<typeof syncStatsSchema>;
+
 export const projectMetaSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -57,6 +68,9 @@ export const projectMetaSchema = z.object({
   repoUrl: z.string().optional(),
   createdAt: z.string(),
   workspacePaths: z.array(z.string()).optional().default([]),
+  lastSyncedAt: z.string().datetime().optional(),
+  lastSyncGitCommit: z.string().optional(),
+  lastSyncStats: syncStatsSchema.optional(),
 }).passthrough();
 
 export type ProjectMetaJson = z.infer<typeof projectMetaSchema>;

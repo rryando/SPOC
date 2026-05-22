@@ -134,21 +134,25 @@ function computeReady(nodes, edges) {
   return ready;
 }
 
-function _computeBlocked(nodes, edges) {
+function computeBlocked(nodes, edges) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const blocked = [];
 
   for (const node of nodes) {
-    if (node.status === "done") continue;
+    // Explicitly blocked status always counts
+    if (node.status === "blocked") {
+      blocked.push(node.id);
+      continue;
+    }
+    // Implicitly blocked: backlog node with at least one undone predecessor
+    if (node.status !== "backlog") continue;
     const incomingDeps = edges.filter((e) => e.to === node.id).map((e) => e.from);
+    if (incomingDeps.length === 0) continue; // No deps = ready, not blocked
     const hasUndone = incomingDeps.some((depId) => {
       const dep = nodeMap.get(depId);
       return dep && dep.status !== "done";
     });
-    if (hasUndone && node.status !== "blocked") {
-      // Not explicitly blocked but has undone deps — may or may not be considered blocked
-    }
-    if (node.status === "blocked") {
+    if (hasUndone) {
       blocked.push(node.id);
     }
   }
@@ -339,8 +343,8 @@ function validate(filePath, metadataPath) {
     }
   }
 
-  // Missing required metadata fields
-  const requiredFields = ["node", "title", "status", "skill", "scope", "acceptance", "verify"];
+  // Missing required metadata fields (verify is optional per SKILL.md)
+  const requiredFields = ["node", "title", "status", "skill", "scope", "acceptance"];
   for (const node of nodes) {
     const block = metadataBlocks[node.id];
     if (block) {
@@ -490,8 +494,8 @@ function validateWithMetadata(content, metadataPath) {
     }
   }
 
-  // 6. Incomplete metadata in node blocks
-  const requiredFields = ["node", "title", "status", "skill", "scope", "acceptance", "verify"];
+  // 6. Incomplete metadata in node blocks (verify is optional per SKILL.md)
+  const requiredFields = ["node", "title", "status", "skill", "scope", "acceptance"];
   for (const task of meta.tasks || []) {
     const block = metadataBlocks[task.id];
     if (!block) {
@@ -514,7 +518,7 @@ function validateWithMetadata(content, metadataPath) {
 // --- Metadata schema validation ---
 
 const VALID_STATUSES = ["done", "inProgress", "blocked", "backlog"];
-const REQUIRED_TASK_FIELDS = ["title", "status", "skill", "scope", "acceptance", "verify"];
+const REQUIRED_TASK_FIELDS = ["title", "status", "skill", "scope", "acceptance"];
 
 function validateMetadataSchema(meta) {
   if (!meta.planId || typeof meta.planId !== "string" || !meta.planId.trim()) {
@@ -616,7 +620,7 @@ function regenerate(filePath, metadataPath) {
 
   const nodesForCompute = tasks.map((t) => ({ id: t.id, label: t.title, status: t.status }));
   const readyNodes = computeReady(nodesForCompute, edges);
-  const blockedNodes = tasks.filter((t) => t.status === "blocked").map((t) => t.id);
+  const blockedNodes = computeBlocked(nodesForCompute, edges);
 
   const readyStr = readyNodes.length > 0 ? readyNodes.join(", ") : "none";
   const blockedStr = blockedNodes.length > 0 ? blockedNodes.join(", ") : "none";
@@ -640,7 +644,7 @@ function regenerate(filePath, metadataPath) {
     lines.push(`%% scope: ${task.scope}`);
     if (task.files) lines.push(`%% files: ${task.files}`);
     lines.push(`%% acceptance: ${task.acceptance}`);
-    lines.push(`%% verify: ${task.verify}`);
+    if (task.verify) lines.push(`%% verify: ${task.verify}`);
     const deps = (task.dependencies || []).sort();
     if (deps.length > 0) lines.push(`%% blocked-by: ${deps.join(", ")}`);
     if (task.delegate) lines.push(`%% delegate: ${task.delegate}`);
@@ -718,8 +722,9 @@ function status(filePath, nodeId, newStatus) {
 
   // Update graph lines — change :::status for the target node
   const updatedGraphLines = graphLines.map((line) => {
-    // Replace :::oldStatus for specific node ID
-    const re = new RegExp(`(\\b${nodeId}\\[[^\\]]+\\]):::\\w+`, "g");
+    // Match node declaration: nodeId[label]:::status — anchored to avoid matching inside labels
+    // Uses (?<![\\w]) negative lookbehind instead of \b to prevent matching T001 inside another node's label
+    const re = new RegExp(`(?<![\\w])(${nodeId}\\[[^\\]]+\\]):::\\w+`, "g");
     return line.replace(re, `$1:::${newStatus}`);
   });
 
@@ -757,7 +762,7 @@ function status(filePath, nodeId, newStatus) {
   const updatedNodes = parseNodes(updatedGraphLines);
   const updatedEdges = parseEdges(updatedGraphLines);
   const readyNodes = computeReady(updatedNodes, updatedEdges);
-  const blockedNodes = updatedNodes.filter((n) => n.status === "blocked").map((n) => n.id);
+  const blockedNodes = computeBlocked(updatedNodes, updatedEdges);
 
   // Build new status comment
   const statusStr = updatedNodes.map((n) => `${n.id}=${n.status}`).join(", ");
@@ -772,16 +777,16 @@ function status(filePath, nodeId, newStatus) {
     replacedBlocked = false,
     replacedNext = false;
 
-  for (const line of updatedHeaderLines) {
+  const firstNodeIdx = updatedHeaderLines.findIndex((l) => l.trim().startsWith("%% node:"));
+
+  for (let i = 0; i < updatedHeaderLines.length; i++) {
+    const line = updatedHeaderLines[i];
     const trimmed = line.trim();
     if (trimmed.startsWith("%%")) {
       const c = trimmed.slice(2).trim();
-      // Plan-level comments come before first node: block
+      // Plan-level comments come before first node block
       if (c.startsWith("status:") && !replacedStatus) {
-        // Check if this is plan-level (before any node block)
-        const lineIdx = updatedHeaderLines.indexOf(line);
-        const firstNodeIdx = updatedHeaderLines.findIndex((l) => l.trim().startsWith("%% node:"));
-        if (lineIdx < firstNodeIdx || firstNodeIdx === -1) {
+        if (i < firstNodeIdx || firstNodeIdx === -1) {
           result.push(`%% status: ${statusStr}`);
           replacedStatus = true;
           continue;
@@ -794,9 +799,7 @@ function status(filePath, nodeId, newStatus) {
       }
       if (c.startsWith("blocked:") && !replacedBlocked) {
         // Plan-level blocked
-        const lineIdx = updatedHeaderLines.indexOf(line);
-        const firstNodeIdx = updatedHeaderLines.findIndex((l) => l.trim().startsWith("%% node:"));
-        if (lineIdx < firstNodeIdx || firstNodeIdx === -1) {
+        if (i < firstNodeIdx || firstNodeIdx === -1) {
           result.push(`%% blocked: ${blockedStr}`);
           replacedBlocked = true;
           continue;

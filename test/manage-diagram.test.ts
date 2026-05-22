@@ -133,7 +133,7 @@ describe("manage-diagram.mjs", () => {
     });
 
     it("fails on missing metadata field", () => {
-      const broken = VALID_DIAGRAM.replace("%% verify: npm run migrate\n", "");
+      const broken = VALID_DIAGRAM.replace("%% acceptance: Migration runs\n", "");
       writeFileSync(diagramPath, broken);
 
       const result = run("validate", diagramPath);
@@ -141,16 +141,16 @@ describe("manage-diagram.mjs", () => {
 
       const output = JSON.parse(result.stdout);
       expect(output.ok).toBe(false);
-      expect(output.errors.some((e: string) => e.includes("verify") && e.includes("T001"))).toBe(
+      expect(output.errors.some((e: string) => e.includes("acceptance") && e.includes("T001"))).toBe(
         true,
       );
     });
 
     it("fails on missing required field in a non-last metadata block", () => {
-      // Remove verify from T003 (middle block) — regression for diagram-lifecycle-canary bug
+      // Remove acceptance from T003 (middle block)
       const broken = VALID_DIAGRAM.replace(
+        "%% acceptance: Tests pass\n%% verify: npm test\n%% blocked-by: T001",
         "%% verify: npm test\n%% blocked-by: T001",
-        "%% blocked-by: T001",
       );
       writeFileSync(diagramPath, broken);
 
@@ -159,7 +159,7 @@ describe("manage-diagram.mjs", () => {
 
       const output = JSON.parse(result.stdout);
       expect(output.ok).toBe(false);
-      expect(output.errors.some((e: string) => e.includes("verify") && e.includes("T003"))).toBe(
+      expect(output.errors.some((e: string) => e.includes("acceptance") && e.includes("T003"))).toBe(
         true,
       );
     });
@@ -645,18 +645,31 @@ describe("manage-diagram.mjs", () => {
       expect(result.stderr).toContain("planId");
     });
 
-    it("rejects missing required task field", () => {
+    it("accepts task without optional verify field", () => {
       const meta = {
         planId: "test",
         tasks: [
           { id: "T001", title: "A", status: "done", skill: "s", scope: "a/", acceptance: "A" },
         ],
-      }; // missing verify
+      }; // verify is optional
+      const metaPath = writeMetadata(meta);
+      const outPath = resolve(tempDir, "output.diagram.mmd");
+      const result = run("regenerate", outPath, "--metadata", metaPath);
+      expect(result.status).toBe(0);
+    });
+
+    it("rejects missing required task field", () => {
+      const meta = {
+        planId: "test",
+        tasks: [
+          { id: "T001", title: "A", status: "done", skill: "s", scope: "a/" },
+        ],
+      }; // missing acceptance (required)
       const metaPath = writeMetadata(meta);
       const outPath = resolve(tempDir, "output.diagram.mmd");
       const result = run("regenerate", outPath, "--metadata", metaPath);
       expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain("verify");
+      expect(result.stderr).toContain("acceptance");
     });
 
     it("rejects invalid status", () => {
@@ -1016,8 +1029,8 @@ describe("manage-diagram.mjs", () => {
     });
 
     it("detects incomplete metadata in node blocks", () => {
-      // Remove verify from T001 metadata block in the diagram
-      const incomplete = VALID_DIAGRAM.replace("%% verify: npm run migrate\n", "");
+      // Remove acceptance from T001 metadata block in the diagram (acceptance is required)
+      const incomplete = VALID_DIAGRAM.replace("%% acceptance: Migration runs\n", "");
       writeFileSync(diagramPath, incomplete);
 
       const meta = {
