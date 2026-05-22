@@ -54,9 +54,22 @@ type DagCommand = (typeof DAG_COMMANDS)[number];
 function printUsage(): void {
   console.log("Usage: spoc <command> [options]\n");
   console.log("DAG Commands:");
-  for (const cmd of DAG_COMMANDS) {
-    console.log(`  ${cmd}`);
-  }
+  console.log("  context [<path>]                    Resolve project context");
+  console.log("  task <slug> [--status=<s>]          List tasks (positional slug)");
+  console.log("  task list --slug=<slug>             List tasks (flag syntax)");
+  console.log("  task get <slug> <taskId>            Get task details");
+  console.log("  task transition <slug> <id> <s>     Transition task status");
+  console.log("  plan <slug> [--status=<s>]          List plans (positional slug)");
+  console.log("  plan list --slug=<slug>             List plans (flag syntax)");
+  console.log("  plan get <slug> <planId> [--body]   Get plan details");
+  console.log("  knowledge <slug> [--kind=<k>]       List knowledge (positional slug)");
+  console.log("  knowledge list --slug=<slug>        List knowledge (flag syntax)");
+  console.log("  knowledge search <slug> <query>     Search knowledge");
+  console.log("  knowledge create --slug=<s> ...     Create knowledge entry");
+  console.log("  search <slug> <query>               BM25 search across all");
+  console.log("  diagram <action> <path>             Inspect/ready diagram");
+  console.log("  batch --file=<path>                 Batch operations");
+  console.log("  validate <slug>                     Validate project state");
   console.log("\nOptions:");
   console.log("  --json    Output as JSON");
   console.log("  --help    Show command usage");
@@ -278,12 +291,16 @@ async function handleTask(args: string[], json: boolean): Promise<void> {
     case "transition":
       return handleTaskTransition(args.slice(1), json);
     default:
+      // If subcommand isn't a known command, treat it as a slug for listing
+      if (subcommand && !['list', 'get', 'transition'].includes(subcommand)) {
+        return handleTaskList(args.slice(1), json, subcommand);
+      }
       cliError(`Error: unknown task subcommand "${subcommand ?? ""}". Use: list, get, transition`);
   }
 }
 
-async function handleTaskList(args: string[], json: boolean): Promise<void> {
-  const slug = extractFlag(args, "--slug");
+async function handleTaskList(args: string[], json: boolean, slugOverride?: string): Promise<void> {
+  const slug = slugOverride ?? extractFlag(args, "--slug");
   if (!slug) {
     cliError("Error: --slug is required for task list");
     return;
@@ -462,12 +479,16 @@ async function handlePlan(args: string[], json: boolean): Promise<void> {
     case "get":
       return handlePlanGet(args.slice(1), json);
     default:
+      // If subcommand isn't a known command, treat it as a slug for listing
+      if (subcommand && !['list', 'get'].includes(subcommand)) {
+        return handlePlanList(args.slice(1), json, subcommand);
+      }
       cliError(`Error: unknown plan subcommand "${subcommand ?? ""}". Use: list, get`);
   }
 }
 
-async function handlePlanList(args: string[], json: boolean): Promise<void> {
-  const slug = extractFlag(args, "--slug");
+async function handlePlanList(args: string[], json: boolean, slugOverride?: string): Promise<void> {
+  const slug = slugOverride ?? extractFlag(args, "--slug");
   if (!slug) {
     cliError("Error: --slug is required for plan list");
     return;
@@ -563,12 +584,60 @@ async function handleKnowledge(args: string[], json: boolean): Promise<void> {
   const subcommand = args[0];
 
   switch (subcommand) {
+    case "list":
+      return handleKnowledgeList(args.slice(1), json);
     case "search":
       return handleKnowledgeSearch(args.slice(1), json);
     case "create":
       return handleKnowledgeCreate(args.slice(1), json);
     default:
-      cliError(`Error: unknown knowledge subcommand "${subcommand ?? ""}". Use: search, create`);
+      // If subcommand isn't a known command, treat it as a slug for listing
+      if (subcommand && !['list', 'search', 'create'].includes(subcommand)) {
+        return handleKnowledgeList(args.slice(1), json, subcommand);
+      }
+      cliError(`Error: unknown knowledge subcommand "${subcommand ?? ""}". Use: list, search, create`);
+  }
+}
+
+async function handleKnowledgeList(args: string[], json: boolean, slugOverride?: string): Promise<void> {
+  const slug = slugOverride ?? extractFlag(args, "--slug");
+  if (!slug) {
+    cliError("Error: --slug is required for knowledge list");
+    return;
+  }
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    cliError(`Error: project "${slug}" not found`);
+    return;
+  }
+
+  const kind = extractFlag(args, "--kind") as KnowledgeKind | undefined;
+  if (kind && !(KNOWLEDGE_KINDS as readonly string[]).includes(kind)) {
+    cliError(`Error: invalid kind "${kind}". Valid: ${KNOWLEDGE_KINDS.join(", ")}`);
+    return;
+  }
+
+  const knowledgeIndex = await readKnowledgeIndex(projectDir);
+  let entries = knowledgeIndex.entries;
+
+  if (kind) {
+    entries = entries.filter((e) => e.kind === kind);
+  }
+
+  if (json) {
+    console.log(JSON.stringify(entries));
+    return;
+  }
+
+  if (entries.length === 0) {
+    console.log("No knowledge entries found.");
+    return;
+  }
+
+  console.log("ID\tKind\tTitle");
+  for (const e of entries) {
+    console.log(`${e.id}\t${e.kind}\t${e.title}`);
   }
 }
 
