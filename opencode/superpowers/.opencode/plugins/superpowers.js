@@ -60,6 +60,21 @@ const getSpocDataDir = () => {
   return path.join(os.homedir(), ".spoc");
 };
 
+// Read dashboard info from .dashboard-info file.
+// Returns { url, port, pid, startedAt } or null. Atomic read — no separate
+// existsSync, so no race if the file disappears between check and read.
+const getDashboardInfo = () => {
+  const infoPath = path.join(getSpocDataDir(), '.dashboard-info');
+  try {
+    return JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    // Malformed JSON — stale file from crashed server. Remove silently.
+    try { fs.unlinkSync(infoPath); } catch {}
+    return null;
+  }
+};
+
 // Read loop state from a project directory
 const readLoopState = (projectDir) => {
   const stateFile = path.join(projectDir, LOOP_STATE_FILE);
@@ -127,6 +142,8 @@ Original task:
 ${state.prompt}`;
 };
 
+let dashboardToastShown = false;
+
 export const SuperpowersPlugin = async ({ client, directory }) => {
   const inFlightSessions = new Set();
   const homeDir = os.homedir();
@@ -181,21 +198,30 @@ ${toolMapping}
       }
 
       // Inject SPOC Dashboard URL if server is running
-      const dashboardInfoPath = path.join(getSpocDataDir(), '.dashboard-info');
-      if (fs.existsSync(dashboardInfoPath)) {
-        try {
-          const dashboardInfo = JSON.parse(fs.readFileSync(dashboardInfoPath, 'utf-8'));
-          if (dashboardInfo.url) {
-            (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Plan Dashboard is running. Users can view live plan diagrams and progress at this URL.\n</spoc_dashboard>`);
-          }
-        } catch (e) {
-          // Malformed .dashboard-info — server may have crashed. Remove stale file.
-          try { fs.unlinkSync(dashboardInfoPath); } catch {}
-        }
+      const dashboardInfo = getDashboardInfo();
+      if (dashboardInfo?.url) {
+        (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Dashboard is available as an optional multi-plan browser. Use for project-wide plan overview only — single-plan diagrams go through the visual companion.\n</spoc_dashboard>`);
       }
     },
 
-    event: async ({ event }) => {
+    event: async ({ event, client }) => {
+      // Dashboard toast: fires once per plugin load (module-level flag).
+      // Resets on opencode restart. No persistence intended.
+      if (!dashboardToastShown) {
+        const dashboardInfo = getDashboardInfo();
+        if (dashboardInfo?.url) {
+          dashboardToastShown = true;
+          await client.tui?.showToast?.({
+            body: {
+              title: "SPOC Dashboard (Multi-Plan Browser)",
+              message: dashboardInfo.url,
+              variant: "info",
+              duration: 4000,
+            },
+          }).catch(() => {});
+        }
+      }
+
       const props = event.properties;
 
       if (event.type === "session.idle") {

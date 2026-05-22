@@ -13,6 +13,62 @@ Start by understanding the current project context, then ask questions one at a 
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
 
+## SPOC CLI — Preferred for DAG Reads
+
+For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+
+**Usage:** `spoc <command> [args]`
+
+**Available commands:**
+- `context [<path>]` — resolve project context from workspace path
+- `task <slug> [--status <s>]` — list tasks, optionally filtered
+- `search <slug> <query> [--limit N]` — BM25 knowledge search
+- `plan <slug> [--status <s>]` — list plans
+- `knowledge <slug> [--kind <k>]` — list knowledge entries
+- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
+- `batch <json>` — batch operations in one call
+- `validate <slug>` — validate project state
+
+**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+
+**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+
+**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+
+## Execution Modes
+
+This skill operates in two contexts depending on who loads it.
+
+### Mode Detection
+
+- If the agent has `spoc_resolve_project_context` tool available → **Agent-Direct Mode**
+- If not → **Orchestrator Mode** (return artifact for orchestrator to persist)
+
+### Agent-Direct Mode
+
+The agent (e.g., system-architect sub-agent) has SPOC MCP tools and writes to the DAG itself.
+
+- Resolve project context via `spoc_resolve_project_context`
+- Still uses write-gate pattern: `spoc_propose_dag_write` → `spoc_apply_dag_write` → pass `confirmationToken` to mutating tools
+- Creates plans directly via `spoc_create_project_plan` / `spoc_update_project_plan_body`
+- Generates diagrams and writes `.mmd` files via tools
+- Creates knowledge entries via `spoc_create_project_knowledge_entry` when discoveries warrant persistence
+- When user confirmation is needed (design approval, scope decisions): return to orchestrator with a structured summary and wait for confirmation relay before proceeding
+
+### Orchestrator Mode
+
+The orchestrator owns all write-gates. The agent returns design artifacts as structured text.
+
+Agent's final message contains:
+- Proposed plan `title`, `summary`, `status`, `keywords`, `sourceFiles`
+- Plan `body` (full markdown)
+- Diagram `.mmd` content (Mermaid source)
+- Any knowledge entries to create
+
+The orchestrator persists these via SPOC tools after user confirms.
+
+---
+
 ## Anti-Pattern: "This Is Too Simple To Need A Design"
 
 Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
@@ -25,12 +81,21 @@ You MUST create a task for each of these items and complete them in order:
 2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Generate architecture diagram** — after selecting the recommended approach, load the `to-diagram` skill and generate a Mermaid diagram showing the architecture or flow of that approach. Present the diagram to the user before diving into full design sections — it is a visual sketch that validates your understanding of scope before prose elaboration. Use `flowchart TD` if the primary structure is a task/component dependency graph; use `stateDiagram-v2` if the primary structure is a lifecycle or state machine. At this stage all nodes start as `:::backlog` — topology matters, not status.
+5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Use stable node IDs (`T001`, `T002`, etc.). Then preview and persist the diagram:
+   - **Draft to temp**: generate the `.mmd` content in memory or write to `/tmp/<plan-id>.diagram.mmd` for preview. Do NOT write to the DAG path yet.
+   - **Render via visual companion**: write an HTML fragment to the brainstorming server's project dir that wraps the Mermaid code with a Mermaid.js CDN `<script>` tag, then tell the user: "Review the plan diagram at [visual companion URL]"
+   - **Fallback** (visual companion not running): present the Mermaid block inline in chat
+   - **Persist to DAG**: the `.mmd` file is written to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` only after the user confirms the write-gate in step 6. The write-gate summary must include: diagram path, node count, ready/blocked node counts, and that this is a new diagram.
+
+<HARD-GATE>
+A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as an agent-readable execution map. It must be drafted in memory or `/tmp` first (never written to the DAG before the write-gate). It is persisted to the DAG `.mmd` path only after write-gate confirmation in step 6. Do not skip this step.
+</HARD-GATE>
+
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to spoc as a project plan (see Storage section below)
-8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
+8. **Spec review loop** — dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
-10. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase `.mmd` file. When transitioning to writing-plans, pass this file path forward as the artifact to extend. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
 
 ## Process Flow
 
@@ -54,9 +119,9 @@ digraph brainstorming {
     "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
     "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
     "Ask clarifying questions" -> "Propose 2-3 approaches";
-    "Generate architecture diagram" [shape=box];
-    "Propose 2-3 approaches" -> "Generate architecture diagram";
-    "Generate architecture diagram" -> "Present design sections";
+    "Generate plan diagram" [shape=box];
+    "Propose 2-3 approaches" -> "Generate plan diagram";
+    "Generate plan diagram" -> "Present design sections";
     "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
     "User approves design?" -> "Write design doc" [label="yes"];
@@ -130,7 +195,7 @@ digraph brainstorming {
 **Spec Review Loop:**
 After writing the spec document:
 
-1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+1. Dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template (see spec-document-reviewer-prompt.md)
 2. If Issues Found: fix, re-dispatch, repeat until Approved
 3. If loop exceeds 5 iterations, surface to human for guidance
 

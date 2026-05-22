@@ -56,7 +56,7 @@ refactor code without first loading the appropriate work-mode skill:
 | Design genuinely open, product direction unclear, multiple valid paths | \`brainstorming\` |
 
 **Support skills** layer on top: \`systematic-debugging\`, \`requesting-code-review\`,
-\`verification-before-completion\`, \`finishing-a-development-branch\`, \`using-git-worktrees\`.
+\`verification-before-completion\`, \`finishing-a-development-branch\`.
 If there is even a 1% chance a support skill applies, load it.
 
 ### Context-Preserving Delegation (Non-Negotiable)

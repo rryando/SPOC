@@ -8,6 +8,9 @@ import { registerAllPrompts } from "./prompts/index.js";
 import { registerProjectResources } from "./resources/projects.js";
 import { registerSkillResources } from "./resources/skills.js";
 import { registerAuditKnowledge } from "./tools/audit-knowledge.js";
+import { registerDeployOpencodeSuperpowers } from "./tools/deploy-opencode-superpowers.js";
+import { registerDiagramPreview } from "./tools/diagram-preview.js";
+import { registerLintBundle } from "./tools/lint-bundle.js";
 import { registerDeleteProject } from "./tools/delete-project.js";
 import { registerProjectDiff } from "./tools/project-diff.js";
 import { registerGetProject } from "./tools/get-project.js";
@@ -21,9 +24,12 @@ import { registerProjectTaskTools } from "./tools/project-tasks.js";
 import { registerResolveContext } from "./tools/resolve-context.js";
 import { registerSearchKnowledge } from "./tools/search-knowledge.js";
 import { registerSyncAgentsMd } from "./tools/sync-agents-md.js";
+import { registerTransitionProjectTask } from "./tools/transition-task.js";
 import { registerUpdateDoc } from "./tools/update-doc.js";
 import { registerUpdatePaths } from "./tools/update-paths.js";
 import { registerUpdateStatus } from "./tools/update-status.js";
+import { registerValidateProjectState } from "./tools/validate-project-state.js";
+import { registerWriteGateTools } from "./tools/write-gate.js";
 import { ensureDataDir, getDataDir, PACKAGE_ROOT } from "./utils/paths.js";
 import { readJsonSafeSync, validateJson } from "./utils/json.js";
 import { packageJsonSchema } from "./utils/json-schemas.js";
@@ -82,6 +88,12 @@ async function run(): Promise<void> {
   registerDeleteProject(server);
   registerProjectDiff(server);
   registerProjectLoopTools(server);
+  registerWriteGateTools(server);
+  registerValidateProjectState(server);
+  registerTransitionProjectTask(server);
+  registerLintBundle(server);
+  registerDeployOpencodeSuperpowers(server);
+  registerDiagramPreview(server);
 
   // Register resources
   registerProjectResources(server);

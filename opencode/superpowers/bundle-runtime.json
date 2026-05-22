@@ -5,6 +5,9 @@
       "SKILL.md",
       "CATALOG.md"
     ],
+    "architecture-review": [
+      "SKILL.md"
+    ],
     "auditing-a-feature": [
       "SKILL.md"
     ],
@@ -30,6 +33,12 @@
     "finishing-a-development-branch": [
       "SKILL.md"
     ],
+    "knowledge-curation": [
+      "SKILL.md"
+    ],
+    "performance-diagnosis": [
+      "SKILL.md"
+    ],
     "quick-dev": [
       "SKILL.md"
     ],
@@ -42,6 +51,7 @@
     ],
     "spoc-dashboard": [
       "SKILL.md",
+      "package.json",
       "server.js",
       "index.html",
       "start-server.sh",
@@ -63,15 +73,13 @@
       "root-cause-tracing.md"
     ],
     "to-diagram": [
-      "SKILL.md"
+      "SKILL.md",
+      "scripts/manage-diagram.mjs"
     ],
     "test-driven-development": [
       "SKILL.md",
       "tdd-rationalizations-and-examples.md",
       "testing-anti-patterns.md"
-    ],
-    "using-git-worktrees": [
-      "SKILL.md"
     ],
     "using-superpowers": [
       "SKILL.md"

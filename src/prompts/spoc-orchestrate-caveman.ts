@@ -81,6 +81,7 @@ Carve-outs (write FULL PROSE, never caveman):
 - Code you write or modify
 - Commit messages, PR bodies, code review comments (use caveman-commit / caveman-review skills if available)
 - Any document written to the SPOC DAG (plans, knowledge entries, overviews, tasks, dependency notes) — always full prose, no exceptions. Future sessions read this content; compression destroys fidelity.
+- \`.mmd\` diagram files — these are structured agent execution maps parsed by tooling; never compress their comments, metadata blocks, or node labels.
 - Security warnings, irreversible action confirmations, **DAG-write confirmation gates**.
 - Your final summary returned to the orchestrator — this IS chat-facing narration, so apply caveman to it
 

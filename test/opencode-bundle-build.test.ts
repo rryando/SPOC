@@ -498,6 +498,7 @@ describe("opencode bundle runtime manifest", () => {
       sourceRoot: "~/.config/opencode/skills/superpowers",
       skills: {
         aesthetic: ["SKILL.md", "CATALOG.md"],
+        "architecture-review": ["SKILL.md"],
         "auditing-a-feature": ["SKILL.md"],
         brainstorming: [
           "SKILL.md",
@@ -513,9 +514,19 @@ describe("opencode bundle runtime manifest", () => {
         "dispatching-parallel-agents": ["SKILL.md"],
         "executing-plans": ["SKILL.md"],
         "finishing-a-development-branch": ["SKILL.md"],
+        "knowledge-curation": ["SKILL.md"],
+        "performance-diagnosis": ["SKILL.md"],
         "quick-dev": ["SKILL.md"],
         "receiving-code-review": ["SKILL.md"],
         "requesting-code-review": ["SKILL.md", "code-reviewer.md"],
+        "spoc-dashboard": [
+          "SKILL.md",
+          "package.json",
+          "server.js",
+          "index.html",
+          "start-server.sh",
+          "stop-server.sh",
+        ],
         "subagent-driven-development": [
           "SKILL.md",
           "code-quality-reviewer-prompt.md",
@@ -536,7 +547,7 @@ describe("opencode bundle runtime manifest", () => {
           "tdd-rationalizations-and-examples.md",
           "testing-anti-patterns.md",
         ],
-        "using-git-worktrees": ["SKILL.md"],
+        "to-diagram": ["SKILL.md", "scripts/manage-diagram.mjs"],
         "using-superpowers": ["SKILL.md"],
         "verification-before-completion": ["SKILL.md"],
         "writing-plans": ["SKILL.md", "plan-document-reviewer-prompt.md"],
@@ -598,7 +609,7 @@ describe("opencode bundle runtime manifest", () => {
       expandHome(runtimeManifest.sourceRoot),
     );
 
-    expect(Object.keys(runtimeManifest.skills).sort()).toEqual(listSourceSkillNames(sourceRoot));
+    expect(Object.keys(runtimeManifest.skills).sort()).toEqual(listSourceSkillNames(skillsRoot));
     expect([...runtimeManifest.agents].sort()).toEqual(listTopLevelAgentPaths(sourceRoot));
   });
 

@@ -3,12 +3,14 @@ import { z } from "zod";
 import { readRootMeta, wouldCreateCycle, writeRootMeta } from "../utils/dag.js";
 import { DagError, cycleDetected, formatError, projectNotFound } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
-import { errorResult, jsonResult } from "../utils/tool-response.js";
+import { errorResult, jsonResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 export const ManageDependencySchema = {
   slug: z.string().describe("Project slug"),
   action: z.enum(["add", "remove"]).describe("Add or remove dependency"),
   targetSlug: z.string().describe("Target project slug to add/remove as dependency"),
+  confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
 };
 
 export function registerManageDependency(server: McpServer) {
@@ -18,6 +20,8 @@ export function registerManageDependency(server: McpServer) {
     ManageDependencySchema,
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:manage_dependency");
+
         const dataDir = getDataDir();
         const rootMeta = await readRootMeta(dataDir);
 
@@ -57,6 +61,7 @@ export function registerManageDependency(server: McpServer) {
         const verb = params.action === "add" ? "Added" : "Removed";
         return jsonResult({ message: `✅ ${verb} dependency: "${params.slug}" → "${params.targetSlug}"` });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }

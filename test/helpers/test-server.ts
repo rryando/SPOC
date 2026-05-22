@@ -7,6 +7,7 @@ import { registerDeleteProject } from "../../src/tools/delete-project.js";
 import { registerGetProject } from "../../src/tools/get-project.js";
 import { registerProjectDiff } from "../../src/tools/project-diff.js";
 import { registerInitProject } from "../../src/tools/init-project.js";
+import { registerManageDependency } from "../../src/tools/manage-dependency.js";
 import { registerProjectKnowledgeTools } from "../../src/tools/project-knowledge.js";
 import { registerProjectPlanTools } from "../../src/tools/project-plans.js";
 import { registerProjectTaskTools } from "../../src/tools/project-tasks.js";
@@ -15,6 +16,10 @@ import { registerSearchKnowledge } from "../../src/tools/search-knowledge.js";
 import { registerSyncAgentsMd } from "../../src/tools/sync-agents-md.js";
 import { registerUpdateDoc } from "../../src/tools/update-doc.js";
 import { registerUpdatePaths } from "../../src/tools/update-paths.js";
+import { registerUpdateStatus } from "../../src/tools/update-status.js";
+import { registerTransitionProjectTask } from "../../src/tools/transition-task.js";
+import { registerValidateProjectState } from "../../src/tools/validate-project-state.js";
+import { registerWriteGateTools } from "../../src/tools/write-gate.js";
 
 type ToolRegistration = (server: McpServer) => void;
 
@@ -32,6 +37,11 @@ const defaultRegistrations: ToolRegistration[] = [
   registerSyncAgentsMd,
   registerDeleteProject,
   registerProjectDiff,
+  registerWriteGateTools,
+  registerUpdateStatus,
+  registerManageDependency,
+  registerValidateProjectState,
+  registerTransitionProjectTask,
 ];
 
 async function withConnectedClient<T>(

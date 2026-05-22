@@ -15,7 +15,8 @@ import {
 } from "../utils/project-memory.js";
 import { fileRefSchema } from "../utils/schemas.js";
 import { normalizeIdentifier } from "../utils/slug.js";
-import { errorResult, jsonResult } from "../utils/tool-response.js";
+import { errorResult, jsonResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 export function registerProjectTaskTools(server: McpServer) {
   // ---- create_project_task ----
@@ -40,9 +41,12 @@ export function registerProjectTaskTools(server: McpServer) {
         .optional()
         .describe("Source file references (path + optional anchor)"),
       planId: z.string().min(1).refine((s) => s.trim().length > 0, { message: "planId must not be blank" }).optional().describe("Link task to a governing plan by plan ID"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:create_project_task");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -67,6 +71,7 @@ export function registerProjectTaskTools(server: McpServer) {
 
         return jsonResult({ meta });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
@@ -142,9 +147,12 @@ export function registerProjectTaskTools(server: McpServer) {
         .optional()
         .describe("New source file references (replaces existing; empty array clears)"),
       planId: z.union([z.string().min(1).refine((s) => s.trim().length > 0, { message: "planId must not be blank" }), z.null()]).optional().describe("Link task to a governing plan by plan ID (null to unset)"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:update_project_task");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -170,6 +178,7 @@ export function registerProjectTaskTools(server: McpServer) {
 
         return jsonResult({ meta });
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }
@@ -183,9 +192,12 @@ export function registerProjectTaskTools(server: McpServer) {
     {
       slug: z.string().describe("Project slug"),
       taskId: z.string().describe("Task identifier"),
+      confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
     },
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:delete_project_task");
+
         const projectDir = getProjectDir(params.slug);
         if (!existsSync(projectDir)) {
           return formatError(projectNotFound(params.slug));
@@ -200,6 +212,7 @@ export function registerProjectTaskTools(server: McpServer) {
           ],
         };
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         if (err instanceof DagError) return formatError(err);
         return errorResult(err);
       }

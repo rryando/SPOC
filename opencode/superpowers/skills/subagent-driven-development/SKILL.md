@@ -11,6 +11,28 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
 
+## SPOC CLI — Preferred for DAG Reads
+
+For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+
+**Usage:** `spoc <command> [args]`
+
+**Available commands:**
+- `context [<path>]` — resolve project context from workspace path
+- `task <slug> [--status <s>]` — list tasks, optionally filtered
+- `search <slug> <query> [--limit N]` — BM25 knowledge search
+- `plan <slug> [--status <s>]` — list plans
+- `knowledge <slug> [--kind <k>]` — list knowledge entries
+- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
+- `batch <json>` — batch operations in one call
+- `validate <slug>` — validate project state
+
+**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+
+**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+
+**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+
 ## When to Use
 
 ```dot
@@ -265,7 +287,6 @@ Done!
 ## Integration
 
 **Required workflow skills:**
-- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
 - **superpowers:writing-plans** - Creates the plan this skill executes
 - **superpowers:requesting-code-review** - Code review template for reviewer subagents
 - **superpowers:finishing-a-development-branch** - Complete development after all tasks

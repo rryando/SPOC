@@ -46,6 +46,12 @@ delegate to explore sub-agents only when the DAG lacks the answer.
 Escalate tiers on-demand. Never jump to codebase exploration before exhausting
 DAG tiers T0–T3.
 
+**CLI preference for T1–T2:** When the agent has bash access, prefer the SPOC CLI
+for all read operations (T0–T3). It's faster and supports batch queries:
+`spoc <command> [args]` — commands: `context`, `task`,
+`search`, `plan`, `knowledge`, `diagram`, `batch`, `validate`. Fall back to
+MCP tools when CLI is unavailable.
+
 ### 3) Information resolution order (Non-Negotiable)
 
 Before any codebase exploration, follow this strict resolution order:

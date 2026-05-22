@@ -3,13 +3,15 @@ import { z } from "zod";
 import { readRootMeta, writeRootMeta } from "../utils/dag.js";
 import { formatError, projectNotFound } from "../utils/errors.js";
 import { getDataDir } from "../utils/paths.js";
-import { errorResult } from "../utils/tool-response.js";
+import { errorResult, toolError } from "../utils/tool-response.js";
+import { requireWriteGate, WriteGateError } from "../utils/write-gate.js";
 
 const VALID_STATUSES = ["draft", "active", "completed", "archived"] as const;
 
 export const UpdateStatusSchema = {
   slug: z.string().describe("Project slug"),
   status: z.enum(VALID_STATUSES).describe("New project status"),
+  confirmationToken: z.string().optional().describe("Write-gate confirmation token"),
 };
 
 export function registerUpdateStatus(server: McpServer) {
@@ -19,6 +21,8 @@ export function registerUpdateStatus(server: McpServer) {
     UpdateStatusSchema,
     async (params) => {
       try {
+        requireWriteGate(params.confirmationToken, params.slug, "tool:update_project_status");
+
         const dataDir = getDataDir();
         const rootMeta = await readRootMeta(dataDir);
 
@@ -40,6 +44,7 @@ export function registerUpdateStatus(server: McpServer) {
           ],
         };
       } catch (err) {
+        if (err instanceof WriteGateError) return toolError("WRITE_GATE", err.message);
         return errorResult(err);
       }
     },

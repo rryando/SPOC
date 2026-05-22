@@ -1,3 +1,5 @@
+import { handleDagCommand } from "./dag-commands.js";
+import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
 
 // ---------------------------------------------------------------------------
@@ -5,7 +7,7 @@ import { runSetup } from "./setup.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Entry point for `npx spoc init` and `npx spoc config`.
+ * Entry point for `npx spoc init`, `npx spoc config`, `npx spoc preview`.
  * Returns true if a CLI subcommand was handled, false if the caller
  * should proceed with MCP server startup.
  */
@@ -20,6 +22,19 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "config":
       await runSetup("config");
       return true;
+
+    case "preview":
+      return handlePreviewCli(args.slice(1));
+
+    case "context":
+    case "task":
+    case "plan":
+    case "knowledge":
+    case "search":
+    case "diagram":
+    case "batch":
+    case "validate":
+      return handleDagCommand(command, args.slice(1));
 
     default:
       return false;

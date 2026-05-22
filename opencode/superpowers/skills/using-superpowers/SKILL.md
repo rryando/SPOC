@@ -110,7 +110,7 @@ Once you've confirmed a task needs handling, pick the work mode from this table 
 - "New feature, 60% clear, decisions resolvable from repo" → `code-agent`, not `brainstorming`
 - `brainstorming` only when the product direction itself is unclear, not just when the task touches new code
 
-**Support skills** (`aesthetic`, `systematic-debugging`, `requesting-code-review`, `finishing-a-development-branch`, `using-git-worktrees`, etc.) layer on top of the work mode — the 1% rule applies normally to these. The `aesthetic` skill auto-loads for any frontend/UI work (components, pages, styles, layouts, animations) — always layer it when building visual interfaces.
+**Support skills** (`aesthetic`, `systematic-debugging`, `requesting-code-review`, `finishing-a-development-branch`, etc.) layer on top of the work mode — the 1% rule applies normally to these. The `aesthetic` skill auto-loads for any frontend/UI work (components, pages, styles, layouts, animations) — always layer it when building visual interfaces.
 
 ## Skill Types
 
