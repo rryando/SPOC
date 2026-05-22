@@ -19,6 +19,51 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 - The plan is stored via `create_project_plan` with status `planned` and keywords `["implementation-plan"]`
 - No files are written to the project repo
 
+## Execution Modes
+
+### Agent-Direct Mode
+
+Agent has SPOC MCP tools available — writes plans directly to the DAG:
+
+- Uses `spoc_create_project_plan` with status `planned`, keywords `["implementation-plan"]`
+- Creates associated `.diagram.mmd` file via diagram persistence rules (see Diagram Section)
+- Creates structured tasks via `spoc_create_project_task` linked to plan via `planId`
+- Uses write-gate pattern for all DAG writes (propose → confirm → apply)
+- For user confirmation: returns summary to orchestrator, waits for relay before persisting
+
+### Orchestrator Mode (artifact return)
+
+Agent lacks SPOC MCP tools — returns structured plan as text in final message for orchestrator to persist:
+
+```
+---plan-artifact---
+title: <plan title>
+summary: <one-line summary>
+keywords: ["implementation-plan", ...]
+sourceFiles: [{path: "...", anchor: "..."}]
+---body---
+<full plan markdown body>
+---diagram---
+<full .mmd file content>
+---tasks---
+- title: <task 1>
+  priority: high|medium|low
+  sourceFiles: [{path: "..."}]
+- title: <task 2>
+  priority: medium
+  sourceFiles: [{path: "..."}]
+---end---
+```
+
+Orchestrator parses this artifact and persists via SPOC tools (`create_project_plan`, `create_project_task`, diagram file write).
+
+## Mode Detection
+
+- If `spoc_create_project_plan` tool is available in the current session → **agent-direct mode**
+- If not available → **orchestrator mode** (return artifact in structured format above)
+
+Detect once at skill start. Announce which mode is active in the opening message.
+
 ## Scope Check
 
 If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.

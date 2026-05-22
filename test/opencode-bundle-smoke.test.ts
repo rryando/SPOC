@@ -168,8 +168,10 @@ describe("opencode superpowers bundle", () => {
     // declared in bundle-runtime.json — they are preserved output files.
     const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review"];
     const expectedSkillNames = [
-      ...Object.keys(runtimeManifest.skills),
-      ...spocNativeSkillNames,
+      ...new Set([
+        ...Object.keys(runtimeManifest.skills),
+        ...spocNativeSkillNames,
+      ]),
     ].sort();
     expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 

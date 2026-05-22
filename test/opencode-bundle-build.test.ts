@@ -498,6 +498,7 @@ describe("opencode bundle runtime manifest", () => {
       sourceRoot: "~/.config/opencode/skills/superpowers",
       skills: {
         aesthetic: ["SKILL.md", "CATALOG.md"],
+        "architecture-review": ["SKILL.md"],
         "auditing-a-feature": ["SKILL.md"],
         brainstorming: [
           "SKILL.md",
@@ -513,6 +514,8 @@ describe("opencode bundle runtime manifest", () => {
         "dispatching-parallel-agents": ["SKILL.md"],
         "executing-plans": ["SKILL.md"],
         "finishing-a-development-branch": ["SKILL.md"],
+        "knowledge-curation": ["SKILL.md"],
+        "performance-diagnosis": ["SKILL.md"],
         "quick-dev": ["SKILL.md"],
         "receiving-code-review": ["SKILL.md"],
         "requesting-code-review": ["SKILL.md", "code-reviewer.md"],

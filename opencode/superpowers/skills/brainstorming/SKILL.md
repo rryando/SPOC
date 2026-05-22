@@ -13,6 +13,40 @@ Start by understanding the current project context, then ask questions one at a 
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
 
+## Execution Modes
+
+This skill operates in two contexts depending on who loads it.
+
+### Mode Detection
+
+- If the agent has `spoc_resolve_project_context` tool available → **Agent-Direct Mode**
+- If not → **Orchestrator Mode** (return artifact for orchestrator to persist)
+
+### Agent-Direct Mode
+
+The agent (e.g., system-architect sub-agent) has SPOC MCP tools and writes to the DAG itself.
+
+- Resolve project context via `spoc_resolve_project_context`
+- Still uses write-gate pattern: `spoc_propose_dag_write` → `spoc_apply_dag_write` → pass `confirmationToken` to mutating tools
+- Creates plans directly via `spoc_create_project_plan` / `spoc_update_project_plan_body`
+- Generates diagrams and writes `.mmd` files via tools
+- Creates knowledge entries via `spoc_create_project_knowledge_entry` when discoveries warrant persistence
+- When user confirmation is needed (design approval, scope decisions): return to orchestrator with a structured summary and wait for confirmation relay before proceeding
+
+### Orchestrator Mode
+
+The orchestrator owns all write-gates. The agent returns design artifacts as structured text.
+
+Agent's final message contains:
+- Proposed plan `title`, `summary`, `status`, `keywords`, `sourceFiles`
+- Plan `body` (full markdown)
+- Diagram `.mmd` content (Mermaid source)
+- Any knowledge entries to create
+
+The orchestrator persists these via SPOC tools after user confirms.
+
+---
+
 ## Anti-Pattern: "This Is Too Simple To Need A Design"
 
 Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.

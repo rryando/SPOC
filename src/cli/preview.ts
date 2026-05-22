@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPreviewServer, type PreviewServer } from "../preview/server.js";
-import { readJsonSafeSync } from "../utils/json.js";
 import { getProjectDir } from "../utils/paths.js";
 
 export interface PreviewCliOptions {
@@ -29,19 +28,9 @@ function resolveProjectPlansDir(slug: string): string | null {
   const metaPath = resolve(projectDir, "meta.json");
   if (!existsSync(metaPath)) return null;
 
-  const meta = readJsonSafeSync<{ workspacePaths?: string[] }>(metaPath);
-  if (!meta || !meta.workspacePaths || meta.workspacePaths.length === 0) {
-    // Fallback: check for plans/ in projectDir itself
-    const plansDir = resolve(projectDir, "plans");
-    return existsSync(plansDir) ? plansDir : null;
-  }
-
-  // Look for plans/ in first workspace path
-  for (const ws of meta.workspacePaths) {
-    const plansDir = resolve(ws, "plans");
-    if (existsSync(plansDir)) return plansDir;
-  }
-  return null;
+  // Plans always live in the DAG project directory
+  const plansDir = resolve(projectDir, "plans");
+  return existsSync(plansDir) ? plansDir : null;
 }
 
 async function openBrowser(url: string): Promise<void> {

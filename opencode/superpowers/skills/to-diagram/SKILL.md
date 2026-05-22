@@ -32,6 +32,42 @@ When drift is detected, metadata always wins. The `.mmd` file is regenerated fro
 - Auditing diagram vs metadata drift during SYNC workflow
 - Agent entering a session needs quick orientation on plan state
 
+## Execution Modes
+
+### Mode Detection
+
+- Agent can run `bash` commands and has file write access → **Agent-Direct Mode**
+- Agent cannot → **Orchestrator Mode** (return artifact for orchestrator to write)
+
+### Agent-Direct Mode
+
+Agent has filesystem access + SPOC MCP tools. Workflow:
+
+1. Draft diagram in `/tmp/<plan-id>.diagram.mmd` during composition
+2. Validate with `manage-diagram.mjs validate /tmp/<plan-id>.diagram.mmd`
+3. After write-gate confirmation, write final `.mmd` to DAG path directly
+4. Use `manage-diagram.mjs` commands (`inspect`, `ready`, `status`) via bash tool
+5. Update diagram status classes directly when transitioning tasks (via `manage-diagram.mjs status`)
+
+### Orchestrator Mode (Artifact Return)
+
+Agent generates `.mmd` content in memory. Returns diagram as a tagged text block in the final message:
+
+```
+---diagram-artifact---
+planId: <plan-id>
+nodeCount: N
+readyNodes: [T001, T003]
+blockedNodes: [T002]
+---mmd---
+<full .mmd file content>
+---end---
+```
+
+Orchestrator receives the artifact and writes to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` after its own write-gate flow.
+
+---
+
 ## Agent Consumption
 
 Agents read `.mmd` files as structured plan summaries. The diagram is the **first artifact** an agent should read when entering a plan execution session. The goal is diagram-first execution: read `.mmd`, choose a ready node, use its rich metadata to dispatch a sub-agent without loading the full plan prose unless the node metadata is insufficient.

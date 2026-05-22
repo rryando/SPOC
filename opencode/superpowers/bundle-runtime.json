@@ -5,6 +5,9 @@
       "SKILL.md",
       "CATALOG.md"
     ],
+    "architecture-review": [
+      "SKILL.md"
+    ],
     "auditing-a-feature": [
       "SKILL.md"
     ],
@@ -28,6 +31,12 @@
       "SKILL.md"
     ],
     "finishing-a-development-branch": [
+      "SKILL.md"
+    ],
+    "knowledge-curation": [
+      "SKILL.md"
+    ],
+    "performance-diagnosis": [
       "SKILL.md"
     ],
     "quick-dev": [

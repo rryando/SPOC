@@ -207,6 +207,9 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "writing-skills",    // meta-skill for skill authoring
     "using-superpowers", // meta-skill for skill discovery
     "spoc-dashboard",    // optional UI tool
+    "architecture-review",   // agent-loaded skill for system-architect
+    "knowledge-curation",    // agent-loaded skill for spoc-docs
+    "performance-diagnosis", // agent-loaded skill for code-doctor
   ];
 
   it("every skill on disk is either routed or listed as non-routed exception", () => {
