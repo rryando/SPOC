@@ -9,13 +9,27 @@ import { handleCli } from "../dist/cli/index.js";
 
 const args = process.argv.slice(2);
 
-if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
+if (args.length === 0) {
+  if (process.stdin.isTTY) {
+    // Human at terminal: show status dashboard
+    const { showStatusDashboard } = await import("../dist/cli/status-dashboard.js");
+    await showStatusDashboard();
+    process.exit(0);
+  }
   process.stderr.write(
     "Usage: spoc <command> [args]\n" +
       "Commands: context, task, plan, knowledge, search, diagram, batch, validate\n" +
       "Run `npm run build` before first use.\n"
   );
   process.exit(1);
+}
+
+if (args[0] === "--help" || args[0] === "-h") {
+  process.stderr.write(
+    "Usage: spoc <command> [args]\n" +
+      "Commands: context, task, plan, knowledge, search, diagram, batch, validate\n"
+  );
+  process.exit(0);
 }
 
 try {

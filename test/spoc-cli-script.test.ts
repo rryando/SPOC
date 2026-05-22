@@ -30,8 +30,7 @@ describe("scripts/spoc-cli.mjs", () => {
   });
 
   it("shows usage with --help", async () => {
-    const result = await runExpectFail(["--help"]);
-    expect(result.code).toBe(1);
+    const result = await run(["--help"]);
     expect(result.stderr).toContain("Usage:");
   });
 
