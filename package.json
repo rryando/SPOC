@@ -5,7 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "spoc": "dist/index.js"
+    "spoc": "dist/index.js",
+    "spoc-cli": "scripts/spoc-cli.mjs"
   },
   "files": [
     "dist/",

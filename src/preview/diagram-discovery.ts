@@ -57,6 +57,8 @@ export async function listDiagramFiles(plansDir: string): Promise<DiagramListRes
     });
   }
 
+  diagrams.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+
   return { diagrams };
 }
 

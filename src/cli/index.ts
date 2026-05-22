@@ -1,3 +1,4 @@
+import { handleDagCommand } from "./dag-commands.js";
 import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
 
@@ -24,6 +25,16 @@ export async function handleCli(args: string[]): Promise<boolean> {
 
     case "preview":
       return handlePreviewCli(args.slice(1));
+
+    case "context":
+    case "task":
+    case "plan":
+    case "knowledge":
+    case "search":
+    case "diagram":
+    case "batch":
+    case "validate":
+      return handleDagCommand(command, args.slice(1));
 
     default:
       return false;

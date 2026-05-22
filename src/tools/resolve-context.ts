@@ -19,7 +19,8 @@ import { readJsonSafe, validateJson } from "../utils/json.js";
 import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import type { FileRef } from "../utils/project-memory.js";
-import { listTasks, readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
+import { getTask, listTasks, readKnowledgeIndex, readPlanIndex } from "../utils/project-memory.js";
+import { retrieveForTask, type TaskContext } from "../retrieval/task-scoped.js";
 import { errorResult } from "../utils/tool-response.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import { findBestMatch, type WorkspaceProject } from "../utils/workspace-match.js";
@@ -46,6 +47,7 @@ export function registerResolveContext(server: McpServer) {
     "Resolve project context from a workspace directory path. Matches the path against registered workspace paths and returns assembled project context (overview, active tasks, knowledge, plans).",
     {
       workspacePath: z.string().describe("Absolute path to the workspace directory"),
+      taskId: z.string().optional().describe("Optional task ID to scope knowledge retrieval"),
     },
     async (params) => {
       try {
@@ -121,14 +123,53 @@ export function registerResolveContext(server: McpServer) {
         const tasksPath = resolve(projectDir, "tasks.md");
         const tasksRaw = existsSync(tasksPath) ? await readFile(tasksPath, "utf-8") : "";
 
-        // Key Knowledge (last 10 entries by updatedAt)
+        // Read plan index early — needed for task-scoped knowledge and active plans section
+        const planIndex = await readPlanIndex(projectDir);
+
+        // Key Knowledge (last 10 entries by updatedAt, optionally scoped by task)
         const knowledgeIndex = await readKnowledgeIndex(projectDir);
         if (knowledgeIndex.entries.length > 0) {
+          const MAX_KNOWLEDGE = 10;
+          let topEntries: typeof knowledgeIndex.entries = [];
+
+          // Task-scoped retrieval: get relevant entries first
+          if (params.taskId) {
+            try {
+              const task = await getTask(projectDir, params.taskId);
+              const linkedPlan = task.planId
+                ? planIndex.plans.find((p) => p.normalizedId === task.planId)
+                : undefined;
+              const taskContext: TaskContext = {
+                title: task.title,
+                planKeywords: linkedPlan?.keywords,
+                sourceFiles: task.sourceFiles,
+              };
+              const scored = await retrieveForTask(slug, taskContext, 5);
+              // Map scored entries back to knowledge index entries by entryId
+              const scoredIds = new Set(scored.map((s) => s.id));
+              const taskRelevant = knowledgeIndex.entries.filter((e) =>
+                scoredIds.has(e.normalizedId),
+              );
+              topEntries.push(...taskRelevant);
+            } catch {
+              // Task not found — silently fall back to default behavior
+            }
+          }
+
+          // Fill remaining slots with recency-sorted entries not already included
+          const includedIds = new Set(topEntries.map((e) => e.normalizedId));
           const sorted = [...knowledgeIndex.entries].sort(
             (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
           );
-          const top = sorted.slice(0, 10); // Intentionally hardcoded limit for v1
-          const bullets = top
+          for (const entry of sorted) {
+            if (topEntries.length >= MAX_KNOWLEDGE) break;
+            if (!includedIds.has(entry.normalizedId)) {
+              topEntries.push(entry);
+              includedIds.add(entry.normalizedId);
+            }
+          }
+
+          const bullets = topEntries
             .map((e) => {
               const summary = e.summary ? `: ${e.summary}` : "";
               return `- **${e.title}**${summary}${formatFileRefs(e.sourceFiles)}`;
@@ -138,7 +179,6 @@ export function registerResolveContext(server: McpServer) {
         }
 
         // Active Plans (in_progress or planned)
-        const planIndex = await readPlanIndex(projectDir);
         const activePlans = planIndex.plans.filter(
           (p) => p.status === "in_progress" || p.status === "planned",
         );

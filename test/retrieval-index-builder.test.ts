@@ -1,0 +1,207 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { KnowledgeMeta, PlanMeta } from "../src/utils/project-memory.js";
+
+vi.mock("../src/utils/paths.js", () => ({
+  getProjectDir: (slug: string) => `/fake/${slug}`,
+}));
+
+vi.mock("../src/utils/project-memory.js", () => ({
+  readKnowledgeIndex: vi.fn(),
+  readPlanIndex: vi.fn(),
+}));
+
+import { readKnowledgeIndex, readPlanIndex } from "../src/utils/project-memory.js";
+import { buildProjectRetrievalIndex } from "../src/retrieval/index-builder.js";
+import type { RetrievalIndex, ScoredEntry } from "../src/retrieval/index-builder.js";
+
+const mockReadKnowledge = vi.mocked(readKnowledgeIndex);
+const mockReadPlans = vi.mocked(readPlanIndex);
+
+function makeKnowledge(overrides: Partial<KnowledgeMeta> & { id: string; title: string }): KnowledgeMeta {
+  return {
+    normalizedId: overrides.id,
+    kind: "reference",
+    keywords: [],
+    summary: "",
+    file: `knowledge/${overrides.id}.md`,
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: "2025-01-01T00:00:00.000Z",
+    ...overrides,
+  } as KnowledgeMeta;
+}
+
+function makePlan(overrides: Partial<PlanMeta> & { id: string; title: string }): PlanMeta {
+  return {
+    normalizedId: overrides.id,
+    status: "planned",
+    keywords: [],
+    summary: "",
+    file: `plans/${overrides.id}.md`,
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: "2025-01-01T00:00:00.000Z",
+    ...overrides,
+  } as PlanMeta;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("buildProjectRetrievalIndex", () => {
+  it("returns a RetrievalIndex with search methods", async () => {
+    mockReadKnowledge.mockResolvedValue({ entries: [] });
+    mockReadPlans.mockResolvedValue({ plans: [] });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+
+    expect(index.searchKnowledge).toBeTypeOf("function");
+    expect(index.searchPlans).toBeTypeOf("function");
+    expect(index.searchAll).toBeTypeOf("function");
+  });
+
+  it("searchKnowledge returns scored entries matching query", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [
+        makeKnowledge({ id: "k1", title: "BM25 search algorithm", keywords: ["search", "bm25"], summary: "Full text search" }),
+        makeKnowledge({ id: "k2", title: "Project setup", keywords: ["setup"], summary: "How to set up" }),
+      ],
+    });
+    mockReadPlans.mockResolvedValue({ plans: [] });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchKnowledge("search algorithm");
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe("k1");
+    expect(results[0].type).toBe("knowledge");
+    expect(results[0].title).toBe("BM25 search algorithm");
+    expect(results[0].score).toBeGreaterThan(0);
+  });
+
+  it("searchPlans returns scored entries matching query", async () => {
+    mockReadKnowledge.mockResolvedValue({ entries: [] });
+    mockReadPlans.mockResolvedValue({
+      plans: [
+        makePlan({ id: "p1", title: "Implement retrieval", keywords: ["retrieval", "search"], summary: "Add search feature" }),
+        makePlan({ id: "p2", title: "Database migration", keywords: ["database"], summary: "Migrate to postgres" }),
+      ],
+    });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchPlans("retrieval search");
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].id).toBe("p1");
+    expect(results[0].type).toBe("plan");
+    expect(results[0].title).toBe("Implement retrieval");
+    expect(results[0].score).toBeGreaterThan(0);
+  });
+
+  it("searchAll merges knowledge and plan results sorted by score", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [
+        makeKnowledge({ id: "k1", title: "Search patterns", keywords: ["search"], summary: "Search patterns reference" }),
+      ],
+    });
+    mockReadPlans.mockResolvedValue({
+      plans: [
+        makePlan({ id: "p1", title: "Search implementation plan", keywords: ["search"], summary: "Build search" }),
+      ],
+    });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchAll("search");
+
+    expect(results.length).toBe(2);
+    // Sorted by score desc
+    expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
+    // Both types present
+    const types = results.map((r) => r.type);
+    expect(types).toContain("knowledge");
+    expect(types).toContain("plan");
+  });
+
+  it("searchAll respects limit parameter", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [
+        makeKnowledge({ id: "k1", title: "Search one", keywords: ["search"] }),
+        makeKnowledge({ id: "k2", title: "Search two", keywords: ["search"] }),
+      ],
+    });
+    mockReadPlans.mockResolvedValue({
+      plans: [
+        makePlan({ id: "p1", title: "Search plan", keywords: ["search"] }),
+      ],
+    });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchAll("search", 2);
+
+    expect(results.length).toBe(2);
+  });
+
+  it("handles empty knowledge gracefully", async () => {
+    mockReadKnowledge.mockResolvedValue({ entries: [] });
+    mockReadPlans.mockResolvedValue({
+      plans: [makePlan({ id: "p1", title: "Some plan", keywords: ["test"] })],
+    });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchKnowledge("anything");
+
+    expect(results).toEqual([]);
+  });
+
+  it("handles empty plans gracefully", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [makeKnowledge({ id: "k1", title: "Entry", keywords: ["test"] })],
+    });
+    mockReadPlans.mockResolvedValue({ plans: [] });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchPlans("anything");
+
+    expect(results).toEqual([]);
+  });
+
+  it("handles non-existent project gracefully (read throws)", async () => {
+    mockReadKnowledge.mockRejectedValue(new Error("ENOENT"));
+    mockReadPlans.mockRejectedValue(new Error("ENOENT"));
+
+    const index = await buildProjectRetrievalIndex("nonexistent");
+
+    expect(index.searchAll("query")).toEqual([]);
+    expect(index.searchKnowledge("query")).toEqual([]);
+    expect(index.searchPlans("query")).toEqual([]);
+  });
+
+  it("title field has higher weight than summary", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [
+        makeKnowledge({ id: "k1", title: "Unrelated title", summary: "search term here" }),
+        makeKnowledge({ id: "k2", title: "search term here", summary: "Unrelated summary" }),
+      ],
+    });
+    mockReadPlans.mockResolvedValue({ plans: [] });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchKnowledge("search term");
+
+    // k2 should rank higher because "search term" is in title (weight 3) vs summary (weight 1)
+    expect(results[0].id).toBe("k2");
+  });
+
+  it("ScoredEntry includes summary from the entry", async () => {
+    mockReadKnowledge.mockResolvedValue({
+      entries: [
+        makeKnowledge({ id: "k1", title: "Test entry", keywords: ["test"], summary: "My summary" }),
+      ],
+    });
+    mockReadPlans.mockResolvedValue({ plans: [] });
+
+    const index = await buildProjectRetrievalIndex("test-project");
+    const results = index.searchKnowledge("test");
+
+    expect(results[0].summary).toBe("My summary");
+  });
+});

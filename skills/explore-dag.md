@@ -8,6 +8,28 @@ description: Navigate and understand the project DAG
 > `src/prompts/spoc-orchestrate.ts`. This skill file is a condensed
 > summary. When they disagree, the TS prompt wins.
 
+## SPOC CLI — Preferred for DAG Reads
+
+For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call. **Every MCP read listed below has a CLI equivalent.**
+
+**Usage:** `node scripts/spoc-cli.mjs <command> [args]`
+
+**Available commands:**
+- `context [--path <dir>]` — resolve project context from workspace path (≈ `resolve_project_context`)
+- `task <slug> [--status <s>]` — list tasks, optionally filtered (≈ `list_project_tasks`)
+- `search <slug> <query> [--limit N]` — BM25 knowledge search (≈ `search_project_knowledge`)
+- `plan <slug> [--status <s>]` — list plans (≈ `list_project_plans`)
+- `knowledge <slug> [--kind <k>]` — list knowledge entries (≈ `list_project_knowledge_entries`)
+- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
+- `batch <json>` — batch operations in one call
+- `validate <slug>` — validate project state (≈ `validate_project_state`)
+
+**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+
+**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates). Prefer CLI; fall back to MCP tool if CLI unavailable (no bash access).
+
+**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+
 ## When to Use
 
 Use this skill when:

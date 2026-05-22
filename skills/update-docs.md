@@ -15,6 +15,28 @@ Use this skill when:
 - Task statuses change and need to be reflected in the DAG
 - Dependency relationships change
 
+## SPOC CLI — Preferred for DAG Reads
+
+For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+
+**Usage:** `node scripts/spoc-cli.mjs <command> [args]`
+
+**Available commands:**
+- `context [--path <dir>]` — resolve project context from workspace path
+- `task <slug> [--status <s>]` — list tasks, optionally filtered
+- `search <slug> <query> [--limit N]` — BM25 knowledge search
+- `plan <slug> [--status <s>]` — list plans
+- `knowledge <slug> [--kind <k>]` — list knowledge entries
+- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
+- `batch <json>` — batch operations in one call
+- `validate <slug>` — validate project state
+
+**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+
+**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+
+**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+
 ## Steps
 
 1. **Read the current doc** by calling `get_project` with the project `slug` and `doc` type to understand existing content.
