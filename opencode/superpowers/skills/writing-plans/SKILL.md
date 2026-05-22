@@ -23,10 +23,10 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
 
-**Usage:** `node scripts/spoc-cli.mjs <command> [args]`
+**Usage:** `spoc <command> [args]`
 
 **Available commands:**
-- `context [--path <dir>]` — resolve project context from workspace path
+- `context [<path>]` — resolve project context from workspace path
 - `task <slug> [--status <s>]` — list tasks, optionally filtered
 - `search <slug> <query> [--limit N]` — BM25 knowledge search
 - `plan <slug> [--status <s>]` — list plans

@@ -11,7 +11,7 @@ const args = process.argv.slice(2);
 
 if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
   process.stderr.write(
-    "Usage: spoc-cli <command> [args]\n" +
+    "Usage: spoc <command> [args]\n" +
       "Commands: context, task, plan, knowledge, search, diagram, batch, validate\n" +
       "Run `npm run build` before first use.\n"
   );

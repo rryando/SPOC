@@ -48,7 +48,7 @@ DAG tiers T0–T3.
 
 **CLI preference for T1–T2:** When the agent has bash access, prefer the SPOC CLI
 for all read operations (T0–T3). It's faster and supports batch queries:
-`node scripts/spoc-cli.mjs <command> [args]` — commands: `context`, `task`,
+`spoc <command> [args]` — commands: `context`, `task`,
 `search`, `plan`, `knowledge`, `diagram`, `batch`, `validate`. Fall back to
 MCP tools when CLI is unavailable.
 

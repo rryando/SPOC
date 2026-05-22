@@ -5,8 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "spoc": "dist/index.js",
-    "spoc-cli": "scripts/spoc-cli.mjs"
+    "spoc": "scripts/spoc-cli.mjs"
   },
   "files": [
     "dist/",
@@ -24,6 +23,7 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",
+    "postinstall": "npm run build && node scripts/spoc-init.mjs",
     "init": "npm run build && node dist/index.js init",
     "lint": "biome check src/ test/",
     "lint:fix": "biome check --fix src/ test/",

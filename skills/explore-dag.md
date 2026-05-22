@@ -12,10 +12,10 @@ description: Navigate and understand the project DAG
 
 For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call. **Every MCP read listed below has a CLI equivalent.**
 
-**Usage:** `node scripts/spoc-cli.mjs <command> [args]`
+**Usage:** `spoc <command> [args]`
 
 **Available commands:**
-- `context [--path <dir>]` — resolve project context from workspace path (≈ `resolve_project_context`)
+- `context [<path>]` — resolve project context from workspace path (≈ `resolve_project_context`)
 - `task <slug> [--status <s>]` — list tasks, optionally filtered (≈ `list_project_tasks`)
 - `search <slug> <query> [--limit N]` — BM25 knowledge search (≈ `search_project_knowledge`)
 - `plan <slug> [--status <s>]` — list plans (≈ `list_project_plans`)
