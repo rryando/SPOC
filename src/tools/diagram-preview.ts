@@ -38,7 +38,7 @@ export function registerDiagramPreview(server: McpServer) {
     {
       action: z.enum(["start", "stop", "status"]).describe("Action to perform"),
       slug: z.string().optional().describe("Project slug (required for start)"),
-      port: z.number().optional().describe("Port to bind (default 3000)"),
+      port: z.number().optional().describe("Port to bind (default 4077)"),
       open: z.boolean().optional().describe("Open browser after start"),
     },
     async (params) => {
@@ -112,7 +112,7 @@ export function registerDiagramPreview(server: McpServer) {
         activeServer = await createPreviewServer({
           plansDir,
           host: "127.0.0.1",
-          port: params.port ?? 3000,
+          port: params.port ?? 4077,
         });
         activeSlug = params.slug;
 

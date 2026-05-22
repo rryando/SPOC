@@ -41,14 +41,14 @@ This skill operates in two contexts depending on who loads it.
 
 ### Mode Detection
 
-- If the agent has `spoc_resolve_project_context` tool available → **Agent-Direct Mode**
+- If the agent has `spoc context --json` CLI or `spoc_resolve_project_context` MCP tool available → **Agent-Direct Mode**
 - If not → **Orchestrator Mode** (return artifact for orchestrator to persist)
 
 ### Agent-Direct Mode
 
 The agent (e.g., system-architect sub-agent) has SPOC MCP tools and writes to the DAG itself.
 
-- Resolve project context via `spoc_resolve_project_context`
+- Resolve project context via `spoc context --json` (prefer CLI) or `spoc_resolve_project_context` MCP fallback
 - Still uses write-gate pattern: `spoc_propose_dag_write` → `spoc_apply_dag_write` → pass `confirmationToken` to mutating tools
 - Creates plans directly via `spoc_create_project_plan` / `spoc_update_project_plan_body`
 - Generates diagrams and writes `.mmd` files via tools
@@ -180,7 +180,7 @@ digraph brainstorming {
 **Storage — spoc Project Plan:**
 
 - Store the validated design as a spoc project plan using the DAG tools:
-  1. Ensure a spoc project exists for the current work (use `list_projects` to check, `init_project` to create if needed)
+  1. Ensure a spoc project exists for the current work (prefer `spoc project list --json` CLI, or `list_projects` MCP fallback; use `init_project` to create if needed)
   2. Create the spec as a plan: `create_project_plan` with:
      - `slug`: the project slug
      - `title`: `YYYY-MM-DD <topic> Design`
@@ -202,7 +202,7 @@ After writing the spec document:
 **User Review Gate:**
 After the spec review loop passes, ask the user to review the written spec before proceeding:
 
-> "Spec written and saved to spoc project plan `<planId>` in project `<slug>`. Please review it (use `get_project_plan` with `includeBody: true` to read) and let me know if you want to make any changes before we start writing out the implementation plan."
+> "Spec written and saved to spoc project plan `<planId>` in project `<slug>`. Please review it (use `spoc plan get <slug> <planId> --json` CLI or `get_project_plan` with `includeBody: true` to read) and let me know if you want to make any changes before we start writing out the implementation plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 

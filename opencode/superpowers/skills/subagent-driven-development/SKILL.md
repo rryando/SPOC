@@ -150,7 +150,7 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 ```
 You: I'm using Subagent-Driven Development to execute this plan.
 
-[Read plan from spoc: get_project_plan(slug, planId, includeBody: true)]
+[Read plan from spoc: `spoc plan get <slug> <planId> --json` (prefer CLI) or get_project_plan(slug, planId, includeBody: true)]
 [Extract all 5 tasks with full text and context]
 [Create TodoWrite with all tasks]
 

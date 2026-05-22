@@ -134,6 +134,33 @@ function buildAnalysisSections(analysis: CodebaseAnalysis): string {
 }
 
 // ---------------------------------------------------------------------------
+// Static CLI reference
+// ---------------------------------------------------------------------------
+
+const CLI_SECTION = `
+## SPOC CLI Commands (Preferred for DAG Reads)
+
+Sub-agents should prefer CLI for DAG reads (faster, no MCP overhead):
+
+| Operation | Command |
+|-----------|---------|
+| Project context | \`spoc context [--path=<dir>] --json\` |
+| List tasks | \`spoc task list <slug> --json\` |
+| Get task | \`spoc task get <slug> <taskId> --json\` |
+| List plans | \`spoc plan list <slug> --json\` |
+| Get plan | \`spoc plan get <slug> <planId> [--body] --json\` |
+| Search knowledge | \`spoc knowledge search <slug> "<query>" --json\` |
+| Cross-type search | \`spoc search <slug> "<query>" --json\` |
+| Diagram ready nodes | \`spoc diagram ready <slug> <planId>\` |
+| Validate | \`spoc validate <slug> --json\` |
+
+For writes, use MCP tools with write-gate or CLI with \`--token\`:
+\`\`\`bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .token)
+spoc task create <slug> "title" --token=$TOKEN --json
+\`\`\``;
+
+// ---------------------------------------------------------------------------
 // Project context assembly
 // ---------------------------------------------------------------------------
 
@@ -244,6 +271,7 @@ export function registerSyncAgentsMd(server: McpServer) {
         parts.push(buildPreamble(name, params.slug));
         parts.push("\n\n---");
         parts.push(buildAnalysisSections(params.codebaseAnalysis));
+        parts.push(CLI_SECTION);
 
         const projectContext = await buildProjectContext(projectDir);
         if (projectContext) {

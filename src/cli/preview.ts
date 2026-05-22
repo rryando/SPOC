@@ -63,7 +63,7 @@ export async function handlePreviewCli(args: string[]): Promise<boolean> {
     server = await createPreviewServer({
       plansDir,
       host: "127.0.0.1",
-      port: opts.port ?? 3000,
+      port: opts.port ?? 4077,
     });
   } catch (err) {
     console.error(err instanceof Error ? err.message : String(err));

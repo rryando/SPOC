@@ -4,7 +4,7 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import {
@@ -18,6 +18,8 @@ import { projectMetaSchema } from "../utils/json-schemas.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import {
   createKnowledgeEntry,
+  createPlan,
+  createTask,
   getTask,
   listTasks,
   readKnowledgeIndex,
@@ -25,6 +27,8 @@ import {
   KNOWLEDGE_KINDS,
   PLAN_STATUSES,
   TASK_STATUSES,
+  updateKnowledgeEntry,
+  updatePlan,
   updateTask,
   type FileRef,
   type KnowledgeKind,
@@ -34,9 +38,14 @@ import {
   TASK_PRIORITIES,
 } from "../utils/project-memory.js";
 import { normalizeIdentifier } from "../utils/slug.js";
+import { PROJECT_DOC_FILES, type ProjectDocType } from "../utils/project-documents.js";
 import { findBestMatch, type WorkspaceProject } from "../utils/workspace-match.js";
 import { buildProjectRetrievalIndex } from "../retrieval/index-builder.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
+import {
+  requireWriteGate,
+  WriteGateError,
+} from "../utils/write-gate.js";
 
 const DAG_COMMANDS = [
   "context",
@@ -382,13 +391,25 @@ async function handleTaskTransition(args: string[], json: boolean): Promise<void
   const status = args[2];
 
   if (!slug || !taskId || !status) {
-    cliError("Error: usage: spoc task transition <slug> <taskId> <status>");
+    cliError("Error: usage: spoc task transition <slug> <taskId> <status> --token=<token>");
     return;
   }
 
   if (!(TASK_STATUSES as readonly string[]).includes(status)) {
     cliError(`Error: invalid status "${status}". Valid: ${TASK_STATUSES.join(", ")}`);
     return;
+  }
+
+  const token = extractFlag(args, "--token");
+  try {
+    requireWriteGate(token, slug, "tool:transition_project_task");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      cliError(`Error: ${err.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
   }
 
   const projectDir = getProjectDir(slug);
@@ -717,6 +738,18 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
     return;
   }
 
+  const token = extractFlag(args, "--token");
+  try {
+    requireWriteGate(token, slug, "tool:create_project_knowledge_entry");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      cliError(`Error: ${err.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
+  }
+
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     cliError(`Error: project "${slug}" not found`);
@@ -749,6 +782,43 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
 // diagram command
 // ---------------------------------------------------------------------------
 
+function resolveSlugFromCwd(): string | null {
+  const cwd = process.cwd();
+  const dataDir = getDataDir();
+  const metaPath = resolve(dataDir, "meta.json");
+  if (!existsSync(metaPath)) return null;
+
+  let rootMeta: { projects?: Array<{ id: string }> };
+  try {
+    rootMeta = JSON.parse(readFileSync(metaPath, "utf-8"));
+  } catch {
+    return null;
+  }
+  if (!rootMeta.projects) return null;
+
+  for (const node of rootMeta.projects) {
+    const projMetaPath = resolve(dataDir, "projects", node.id, "meta.json");
+    if (!existsSync(projMetaPath)) continue;
+    try {
+      const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
+      const paths: string[] = Array.isArray(projMeta.workspacePaths)
+        ? projMeta.workspacePaths
+        : [];
+      for (const wp of paths) {
+        const resolved = wp.startsWith("~")
+          ? resolve(homedir(), wp.slice(2))
+          : resolve(wp);
+        if (cwd === resolved || cwd.startsWith(resolved + "/")) {
+          return node.id;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 function findDiagramScript(): string | undefined {
   const localPath = resolve(import.meta.dirname, "../../opencode/superpowers/skills/to-diagram/scripts/manage-diagram.mjs");
   if (existsSync(localPath)) return localPath;
@@ -762,8 +832,41 @@ function findDiagramScript(): string | undefined {
 async function handleDiagram(args: string[], json: boolean): Promise<void> {
   const subcommand = args[0];
 
+  // No subcommand: auto-start preview for current project
+  if (!subcommand) {
+    const slug = resolveSlugFromCwd();
+    if (!slug) {
+      cliError("Error: no SPOC project found for current directory.");
+      return;
+    }
+    const { handlePreviewCli } = await import("./preview.js");
+    await handlePreviewCli(["--project", slug, "--open"]);
+    return;
+  }
+
+  // `spoc diagram show <path>` — render tree in terminal
+  if (subcommand === "show") {
+    const path = args[1];
+    if (!path) {
+      cliError("Error: usage: spoc diagram show <path>");
+      return;
+    }
+    if (!existsSync(path)) {
+      cliError(`Error: file not found: ${path}`);
+      return;
+    }
+    try {
+      const { renderDiagramShow } = await import("./diagram-renderer.js");
+      const output = renderDiagramShow(path);
+      console.log(output);
+    } catch (err) {
+      cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return;
+  }
+
   if (subcommand !== "inspect" && subcommand !== "ready") {
-    cliError(`Error: unknown diagram subcommand "${subcommand ?? ""}". Use: inspect, ready`);
+    cliError(`Error: unknown diagram subcommand "${subcommand}". Use: inspect, ready, show`);
     return;
   }
 
@@ -836,6 +939,8 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
     return;
   }
 
+  const token = extractFlag(args, "--token");
+
   let ops: BatchOp[];
   try {
     const raw = readFileSync(filePath, "utf-8");
@@ -847,6 +952,21 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
   } catch (err) {
     cliError(`Error: failed to parse batch file: ${err instanceof Error ? err.message : String(err)}`);
     return;
+  }
+
+  // Validate write gate once for the entire batch using the first op's slug
+  if (ops.length > 0) {
+    try {
+      requireWriteGate(token, ops[0].slug, `batch`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (json) {
+        console.log(JSON.stringify([{ index: 0, op: ops[0].op, success: false, error: msg }]));
+      } else {
+        cliError(msg);
+      }
+      return;
+    }
   }
 
   const results: BatchResult[] = [];
@@ -878,6 +998,108 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
             content: op.body as string | undefined,
           });
           results.push({ index: i, op: op.op, success: true, result: { id: entry.id } });
+          break;
+        }
+        case "task-create": {
+          const projectDir = getProjectDir(op.slug);
+          const title = op.title as string;
+          if (!title) throw new Error("title required");
+          const task = await createTask(projectDir, {
+            title,
+            status: op.status as TaskStatus | undefined,
+            priority: op.priority as TaskPriority | undefined,
+            planId: op.planId as string | undefined,
+            sourceFiles: op.sourceFiles as FileRef[] | undefined,
+          });
+          results.push({ index: i, op: op.op, success: true, result: { taskId: task.id } });
+          break;
+        }
+        case "task-update": {
+          const projectDir = getProjectDir(op.slug);
+          const taskId = op.taskId as string;
+          if (!taskId) throw new Error("taskId required");
+          const task = await updateTask(projectDir, {
+            id: taskId,
+            title: op.title as string | undefined,
+            status: op.status as TaskStatus | undefined,
+            priority: op.priority as TaskPriority | undefined,
+            planId: op.planId as string | null | undefined,
+            sourceFiles: op.sourceFiles as FileRef[] | undefined,
+          });
+          results.push({ index: i, op: op.op, success: true, result: { taskId: task.id, status: task.status } });
+          break;
+        }
+        case "plan-create": {
+          const projectDir = getProjectDir(op.slug);
+          const title = op.title as string;
+          if (!title) throw new Error("title required");
+          const id = normalizeIdentifier(title);
+          const plan = await createPlan(projectDir, {
+            id,
+            title,
+            status: (op.status as PlanStatus) ?? "proposed",
+            keywords: (op.keywords as string[]) ?? [],
+            summary: op.summary as string | undefined,
+            content: op.body as string | undefined,
+            sourceFiles: op.sourceFiles as FileRef[] | undefined,
+          });
+          results.push({ index: i, op: op.op, success: true, result: { planId: plan.id } });
+          break;
+        }
+        case "plan-update-meta": {
+          const projectDir = getProjectDir(op.slug);
+          const planId = op.planId as string;
+          if (!planId) throw new Error("planId required");
+          const plan = await updatePlan(projectDir, {
+            id: planId,
+            title: op.title as string | undefined,
+            status: op.status as PlanStatus | undefined,
+            summary: op.summary as string | undefined,
+            keywords: op.keywords as string[] | undefined,
+            sourceFiles: op.sourceFiles as FileRef[] | undefined,
+          });
+          results.push({ index: i, op: op.op, success: true, result: { planId: plan.id, status: plan.status } });
+          break;
+        }
+        case "knowledge-update-meta": {
+          const projectDir = getProjectDir(op.slug);
+          const entryId = op.entryId as string;
+          if (!entryId) throw new Error("entryId required");
+          const entry = await updateKnowledgeEntry(projectDir, {
+            id: entryId,
+            title: op.title as string | undefined,
+            kind: op.kind as KnowledgeKind | undefined,
+            summary: op.summary as string | undefined,
+            keywords: op.keywords as string[] | undefined,
+            sourceFiles: op.sourceFiles as FileRef[] | undefined,
+          });
+          results.push({ index: i, op: op.op, success: true, result: { entryId: entry.id } });
+          break;
+        }
+        case "knowledge-update-body": {
+          const projectDir = getProjectDir(op.slug);
+          const entryId = op.entryId as string;
+          const body = op.body as string;
+          if (!entryId || !body) throw new Error("entryId and body required");
+          const normalizedId = normalizeIdentifier(entryId);
+          const metaPath = resolve(projectDir, "knowledge", `${normalizedId}.meta.json`);
+          if (!existsSync(metaPath)) throw new Error(`knowledge entry not found: ${entryId}`);
+          const rawMeta = JSON.parse(readFileSync(metaPath, "utf-8"));
+          const bodyPath = resolve(projectDir, rawMeta.file);
+          await writeFile(bodyPath, body, "utf-8");
+          results.push({ index: i, op: op.op, success: true, result: { entryId } });
+          break;
+        }
+        case "doc-update": {
+          const projectDir = getProjectDir(op.slug);
+          const doc = op.doc as string;
+          const content = op.content as string;
+          if (!doc || !content) throw new Error("doc and content required");
+          const fileName = PROJECT_DOC_FILES[doc as ProjectDocType];
+          if (!fileName) throw new Error(`invalid doc type: ${doc}`);
+          const filePath = resolve(projectDir, fileName);
+          await writeFile(filePath, content, "utf-8");
+          results.push({ index: i, op: op.op, success: true, result: { doc } });
           break;
         }
         default:

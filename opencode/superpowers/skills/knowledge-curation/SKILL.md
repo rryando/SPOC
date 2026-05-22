@@ -84,11 +84,11 @@ Run `spoc_audit_project_knowledge` for the project. This gives immediate signal 
 
 ### Step 2: Full Inventory
 
-Run `spoc_list_project_knowledge_entries` (no filters) to get the complete list. Note total count, kind distribution, and keyword spread.
+Run `spoc knowledge list <slug> --json` CLI (preferred) or `spoc_list_project_knowledge_entries` MCP fallback (no filters) to get the complete list. Note total count, kind distribution, and keyword spread.
 
 ### Step 3: Per-Entry Inspection
 
-For entries flagged by Step 1 (broken refs) and any entries with suspiciously generic titles/summaries, run `spoc_get_project_knowledge_entry` with `includeBody: true`. Assess:
+For entries flagged by Step 1 (broken refs) and any entries with suspiciously generic titles/summaries, run `spoc knowledge get <slug> <entryId> --json` CLI (preferred) or `spoc_get_project_knowledge_entry` with `includeBody: true` MCP fallback. Assess:
 
 - Does the body match current code reality?
 - Is the kind correct?

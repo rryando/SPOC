@@ -50,6 +50,13 @@ async function run(): Promise<void> {
     // Unknown subcommand — fall through to MCP server
   }
 
+  // TTY detection: if human at terminal with no args, show status dashboard
+  if (args.length === 0 && process.stdin.isTTY) {
+    const { showStatusDashboard } = await import("./cli/status-dashboard.js");
+    await showStatusDashboard();
+    return;
+  }
+
   // Bootstrap data directory
   try {
     ensureDataDir();

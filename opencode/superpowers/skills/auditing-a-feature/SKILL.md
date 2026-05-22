@@ -61,7 +61,7 @@ The audit produces a report. The report becomes SPOC artifacts (tasks / knowledg
 
 Before reading any code, resolve what "the slice" means.
 
-**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc_resolve_project_context` on the workspace path and look for plans/knowledge matching the slice name.
+**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc context --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path and look for plans/knowledge matching the slice name.
 
 **Fall back to user-specified files** if SPOC has nothing. Ask the user to name files, modules, or entry points.
 
@@ -91,7 +91,7 @@ The most common finding we miss: **we flag local duplication but not cross-modul
 
 Before finalizing any finding about "this logic is duplicated" or "this helper could be extracted," run at least one of:
 - `rg` / `grep` for key function names or distinctive string literals across the repo
-- Search SPOC knowledge entries for related patterns (`spoc_list_project_knowledge_entries` with relevant keywords)
+- Search SPOC knowledge entries for related patterns (`spoc knowledge list <slug> --json` CLI preferred, or `spoc_list_project_knowledge_entries` MCP fallback)
 - Check sibling directories for similarly-named utilities (`crypto.ts`, `http.ts`, `auth.ts`, etc.)
 
 If you skipped this, say so explicitly in the report.

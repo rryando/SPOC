@@ -255,7 +255,7 @@ After completing each chunk of the plan:
 
 After completing each chunk and final review:
 
-1. Ensure a spoc project exists for the current work (use `list_projects` to check, `init_project` to create if needed)
+1. Ensure a spoc project exists for the current work (prefer `spoc project list --json` CLI, or `list_projects` MCP fallback; use `init_project` to create if needed)
 2. Create the implementation plan: `create_project_plan` with:
    - `slug`: the project slug
    - `title`: `YYYY-MM-DD <feature-name> Implementation Plan`

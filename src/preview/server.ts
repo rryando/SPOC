@@ -22,7 +22,7 @@ type SSEClient = {
 
 export async function createPreviewServer(options: PreviewServerOptions): Promise<PreviewServer> {
   const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 3000;
+  const port = options.port ?? 4077;
   const { plansDir } = options;
 
   const sseClients: SSEClient[] = [];
