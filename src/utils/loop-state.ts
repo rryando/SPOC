@@ -2,7 +2,7 @@
  * Loop state management for SPOC projects.
  *
  * Stores active loop state as loop-state.json in each project directory.
- * Used by MCP tools (start/cancel/get) and the OpenCode plugin hook
+ * Used by CLI commands (start/cancel/get) and the OpenCode plugin hook
  * (which reads state directly from disk to drive iteration).
  */
 

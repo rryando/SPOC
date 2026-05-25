@@ -12,11 +12,7 @@ import {
 import {
   applyAgentModelConfig,
   displayPath,
-  type IdeId,
-  ideConfigPath,
-  ideHasSpoc,
   opencodeHasAgent,
-  writeIdeConfig,
   writeOpencodeAgent,
 } from "./instructions.js";
 import {
@@ -197,45 +193,6 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   s.start("Writing configuration…");
   writeConfig(config);
   s.stop("Configuration saved.");
-
-  // ── Write MCP entry for OpenCode ───────────────────────────────────────
-  const opencodeId = "opencode" as IdeId;
-  const configFile = displayPath(ideConfigPath(opencodeId));
-  const already = ideHasSpoc(opencodeId);
-  const results: string[] = [];
-
-  if (already) {
-    // Already configured — re-apply silently to keep the entry up to date
-    const result = writeIdeConfig(opencodeId);
-    const verb = result.action === "created" ? "Created" : "Updated";
-    results.push(
-      `${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`,
-    );
-  } else {
-    const shouldWrite = await p.confirm({
-      message: `Write SPOC MCP entry to ${color.cyan(configFile)}?`,
-      initialValue: true,
-    });
-
-    if (p.isCancel(shouldWrite)) {
-      p.cancel("Setup cancelled.");
-      process.exit(0);
-    }
-
-    if (shouldWrite) {
-      const result = writeIdeConfig(opencodeId);
-      const verb = result.action === "created" ? "Created" : "Updated";
-      results.push(
-        `${color.green("✔")} ${color.bold("OpenCode")} — ${verb} ${color.dim(configFile)}`,
-      );
-    } else {
-      results.push(`${color.yellow("⊘")} ${color.bold("OpenCode")} — skipped`);
-    }
-  }
-
-  if (results.length > 0) {
-    p.note(results.join("\n"), "MCP Configuration");
-  }
 
   // ── Register OpenCode agent (orchestrate always enabled) ──────────────────
   const selectedOpenCode = true;

@@ -2981,7 +2981,7 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
     return;
   }
 
-  // Reuse the sync logic inline (same as the MCP tool)
+  // Reuse the sync logic inline (same as the CLI command)
   try {
     const dataDir = getDataDir();
     const rootMeta = await readRootMeta(dataDir);
@@ -3012,7 +3012,7 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
       return;
     }
 
-    // Use the MCP tool's script by importing dynamically is not feasible,
+    // Use the CLI command's script by importing dynamically is not feasible,
     // so we invoke the tool's registration indirectly. Instead, replicate the
     // content assembly inline (same logic as sync-agents-md.ts).
     const { lstat, symlink, unlink, writeFile: writeFileAsync, readFile: readFileAsync } = await import("node:fs/promises");

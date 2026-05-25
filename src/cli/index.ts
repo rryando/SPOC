@@ -9,7 +9,7 @@ import { runSetup } from "./setup.js";
 /**
  * Entry point for `npx spoc init`, `npx spoc config`, `npx spoc preview`.
  * Returns true if a CLI subcommand was handled, false if the caller
- * should proceed with MCP server startup.
+ * should proceed with normal exit.
  */
 export async function handleCli(args: string[]): Promise<boolean> {
   const command = args[0];

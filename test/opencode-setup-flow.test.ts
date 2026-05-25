@@ -60,29 +60,11 @@ describe("OpenCode setup flow", () => {
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true); // register agent
-
-    await withTempHomeDir(async () => {
-      await runSetup("init");
-      expect(installer.installSpocBundle).toHaveBeenCalledWith({
-        autoConfirmReplacement: false,
-      });
-      expect((prompts as any).__note).toHaveBeenCalledWith(
-        expect.stringContaining("Installed bundled SPOC skills"),
-        "OpenCode SPOC Bundle",
-      );
-    });
-  });
-
-  it("re-syncs bundled SPOC skills during config when user confirms setup", async () => {
-    const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true); // register agent
 
     await withTempHomeDir(async () => {
@@ -100,7 +82,6 @@ describe("OpenCode setup flow", () => {
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(false); // decline agent registration
 
     await withTempHomeDir(async () => {
@@ -123,7 +104,6 @@ describe("OpenCode setup flow", () => {
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(true); // replace SPOC Bundle
 
@@ -145,7 +125,6 @@ describe("OpenCode setup flow", () => {
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(true); // replace SPOC Bundle
 
@@ -167,7 +146,6 @@ describe("OpenCode setup flow", () => {
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(false); // decline SPOC Bundle
 
@@ -181,24 +159,21 @@ describe("OpenCode setup flow", () => {
     });
   });
 
-  it("re-applies MCP entry even when already configured (config mode)", async () => {
+  it("sets default_agent even when agent already configured (config mode)", async () => {
     const prompts = await import("@clack/prompts");
     const { readFileSync } = await import("node:fs");
 
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
-      .mockResolvedValueOnce(false); // customizeAgents — MCP and agent already present, no prompts
+      .mockResolvedValueOnce(false); // customizeAgents — agent already present, no prompts
 
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
-      // Pre-populate config: MCP and agent already present, but missing default_agent
+      // Pre-populate config: agent already present, but missing default_agent
       writeFileSync(
         configFile,
         JSON.stringify(
           {
-            mcp: {
-              spoc: { type: "local", command: ["node", "/old/path/index.js"], enabled: true },
-            },
             agent: { "SPOC Orchestrator": { mode: "primary", prompt: "old-prompt" } },
           },
           null,
@@ -211,11 +186,6 @@ describe("OpenCode setup flow", () => {
       const updated = JSON.parse(readFileSync(configFile, "utf-8")) as Record<string, unknown>;
       // default_agent must now be set even though it was absent before
       expect(updated.default_agent).toBe("SPOC Orchestrator");
-      // MCP command should be updated to current dist path (not old stale path)
-      const mcp = updated.mcp as Record<string, unknown>;
-      const spoc = mcp?.spoc as Record<string, unknown>;
-      const cmd = spoc?.command as string[];
-      expect(cmd?.[1]).not.toBe("/old/path/index.js");
     });
   });
 

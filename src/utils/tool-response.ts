@@ -1,5 +1,5 @@
 /**
- * Standard MCP tool response helpers.
+ * Standard CLI tool response helpers.
  */
 
 type ToolErrorResponse = { content: [{ type: "text"; text: string }]; isError: true };
@@ -16,7 +16,7 @@ export function jsonResult(data: unknown) {
 }
 
 /**
- * Build a code-tagged MCP tool error response.
+ * Build a code-tagged CLI command error response.
  *
  * Every error surfaced to the caller carries a stable `[CODE]` prefix so
  * clients can programmatically distinguish error classes.

@@ -1,5 +1,5 @@
 /**
- * Typed error helpers for consistent MCP tool error responses.
+ * Typed error helpers for consistent CLI command error responses.
  */
 
 import { toolError } from "./tool-response.js";
@@ -125,7 +125,7 @@ export function noWorkspacePaths(slug: string): DagError {
 }
 
 /**
- * Format a DagError into an MCP tool error response.
+ * Format a DagError into a CLI command error response.
  * Delegates to the canonical `toolError` helper so all error responses
  * share the same `[CODE] message` shape.
  */
