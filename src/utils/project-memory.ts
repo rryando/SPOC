@@ -24,6 +24,8 @@ import {
 } from "./errors.js";
 import { withLock } from "./file-lock.js";
 import { normalizeIdentifier } from "./slug.js";
+import { basename } from "node:path";
+import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -51,6 +53,10 @@ export const KNOWLEDGE_KINDS = [
 ] as const;
 
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];
+
+export const KNOWLEDGE_AUDIENCES = ["orchestrator", "implementer", "designer", "universal"] as const;
+
+export type KnowledgeAudience = (typeof KNOWLEDGE_AUDIENCES)[number];
 
 // ---------------------------------------------------------------------------
 // FileRef type
@@ -121,6 +127,7 @@ export interface KnowledgeMeta {
   normalizedId: string;
   title: string;
   kind: KnowledgeKind;
+  audience?: KnowledgeAudience;
   keywords: string[];
   summary: string;
   sourceFiles?: FileRef[];
@@ -166,6 +173,7 @@ export interface CreateKnowledgeInput {
   id: string;
   title: string;
   kind: KnowledgeKind;
+  audience?: KnowledgeAudience;
   keywords: string[];
   summary?: string;
   content?: string;
@@ -177,6 +185,7 @@ export interface UpdateKnowledgeInput {
   id: string;
   title?: string;
   kind?: KnowledgeKind;
+  audience?: KnowledgeAudience;
   summary?: string;
   keywords?: string[];
   sourceFiles?: FileRef[];
@@ -451,6 +460,7 @@ export async function createPlan(projectDir: string, input: CreatePlanInput): Pr
   index.plans.push(meta);
   await writePlanIndex(plansDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return meta;
 }
 
@@ -501,6 +511,7 @@ export async function updatePlan(projectDir: string, input: UpdatePlanInput): Pr
   }
   await writePlanIndex(plansDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return meta;
 }
 
@@ -580,6 +591,7 @@ export async function createKnowledgeEntry(
     normalizedId,
     title: input.title,
     kind: input.kind,
+    ...(input.audience && { audience: input.audience }),
     keywords,
     summary: input.summary ?? "",
     ...(sourceFiles && { sourceFiles }),
@@ -598,6 +610,7 @@ export async function createKnowledgeEntry(
   index.entries.push(meta);
   await writeKnowledgeIndex(knowledgeDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return meta;
 }
 
@@ -619,6 +632,7 @@ export async function updateKnowledgeEntry(
   }
 
   if (input.kind !== undefined) meta.kind = input.kind;
+  if (input.audience !== undefined) meta.audience = input.audience;
   if (input.title !== undefined && input.title !== meta.title) {
     const bodyPath = join(projectDir, meta.file);
     await rewriteH1(bodyPath, input.title);
@@ -649,6 +663,7 @@ export async function updateKnowledgeEntry(
   }
   await writeKnowledgeIndex(knowledgeDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return meta;
 }
 
@@ -872,6 +887,7 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
   await writeTaskIndex(projectDir, index);
   await renderTasksMd(projectDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return meta;
 }
 
@@ -939,6 +955,7 @@ export async function updateTask(projectDir: string, input: UpdateTaskInput): Pr
   await writeTaskIndex(projectDir, index);
   await renderTasksMd(projectDir, index);
 
+  invalidateGraphCache(basename(projectDir));
   return task;
 }
 

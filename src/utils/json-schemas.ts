@@ -106,6 +106,7 @@ export const knowledgeMetaSchema = z.object({
   normalizedId: z.string(),
   title: z.string(),
   kind: z.string(),
+  audience: z.string().optional(),
   keywords: z.array(z.string()),
   summary: z.string(),
   sourceFiles: z.array(fileRefSchemaLocal).optional(),

@@ -61,7 +61,7 @@ The audit produces a report. The report becomes SPOC artifacts (tasks / knowledg
 
 Before reading any code, resolve what "the slice" means.
 
-**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc context --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path and look for plans/knowledge matching the slice name.
+**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path and look for plans/knowledge matching the slice name.
 
 **Fall back to user-specified files** if SPOC has nothing. Ask the user to name files, modules, or entry points.
 

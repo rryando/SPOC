@@ -48,7 +48,7 @@ This skill operates in two contexts depending on who loads it.
 
 The agent (e.g., system-architect sub-agent) has SPOC MCP tools and writes to the DAG itself.
 
-- Resolve project context via `spoc context --json` (prefer CLI) or `spoc_resolve_project_context` MCP fallback
+- Resolve project context via `spoc context --audience=designer --lean --json` (prefer CLI) or `spoc_resolve_project_context` MCP fallback
 - Still uses write-gate pattern: `spoc_propose_dag_write` → `spoc_apply_dag_write` → pass `confirmationToken` to mutating tools
 - Creates plans directly via `spoc_create_project_plan` / `spoc_update_project_plan_body`
 - Generates diagrams and writes `.mmd` files via tools

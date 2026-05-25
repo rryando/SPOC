@@ -29,13 +29,16 @@ import {
   readKnowledgeIndex,
   readPlanIndex,
   KNOWLEDGE_KINDS,
+  KNOWLEDGE_AUDIENCES,
   PLAN_STATUSES,
   TASK_STATUSES,
   updateKnowledgeEntry,
   updatePlan,
   updateTask,
   type FileRef,
+  type KnowledgeAudience,
   type KnowledgeKind,
+  type KnowledgeMeta,
   type PlanStatus,
   type TaskStatus,
   type TaskPriority,
@@ -46,6 +49,10 @@ import { PROJECT_DOC_FILES, type ProjectDocType } from "../utils/project-documen
 import { findBestMatch, normalizeWorkspacePath, type WorkspaceProject } from "../utils/workspace-match.js";
 import { getTemplatePath, renderTemplate } from "../utils/template.js";
 import { buildProjectRetrievalIndex } from "../retrieval/index-builder.js";
+import { retrieveRelated } from "../retrieval/graph-retrieval.js";
+import { createGraphCache } from "../retrieval/graph-cache.js";
+import { retrieveForTask, type TaskContext } from "../retrieval/task-scoped.js";
+import { isLeanMode, formatJsonOutput } from "./lean-output.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import {
   createWriteProposal,
@@ -54,6 +61,14 @@ import {
   WriteGateError,
 } from "../utils/write-gate.js";
 import { cancelLoop, findActiveLoop, readLoopState, startLoop } from "../utils/loop-state.js";
+
+// Module-level lean mode flag, set by handleDagCommand
+let _leanMode = false;
+
+/** Stringify with optional lean transform */
+function jsonOut(data: unknown): string {
+  return formatJsonOutput(data, _leanMode);
+}
 
 const DAG_COMMANDS = [
   "context",
@@ -73,9 +88,12 @@ const DAG_COMMANDS = [
   "lint-bundle",
   "deploy-superpowers",
   "sync-agents-md",
+  "agents-md",
+  "related",
   "audit",
   "diff",
   "git-log",
+  "graph",
 ] as const;
 
 type DagCommand = (typeof DAG_COMMANDS)[number];
@@ -96,9 +114,12 @@ function printUsage(): void {
   console.log("  knowledge search <slug> <query>     Search knowledge");
   console.log("  knowledge create --slug=<s> ...     Create knowledge entry");
   console.log("  search <slug> <query>               BM25 search across all");
+  console.log("  related <slug> --task=<id>          Graph-based related entities");
+  console.log("  graph inspect <slug>                Inspect graph index stats");
   console.log("  diagram <action> <path>             Inspect/ready diagram");
   console.log("  batch --file=<path>                 Batch operations");
   console.log("  validate <slug>                     Validate project state");
+  console.log("  agents-md <slug>                    Read project AGENTS.md");
   console.log("\nOptions:");
   console.log("  --json    Output as JSON");
   console.log("  --help    Show command usage");
@@ -106,22 +127,29 @@ function printUsage(): void {
 
 interface ParsedArgs {
   json: boolean;
+  lean: boolean;
   rest: string[];
 }
 
 function parseFlags(args: string[]): ParsedArgs {
   const rest: string[] = [];
   let json = false;
+  let lean = false;
 
   for (const arg of args) {
     if (arg === "--json") {
       json = true;
+    } else if (arg === "--lean") {
+      lean = true;
     } else {
       rest.push(arg);
     }
   }
 
-  return { json, rest };
+  // Also check environment variable
+  if (!lean && isLeanMode([])) lean = true;
+
+  return { json, lean, rest };
 }
 
 function extractFlag(args: string[], flag: string): string | undefined {
@@ -146,8 +174,103 @@ function formatFileRefs(sourceFiles?: FileRef[]): string {
   return `\n  Files: ${formatted}`;
 }
 
+/**
+ * Selects top knowledge entries using graph traversal (when taskId provided)
+ * or recency-based fallback. Returns up to 10 entries, deduplicated by id.
+ */
+export async function selectKnowledgeEntries(
+  slug: string,
+  entries: KnowledgeMeta[],
+  taskId?: string,
+  audience?: string,
+): Promise<KnowledgeMeta[]> {
+  const MAX_ENTRIES = 10;
+  const entryMap = new Map(entries.map((e) => [e.id, e]));
+
+  if (!taskId) {
+    // No task context — pure recency
+    const sorted = [...entries].sort(
+      (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
+    );
+    return sorted.slice(0, MAX_ENTRIES);
+  }
+
+  // Try graph retrieval first
+  const graphResults = await retrieveRelated(slug, `task:${taskId}`, {
+    limit: 5,
+    types: ["knowledge"],
+    audience,
+  });
+
+  const selectedIds = new Set<string>();
+  const selected: KnowledgeMeta[] = [];
+
+  if (graphResults.length >= 3) {
+    // Use graph results as primary
+    for (const r of graphResults) {
+      const entry = entryMap.get(r.id);
+      if (entry && !selectedIds.has(r.id)) {
+        selectedIds.add(r.id);
+        selected.push(entry);
+      }
+    }
+  } else {
+    // Sparse graph — fall back to BM25
+    const projectDir = getProjectDir(slug);
+    let taskContext: TaskContext | undefined;
+    try {
+      const task = await getTask(projectDir, taskId);
+      taskContext = {
+        title: task.title,
+        sourceFiles: task.sourceFiles,
+      };
+    } catch {
+      // Task not found — fall through to recency
+    }
+
+    if (taskContext) {
+      const bm25Results = await retrieveForTask(slug, taskContext, 5);
+      for (const r of bm25Results) {
+        if (r.type === "knowledge") {
+          const entry = entryMap.get(r.id);
+          if (entry && !selectedIds.has(r.id)) {
+            selectedIds.add(r.id);
+            selected.push(entry);
+          }
+        }
+      }
+    }
+  }
+
+  // Fill remaining slots with recency-sorted entries not already selected
+  if (selected.length < MAX_ENTRIES) {
+    const sorted = [...entries].sort(
+      (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
+    );
+    for (const e of sorted) {
+      if (selected.length >= MAX_ENTRIES) break;
+      if (!selectedIds.has(e.id)) {
+        selectedIds.add(e.id);
+        selected.push(e);
+      }
+    }
+  }
+
+  return selected;
+}
+
 async function handleContext(args: string[], json: boolean): Promise<void> {
-  const queryPath = args[0] ?? process.cwd();
+  const audience = extractFlag(args, "--audience") as KnowledgeAudience | undefined;
+  if (audience && !(KNOWLEDGE_AUDIENCES as readonly string[]).includes(audience)) {
+    cliError(`Error: invalid audience "${audience}". Valid: ${KNOWLEDGE_AUDIENCES.join(", ")}`);
+    return;
+  }
+
+  const taskIdFlag = extractFlag(args, "--task");
+  const noGraph = args.includes("--no-graph");
+
+  const filteredArgs = args.filter((a) => !a.startsWith("--audience=") && !a.startsWith("--task=") && a !== "--no-graph");
+  const queryPath = filteredArgs[0] ?? process.cwd();
 
   if (!queryPath.startsWith("/")) {
     cliError(`Error: path must be absolute, got "${queryPath}"`);
@@ -216,17 +339,20 @@ async function handleContext(args: string[], json: boolean): Promise<void> {
       overview = extractOverviewContent(overviewRaw);
     }
     const knowledgeIndex = await readKnowledgeIndex(projectDir);
+    const filteredKnowledge = audience
+      ? knowledgeIndex.entries.filter((e) => !e.audience || e.audience === audience || e.audience === "universal")
+      : knowledgeIndex.entries;
     const planIndex = await readPlanIndex(projectDir);
     const allTasks = await listTasks(projectDir);
 
-    console.log(JSON.stringify({
+    console.log(jsonOut({
       slug,
       name,
       description,
       overview,
       tasks: allTasks,
       plans: planIndex.plans,
-      knowledge: knowledgeIndex.entries,
+      knowledge: filteredKnowledge,
     }));
     return;
   }
@@ -246,12 +372,27 @@ async function handleContext(args: string[], json: boolean): Promise<void> {
   const tasksPath = resolve(projectDir, "tasks.md");
   const tasksRaw = existsSync(tasksPath) ? await readFile(tasksPath, "utf-8") : "";
 
+  // Resolve effective taskId for graph-scored knowledge selection
+  let effectiveTaskId: string | undefined;
+  if (noGraph) {
+    effectiveTaskId = undefined;
+  } else if (taskIdFlag) {
+    effectiveTaskId = taskIdFlag;
+  } else {
+    // Auto-infer: use single in_progress task if exactly one exists
+    const allTasksForInfer = await listTasks(projectDir);
+    const inProgress = allTasksForInfer.filter((t) => t.status === "in_progress");
+    if (inProgress.length === 1) {
+      effectiveTaskId = inProgress[0].id;
+    }
+  }
+
   const knowledgeIndex = await readKnowledgeIndex(projectDir);
-  if (knowledgeIndex.entries.length > 0) {
-    const sorted = [...knowledgeIndex.entries].sort(
-      (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
-    );
-    const top = sorted.slice(0, 10);
+  const knowledgeEntries = audience
+    ? knowledgeIndex.entries.filter((e) => !e.audience || e.audience === audience || e.audience === "universal")
+    : knowledgeIndex.entries;
+  if (knowledgeEntries.length > 0) {
+    const top = await selectKnowledgeEntries(slug, knowledgeEntries, effectiveTaskId, audience);
     const bullets = top
       .map((e) => {
         const summary = e.summary ? `: ${e.summary}` : "";
@@ -362,7 +503,7 @@ async function handleTaskList(args: string[], json: boolean, slugOverride?: stri
   const tasks = await listTasks(projectDir, { status, priority });
 
   if (json) {
-    console.log(JSON.stringify(tasks));
+    console.log(jsonOut(tasks));
     return;
   }
 
@@ -396,7 +537,7 @@ async function handleTaskGet(args: string[], json: boolean): Promise<void> {
   try {
     const task = await getTask(projectDir, taskId);
     if (json) {
-      console.log(JSON.stringify(task));
+      console.log(jsonOut(task));
     } else {
       console.log(`ID:       ${task.id}`);
       console.log(`Title:    ${task.title}`);
@@ -451,7 +592,7 @@ async function handleTaskTransition(args: string[], json: boolean): Promise<void
     await updateTask(projectDir, { id: taskId, status: status as TaskStatus });
 
     if (json) {
-      console.log(JSON.stringify({ taskId, previousStatus, newStatus: status }));
+      console.log(jsonOut({ taskId, previousStatus, newStatus: status }));
     } else {
       console.log(`Task "${taskId}" transitioned: ${previousStatus} → ${status}`);
     }
@@ -509,7 +650,7 @@ async function handleTaskCreate(args: string[], json: boolean): Promise<void> {
     });
 
     if (json) {
-      console.log(JSON.stringify(task));
+      console.log(jsonOut(task));
     } else {
       console.log(`Task created: ${task.id} ("${task.title}")`);
     }
@@ -569,7 +710,7 @@ async function handleTaskUpdate(args: string[], json: boolean): Promise<void> {
     });
 
     if (json) {
-      console.log(JSON.stringify(task));
+      console.log(jsonOut(task));
     } else {
       console.log(`Task updated: ${task.id}`);
     }
@@ -609,7 +750,7 @@ async function handleTaskDelete(args: string[], json: boolean): Promise<void> {
     await deleteTask(projectDir, taskId);
 
     if (json) {
-      console.log(JSON.stringify({ deleted: taskId }));
+      console.log(jsonOut({ deleted: taskId }));
     } else {
       console.log(`Task deleted: ${taskId}`);
     }
@@ -685,7 +826,7 @@ async function handlePlanCreate(args: string[], json: boolean): Promise<void> {
     });
 
     if (json) {
-      console.log(JSON.stringify(meta));
+      console.log(jsonOut(meta));
     } else {
       console.log(`Created plan: ${meta.id}`);
     }
@@ -741,7 +882,7 @@ async function handlePlanUpdateMeta(args: string[], json: boolean): Promise<void
     });
 
     if (json) {
-      console.log(JSON.stringify(meta));
+      console.log(jsonOut(meta));
     } else {
       console.log(`Updated plan: ${meta.id}`);
     }
@@ -802,7 +943,7 @@ async function handlePlanUpdateBody(args: string[], json: boolean): Promise<void
     await writeFile(bodyPath, body, "utf-8");
 
     if (json) {
-      console.log(JSON.stringify({ meta: plan, body }));
+      console.log(jsonOut({ meta: plan, body }));
     } else {
       console.log(`Updated plan body: ${plan.id}`);
     }
@@ -842,7 +983,7 @@ async function handlePlanDelete(args: string[], json: boolean): Promise<void> {
     await deletePlan(projectDir, planId);
 
     if (json) {
-      console.log(JSON.stringify({ deleted: planId }));
+      console.log(jsonOut({ deleted: planId }));
     } else {
       console.log(`Deleted plan: ${planId}`);
     }
@@ -887,7 +1028,7 @@ async function handleSearch(args: string[], json: boolean): Promise<void> {
   }
 
   if (json) {
-    console.log(JSON.stringify(results));
+    console.log(jsonOut(results));
     return;
   }
 
@@ -899,6 +1040,154 @@ async function handleSearch(args: string[], json: boolean): Promise<void> {
   console.log("ID\tType\tTitle\tScore");
   for (const r of results) {
     console.log(`${r.id}\t${r.type}\t${r.title}\t${r.score.toFixed(4)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// related command
+// ---------------------------------------------------------------------------
+
+export async function handleRelated(args: string[], json: boolean): Promise<void> {
+  const slug = args[0];
+  if (!slug) {
+    cliError("Error: usage: spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]");
+    return;
+  }
+
+  const taskId = extractFlag(args, "--task");
+  const knowledgeId = extractFlag(args, "--knowledge");
+  const planId = extractFlag(args, "--plan");
+
+  if (!taskId && !knowledgeId && !planId) {
+    cliError("Error: one of --task, --knowledge, or --plan is required");
+    return;
+  }
+
+  let startNodeId: string;
+  let startLabel: string;
+  if (taskId) {
+    startNodeId = `task:${taskId}`;
+    startLabel = `task "${taskId}"`;
+  } else if (knowledgeId) {
+    startNodeId = `knowledge:${knowledgeId}`;
+    startLabel = `knowledge "${knowledgeId}"`;
+  } else {
+    startNodeId = `plan:${planId}`;
+    startLabel = `plan "${planId}"`;
+  }
+
+  const limitStr = extractFlag(args, "--limit");
+  const limit = limitStr ? Number.parseInt(limitStr, 10) : 10;
+
+  const results = await retrieveRelated(slug, startNodeId, { limit });
+
+  if (json) {
+    console.log(jsonOut(results));
+    return;
+  }
+
+  if (results.length === 0) {
+    console.log(`No related entities found for ${startLabel}.`);
+    return;
+  }
+
+  console.log(`Related to ${startLabel}:`);
+  for (const r of results) {
+    const score = r.score.toFixed(2).padStart(6);
+    const type = r.type.padEnd(10);
+    console.log(`  ${score}  ${type}  ${r.title}`);
+    console.log(`                     \u2192 ${r.relation}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// graph command
+// ---------------------------------------------------------------------------
+
+export async function handleGraph(args: string[], json: boolean): Promise<void> {
+  const subcommand = args[0];
+  if (subcommand !== "inspect") {
+    cliError("Error: usage: spoc graph inspect <slug> [--json]");
+    return;
+  }
+
+  const slug = args[1];
+  if (!slug) {
+    cliError("Error: usage: spoc graph inspect <slug> [--json]");
+    return;
+  }
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    cliError(`Error: project "${slug}" not found`);
+    return;
+  }
+
+  const cache = createGraphCache();
+  const index = await cache.getOrBuild(slug);
+
+  const nodeCount = index.nodes.size;
+
+  let edgeCount = 0;
+  for (const edgeList of index.edges.values()) {
+    edgeCount += edgeList.length;
+  }
+
+  const nodesByType: Record<string, number> = {};
+  for (const node of index.nodes.values()) {
+    nodesByType[node.type] = (nodesByType[node.type] || 0) + 1;
+  }
+
+  const mostConnectedFiles = [...index.fileIndex.entries()]
+    .map(([path, refs]) => ({ path, refs: refs.length }))
+    .sort((a, b) => b.refs - a.refs)
+    .slice(0, 10);
+
+  // Orphan nodes: no outgoing AND no incoming edges
+  const hasConnection = new Set<string>();
+  for (const [source, edgeList] of index.edges.entries()) {
+    if (edgeList.length > 0) hasConnection.add(source);
+    for (const edge of edgeList) {
+      hasConnection.add(edge.target);
+    }
+  }
+  const orphanNodes: string[] = [];
+  for (const nodeId of index.nodes.keys()) {
+    if (!hasConnection.has(nodeId)) orphanNodes.push(nodeId);
+  }
+
+  const density = nodeCount > 1 ? edgeCount / (nodeCount * (nodeCount - 1)) : 0;
+
+  const result = {
+    nodeCount,
+    edgeCount,
+    nodesByType,
+    mostConnectedFiles,
+    orphanNodes,
+    density: Math.round(density * 1000) / 1000,
+  };
+
+  if (json) {
+    console.log(jsonOut(result));
+    return;
+  }
+
+  console.log(`Graph inspect: ${slug}`);
+  console.log(`  Nodes: ${nodeCount}`);
+  console.log(`  Edges: ${edgeCount}`);
+  console.log(`  Density: ${result.density}`);
+  console.log(`  Nodes by type:`);
+  for (const [type, count] of Object.entries(nodesByType)) {
+    console.log(`    ${type}: ${count}`);
+  }
+  if (mostConnectedFiles.length > 0) {
+    console.log(`  Most connected files:`);
+    for (const f of mostConnectedFiles) {
+      console.log(`    ${f.path} (${f.refs} refs)`);
+    }
+  }
+  if (orphanNodes.length > 0) {
+    console.log(`  Orphan nodes: ${orphanNodes.join(", ")}`);
   }
 }
 
@@ -958,7 +1247,7 @@ async function handlePlanList(args: string[], json: boolean, slugOverride?: stri
   }
 
   if (json) {
-    console.log(JSON.stringify(plans));
+    console.log(jsonOut(plans));
     return;
   }
 
@@ -1006,7 +1295,7 @@ async function handlePlanGet(args: string[], json: boolean): Promise<void> {
   }
 
   if (json) {
-    console.log(JSON.stringify(includeBody ? { ...plan, body } : plan));
+    console.log(jsonOut(includeBody ? { ...plan, body } : plan));
     return;
   }
 
@@ -1078,7 +1367,7 @@ async function handleKnowledgeList(args: string[], json: boolean, slugOverride?:
   }
 
   if (json) {
-    console.log(JSON.stringify(entries));
+    console.log(jsonOut(entries));
     return;
   }
 
@@ -1130,7 +1419,7 @@ async function handleKnowledgeSearch(args: string[], json: boolean): Promise<voi
   }
 
   if (json) {
-    console.log(JSON.stringify(results));
+    console.log(jsonOut(results));
     return;
   }
 
@@ -1149,6 +1438,7 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
   const slug = extractFlag(args, "--slug");
   const title = extractFlag(args, "--title");
   const kind = extractFlag(args, "--kind") as KnowledgeKind | undefined;
+  const audience = extractFlag(args, "--audience") as KnowledgeAudience | undefined;
   const body = extractFlag(args, "--body");
   const keywordsRaw = extractFlag(args, "--keywords");
 
@@ -1166,6 +1456,10 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
   }
   if (!(KNOWLEDGE_KINDS as readonly string[]).includes(kind)) {
     cliError(`Error: invalid kind "${kind}". Valid: ${KNOWLEDGE_KINDS.join(", ")}`);
+    return;
+  }
+  if (audience && !(KNOWLEDGE_AUDIENCES as readonly string[]).includes(audience)) {
+    cliError(`Error: invalid audience "${audience}". Valid: ${KNOWLEDGE_AUDIENCES.join(", ")}`);
     return;
   }
 
@@ -1197,10 +1491,11 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
       kind,
       keywords,
       content: body,
+      ...(audience && { audience }),
     });
 
     if (json) {
-      console.log(JSON.stringify(entry));
+      console.log(jsonOut(entry));
     } else {
       console.log(`Created knowledge entry: ${entry.id}`);
     }
@@ -1243,7 +1538,7 @@ async function handleKnowledgeGet(args: string[], json: boolean): Promise<void> 
     const bodyPath = resolve(projectDir, meta.file);
     const body = existsSync(bodyPath) ? readFileSync(bodyPath, "utf-8") : "";
     if (json) {
-      console.log(JSON.stringify({ meta, body }));
+      console.log(jsonOut({ meta, body }));
     } else {
       console.log(`ID: ${meta.id}`);
       console.log(`Title: ${meta.title}`);
@@ -1255,7 +1550,7 @@ async function handleKnowledgeGet(args: string[], json: boolean): Promise<void> 
     }
   } else {
     if (json) {
-      console.log(JSON.stringify({ meta }));
+      console.log(jsonOut({ meta }));
     } else {
       console.log(`ID: ${meta.id}`);
       console.log(`Title: ${meta.title}`);
@@ -1314,7 +1609,7 @@ async function handleKnowledgeUpdateMeta(args: string[], json: boolean): Promise
     });
 
     if (json) {
-      console.log(JSON.stringify({ meta }));
+      console.log(jsonOut({ meta }));
     } else {
       console.log(`Updated knowledge entry: ${meta.id}`);
     }
@@ -1381,7 +1676,7 @@ async function handleKnowledgeUpdateBody(args: string[], json: boolean): Promise
   const meta = await updateKnowledgeEntry(projectDir, { id: entryId });
 
   if (json) {
-    console.log(JSON.stringify({ meta, body }));
+    console.log(jsonOut({ meta, body }));
   } else {
     console.log(`Updated body for knowledge entry: ${meta.id}`);
   }
@@ -1416,7 +1711,7 @@ async function handleKnowledgeDelete(args: string[], json: boolean): Promise<voi
   try {
     await deleteKnowledgeEntry(projectDir, entryId);
     if (json) {
-      console.log(JSON.stringify({ deleted: entryId, slug }));
+      console.log(jsonOut({ deleted: entryId, slug }));
     } else {
       console.log(`Deleted knowledge entry: ${entryId}`);
     }
@@ -1545,7 +1840,7 @@ async function handleDiagram(args: string[], json: boolean): Promise<void> {
         JSON.parse(output);
         console.log(output.trim());
       } catch {
-        console.log(JSON.stringify({ output: output.trim() }));
+        console.log(jsonOut({ output: output.trim() }));
       }
     } else {
       console.log(output.trim());
@@ -1608,7 +1903,7 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (json) {
-        console.log(JSON.stringify([{ index: 0, op: ops[0].op, success: false, error: msg }]));
+        console.log(jsonOut([{ index: 0, op: ops[0].op, success: false, error: msg }]));
       } else {
         cliError(msg);
       }
@@ -1763,7 +2058,7 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
   }
 
   if (json) {
-    console.log(JSON.stringify(results));
+    console.log(jsonOut(results));
   } else {
     for (const r of results) {
       const status = r.success ? "OK" : "FAIL";
@@ -1909,7 +2204,7 @@ async function handleValidate(args: string[], json: boolean): Promise<void> {
   };
 
   if (json) {
-    console.log(JSON.stringify(report));
+    console.log(jsonOut(report));
   } else {
     console.log(`Validation complete: ${report.summary.issueCount} issues found (${report.summary.totalChecks} checks)`);
     for (const issue of issues) {
@@ -1974,7 +2269,7 @@ async function handleProjectList(json: boolean): Promise<void> {
   }
 
   if (json) {
-    console.log(JSON.stringify(projects, null, 2));
+    console.log(jsonOut(projects));
     return;
   }
 
@@ -2025,7 +2320,7 @@ async function handleProjectGet(args: string[], json: boolean): Promise<void> {
     }
     const content = await readFile(filePath, "utf-8");
     if (json) {
-      console.log(JSON.stringify({ slug, doc, content }));
+      console.log(jsonOut({ slug, doc, content }));
     } else {
       console.log(content);
     }
@@ -2037,7 +2332,7 @@ async function handleProjectGet(args: string[], json: boolean): Promise<void> {
   const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
 
   if (json) {
-    console.log(JSON.stringify(meta));
+    console.log(jsonOut(meta));
   } else {
     console.log(`Slug:        ${meta.id}`);
     console.log(`Name:        ${meta.name}`);
@@ -2153,7 +2448,7 @@ async function handleProjectInit(args: string[], json: boolean): Promise<void> {
     await writeRootMeta(dataDir, rootMeta);
 
     if (json) {
-      console.log(JSON.stringify({ slug, name, status: "draft", dependsOn }));
+      console.log(jsonOut({ slug, name, status: "draft", dependsOn }));
     } else {
       console.log(`Project "${name}" initialized at projects/${slug}/`);
     }
@@ -2200,7 +2495,7 @@ async function handleProjectDelete(args: string[], json: boolean): Promise<void>
     await writeRootMeta(dataDir, rootMeta);
 
     if (json) {
-      console.log(JSON.stringify({ deleted: slug }));
+      console.log(jsonOut({ deleted: slug }));
     } else {
       console.log(`Deleted project "${slug}" and removed all dependency edges.`);
     }
@@ -2251,7 +2546,7 @@ async function handleProjectStatus(args: string[], json: boolean): Promise<void>
     await writeRootMeta(dataDir, rootMeta);
 
     if (json) {
-      console.log(JSON.stringify({ slug, previousStatus: oldStatus, newStatus: status }));
+      console.log(jsonOut({ slug, previousStatus: oldStatus, newStatus: status }));
     } else {
       console.log(`Project "${slug}" status: ${oldStatus} → ${status}`);
     }
@@ -2306,7 +2601,7 @@ async function handleWritePropose(args: string[], json: boolean): Promise<void> 
   try {
     const proposal = createWriteProposal({ slug, summary, operations, ttlMs });
     if (json) {
-      console.log(JSON.stringify({
+      console.log(jsonOut({
         token: proposal.token,
         slug: proposal.slug,
         summary: proposal.summary,
@@ -2345,7 +2640,7 @@ async function handleWriteApply(args: string[], json: boolean): Promise<void> {
   try {
     const proposal = consumeWriteProposalToken(token, slug);
     if (json) {
-      console.log(JSON.stringify({
+      console.log(jsonOut({
         consumed: true,
         token: proposal.token,
         slug: proposal.slug,
@@ -2439,7 +2734,7 @@ async function handleDoc(args: string[], json: boolean): Promise<void> {
   try {
     await writeFile(filePath, content, "utf-8");
     if (json) {
-      console.log(JSON.stringify({ updated: true, slug, doc: docType, path: filePath }));
+      console.log(jsonOut({ updated: true, slug, doc: docType, path: filePath }));
     } else {
       console.log(`✅ Updated ${docType} for project "${slug}".`);
     }
@@ -2506,7 +2801,7 @@ async function handleDependency(args: string[], json: boolean): Promise<void> {
     if (action === "add") {
       if (project.dependsOn.includes(targetSlug)) {
         const msg = `Dependency "${slug}" → "${targetSlug}" already exists.`;
-        if (json) console.log(JSON.stringify({ message: msg }));
+        if (json) console.log(jsonOut({ message: msg }));
         else console.log(msg);
         return;
       }
@@ -2522,7 +2817,7 @@ async function handleDependency(args: string[], json: boolean): Promise<void> {
       const idx = project.dependsOn.indexOf(targetSlug);
       if (idx === -1) {
         const msg = `Dependency "${slug}" → "${targetSlug}" does not exist.`;
-        if (json) console.log(JSON.stringify({ message: msg }));
+        if (json) console.log(jsonOut({ message: msg }));
         else console.log(msg);
         return;
       }
@@ -2533,7 +2828,7 @@ async function handleDependency(args: string[], json: boolean): Promise<void> {
 
     const verb = action === "add" ? "Added" : "Removed";
     const msg = `✅ ${verb} dependency: "${slug}" → "${targetSlug}"`;
-    if (json) console.log(JSON.stringify({ message: msg, slug, targetSlug, action }));
+    if (json) console.log(jsonOut({ message: msg, slug, targetSlug, action }));
     else console.log(msg);
   } catch (err) {
     cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -2638,7 +2933,7 @@ async function handlePaths(args: string[], json: boolean): Promise<void> {
     await writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
 
     if (json) {
-      console.log(JSON.stringify({ updated: true, slug, action, paths: updated }));
+      console.log(jsonOut({ updated: true, slug, action, paths: updated }));
     } else {
       console.log(`✅ Workspace paths for "${slug}" updated (${action}).`);
       console.log(`\nCurrent paths:`);
@@ -2726,7 +3021,7 @@ async function handleLoopStart(args: string[], json: boolean): Promise<void> {
     });
 
     if (json) {
-      console.log(JSON.stringify({ message: `Loop started for project "${slug}"`, state }));
+      console.log(jsonOut({ message: `Loop started for project "${slug}"`, state }));
     } else {
       console.log(`Loop started for project "${slug}" (session: ${session}, max: ${maxIterations})`);
     }
@@ -2766,7 +3061,7 @@ async function handleLoopCancel(args: string[], json: boolean): Promise<void> {
   try {
     const cancelled = await cancelLoop(projectDir, session);
     if (json) {
-      console.log(JSON.stringify({ slug, session, cancelled }));
+      console.log(jsonOut({ slug, session, cancelled }));
     } else if (cancelled) {
       console.log(`Loop cancelled for project "${slug}".`);
     } else {
@@ -2790,7 +3085,7 @@ async function handleLoopStatus(args: string[], json: boolean): Promise<void> {
       }
       const state = await readLoopState(projectDir);
       if (json) {
-        console.log(JSON.stringify({ slug, state }));
+        console.log(jsonOut({ slug, state }));
       } else if (state) {
         console.log(`Loop for "${slug}": status=${state.active ? "active" : "idle"}, iteration=${state.iteration}/${state.maxIterations}, session=${state.sessionId}`);
       } else {
@@ -2799,7 +3094,7 @@ async function handleLoopStatus(args: string[], json: boolean): Promise<void> {
     } else {
       const active = await findActiveLoop();
       if (json) {
-        console.log(JSON.stringify(active ? { slug: active.slug, state: active.state } : { message: "No active loop found.", state: null }));
+        console.log(jsonOut(active ? { slug: active.slug, state: active.state } : { message: "No active loop found.", state: null }));
       } else if (active) {
         console.log(`Active loop: project="${active.slug}", status=${active.state.active ? "active" : "idle"}, iteration=${active.state.iteration}/${active.state.maxIterations}`);
       } else {
@@ -2837,7 +3132,7 @@ async function handleLintBundle(args: string[], json: boolean): Promise<void> {
     if (proc.stdout) {
       const result = JSON.parse(proc.stdout);
       if (json) {
-        console.log(JSON.stringify(result));
+        console.log(jsonOut(result));
       } else {
         const issues = result.issues ?? [];
         if (issues.length === 0) {
@@ -2901,7 +3196,7 @@ async function handleDeploySuperpowers(args: string[], json: boolean): Promise<v
     if (proc.stdout) {
       const result = JSON.parse(proc.stdout);
       if (json) {
-        console.log(JSON.stringify(result));
+        console.log(jsonOut(result));
       } else {
         const prefix = dryRun ? "[DRY RUN] " : "";
         console.log(`${prefix}Deploy: ${result.source} → ${result.destination}`);
@@ -3086,7 +3381,7 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
     }
 
     if (json) {
-      console.log(JSON.stringify({ sourcePath, symlinked, warnings }));
+      console.log(jsonOut({ sourcePath, symlinked, warnings }));
     } else {
       console.log(`✅ AGENTS.md written to ${sourcePath}`);
       if (symlinked.length > 0) {
@@ -3097,6 +3392,43 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
   } catch (err) {
     cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// agents-md command
+// ---------------------------------------------------------------------------
+
+async function handleAgentsMd(args: string[], json: boolean): Promise<void> {
+  const slug = args.find((a) => !a.startsWith("--"));
+  if (!slug) {
+    cliError("Error: usage: spoc agents-md <slug> [--json]");
+    process.exitCode = 1;
+    return;
+  }
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    cliError(`Error: project "${slug}" not found`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const agentsMdPath = resolve(projectDir, "AGENTS.md");
+  if (!existsSync(agentsMdPath)) {
+    cliError(
+      `No AGENTS.md found for project '${slug}'. Run: spoc sync-agents-md ${slug} --analysis-file=<path> --token=<token>`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const content = readFileSync(agentsMdPath, "utf-8");
+
+  if (json) {
+    console.log(jsonOut({ slug, content }));
+  } else {
+    console.log(content);
   }
 }
 
@@ -3176,7 +3508,7 @@ async function handleAudit(args: string[], json: boolean): Promise<void> {
   };
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(jsonOut(result));
   } else {
     console.log(`Audit: ${entries.length} entries, ${totalSourceFiles} sourceFiles, ${staleCount} stale`);
     for (const e of staleEntries) {
@@ -3259,7 +3591,7 @@ async function handleDiff(args: string[], json: boolean): Promise<void> {
   };
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(jsonOut(result));
   } else {
     console.log(`Changes since ${sinceIso}: ${result.counts.total} total (${result.counts.plans} plans, ${result.counts.knowledge} knowledge, ${result.counts.tasks} tasks)`);
     for (const p of plans) console.log(`  plan: ${p.planId} [${p.status}] ${p.title}`);
@@ -3302,7 +3634,7 @@ async function handleGitLog(args: string[], json: boolean): Promise<void> {
   if (!isGitRepo(cwd)) {
     const result = { commits: [], info: "Workspace path is not a git repository" };
     if (json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(jsonOut(result));
     } else {
       console.log("Workspace path is not a git repository");
     }
@@ -3316,7 +3648,7 @@ async function handleGitLog(args: string[], json: boolean): Promise<void> {
   const commits = getGitLog(cwd, { since, limit });
 
   if (json) {
-    console.log(JSON.stringify(commits, null, 2));
+    console.log(jsonOut(commits));
   } else {
     for (const c of commits) {
       console.log(`${c.sha.slice(0, 7)} ${c.date} ${c.message}`);
@@ -3335,7 +3667,10 @@ export async function handleDagCommand(
   command: string,
   args: string[],
 ): Promise<boolean> {
-  const { json, rest } = parseFlags(args);
+  const { json, lean, rest } = parseFlags(args);
+
+  // Set module-level lean mode for jsonOut helper
+  _leanMode = lean;
 
   if (rest.includes("--help") || args.includes("--help")) {
     printUsage();
@@ -3353,6 +3688,10 @@ export async function handleDagCommand(
 
     case "search":
       await handleSearch(rest, json);
+      return true;
+
+    case "related":
+      await handleRelated(rest, json);
       return true;
 
     case "plan":
@@ -3411,6 +3750,10 @@ export async function handleDagCommand(
       await handleSyncAgentsMd(rest, json);
       return true;
 
+    case "agents-md":
+      await handleAgentsMd(rest, json);
+      return true;
+
     case "audit":
       await handleAudit(rest, json);
       return true;
@@ -3421,6 +3764,10 @@ export async function handleDagCommand(
 
     case "git-log":
       await handleGitLog(rest, json);
+      return true;
+
+    case "graph":
+      await handleGraph(rest, json);
       return true;
 
     default:

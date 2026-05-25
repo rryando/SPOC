@@ -62,7 +62,7 @@ The review produces a report. The report becomes SPOC artifacts (tasks / knowled
 
 Before reading any code, resolve what "the system under review" means.
 
-**Prefer SPOC context:** Use `spoc context --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path. Check the project overview, knowledge entries (kind `architecture` / `module`), and plans for existing structural documentation. This establishes the intended architecture against which you evaluate the actual.
+**Prefer SPOC context:** Use `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path. Check the project overview, knowledge entries (kind `architecture` / `module`), and plans for existing structural documentation. This establishes the intended architecture against which you evaluate the actual.
 
 **Cross-project check:** Use `spoc project list --json` CLI (preferred) or `spoc_list_projects` MCP fallback to identify dependency edges. If the system under review imports from or exports to other SPOC projects, note these boundaries explicitly. Use `spoc project get <slug> --json` CLI or `spoc_get_project` with `doc: "dependencies"` for each relevant project.
 
@@ -205,7 +205,7 @@ Every finding carries a handoff tag indicating how it becomes a SPOC artifact:
 This skill works in two modes depending on agent capabilities:
 
 **Mode A — Direct SPOC access (sub-agent has MCP tools):**
-- Resolve context via `spoc context --json` CLI (preferred) or `spoc_resolve_project_context`
+- Resolve context via `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context`
 - List projects via `spoc project list --json` CLI (preferred) or `spoc_list_projects`
 - Search knowledge via `spoc knowledge search <slug> "<query>" --json` CLI (preferred) or `spoc_search_project_knowledge`
 - After user approval, write artifacts directly via `spoc_create_project_task`, `spoc_create_project_knowledge_entry`, `spoc_create_project_plan`

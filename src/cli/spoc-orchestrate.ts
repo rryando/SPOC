@@ -50,7 +50,7 @@ SPOC operations are accessible via **two interfaces:**
 
 | Operation | CLI Command | Notes |
 |-----------|-------------|-------|
-| T0 orientation | \`spoc context [--path=<dir>] --json\` | Fast project context resolution |
+| T0 orientation | \`spoc context [--path=<dir>] --audience=orchestrator --json\` | Fast project context resolution (orchestrator-scoped) |
 | List projects | \`spoc project list --json\` | DAG-wide view |
 | Get project meta | \`spoc project get <slug> --json\` | Project metadata |
 | Get project doc | \`spoc project get <slug> --doc=overview\` | Specific document |
@@ -60,6 +60,12 @@ SPOC operations are accessible via **two interfaces:**
 | Cross-type search | \`spoc search <slug> "<query>" --json\` | Plans + knowledge + tasks |
 | Diagram ready nodes | \`spoc diagram ready <slug> <planId>\` | Next executable tasks |
 | Validate project | \`spoc validate <slug> --json\` | Health check |
+| Read AGENTS.md | \`spoc agents-md <slug>\` | Read |
+| Structural audit | \`spoc audit <slug> --json\` | Read |
+| DAG diff | \`spoc diff <slug> --json\` | Read |
+| Git history | \`spoc git-log <slug> [--since=<commit>] --json\` | Read |
+| Sync AGENTS.md | \`spoc sync-agents-md <slug> --analysis-file=<path> --token=<token>\` | Write-gated |
+| Batch writes | \`spoc batch --file=ops.json --token=$TOKEN --json\` | Write-gated |
 
 ### CLI Writes (with --token)
 
@@ -77,15 +83,15 @@ spoc batch --file=ops.json --token=$TOKEN --json
 
 ### When to Use Which
 
-- **Orchestrator T0:** \`spoc context\` CLI (fast, no MCP overhead)
-- **Sub-agent DAG reads:** CLI commands in sub-agent prompts (spoc search, spoc task list, etc.)
+- **Orchestrator T0:** \`spoc context --audience=orchestrator\` CLI (fast, no MCP overhead)
+- **Sub-agent DAG reads:** CLI commands in sub-agent prompts with \`--audience=implementer --lean --json\` (e.g. \`spoc context <slug> --audience=implementer --lean --json\`, \`spoc search <slug> '<query>' --lean --json\`)
 - **All writes:** MCP tools with write-gate OR CLI with --token (both work)
 - **Diagram operations:** \`spoc diagram ready/inspect\` CLI for reads, \`transition_project_task\` MCP for status changes
 
 ## Project Context Resolution
 
 At the start of every session, if you know the user's working directory, call
-\`resolve_project_context\` MCP tool or run \`spoc context --json\` CLI (CLI preferred for speed). If a project is found, use the
+\`resolve_project_context\` MCP tool or run \`spoc context --audience=orchestrator --json\` CLI (CLI preferred for speed). If a project is found, use the
 returned context to inform your work — it contains the project overview,
 an operating brief, current focus, relevant knowledge, and active plans.
 
@@ -128,7 +134,7 @@ Load only what each workflow step needs. Do NOT front-load all docs for every re
 
 | Tier | What | Who loads it | When to use |
 |------|------|--------------|-------------|
-| **T0** | \`resolve_project_context\` output (or \`spoc context\` CLI) | Orchestrator | Always — session start. Contains overview, operating brief, current focus, top knowledge, active plans. This is your primary (and usually only) orientation. |
+| **T0** | \`resolve_project_context\` output (or \`spoc context --audience=orchestrator\` CLI) | Orchestrator | Always — session start. Contains overview, operating brief, current focus, top knowledge, active plans. This is your primary (and usually only) orientation. |
 | **T1** | Single doc fetch (\`get_project\` with specific \`doc\`) | **Sub-agent** (default). Orchestrator may call only for a single targeted doc directly feeding an imminent write. | When a workflow step needs one specific doc. If the read is exploratory, comparative, or feeds further reasoning — delegate. |
 | **T2** | Index listings (\`list_project_plans\`, \`list_project_knowledge_entries\`, \`list_projects\`) | **Sub-agent** (default). Orchestrator may call \`list_projects\` once for conflict-check in INIT or DAG-wide routing in EXPLORE/MULTI. | When you need to discover what plans/knowledge/projects exist. Any audit/filter/scan across entries → sub-agent. |
 | **T3** | Full doc body (\`get_project_plan(includeBody)\`, \`get_project_knowledge_entry(includeBody)\`) | **Sub-agent always.** | Only when actively working with a specific plan or entry. Orchestrator never loads bodies. |
@@ -145,7 +151,7 @@ project-wide scans) are exploration too, and exploration belongs in sub-agents.
 
 Follow this strict information resolution order:
 
-1. **T0 first** — \`resolve_project_context\` output (or \`spoc context --json\` CLI) is your primary orientation.
+1. **T0 first** — \`resolve_project_context\` output (or \`spoc context --audience=orchestrator --json\` CLI) is your primary orientation.
    It already contains overview, operating brief, current focus, top knowledge,
    and active plans. For most routing and task selection this is enough.
 2. **Dispatch an explore sub-agent for anything deeper** — When you need a
@@ -311,9 +317,13 @@ results.
 
 ### CLI access for sub-agents
 
-Sub-agent prompts should suggest CLI commands for DAG reads where applicable.
-For example: "Use \`spoc search <slug> '<query>' --json\` for knowledge lookup"
-or "Run \`spoc task list <slug> --json\` to check current task state." This
+Sub-agent prompts should suggest CLI commands for DAG reads where applicable,
+using \`--audience=implementer --lean --json\` for implementation sub-agents and
+\`--audience=designer --lean --json\` for brainstorming sub-agents. The \`--audience\`
+flag scopes knowledge to what's relevant for each agent type, and \`--lean\`
+produces token-efficient output.
+For example: "Use \`spoc search <slug> '<query>' --audience=implementer --lean --json\` for knowledge lookup"
+or "Run \`spoc task list <slug> --lean --json\` to check current task state." This
 avoids MCP overhead for reads and keeps sub-agent context lean.
 
 ### DAG write discipline
@@ -507,8 +517,14 @@ Before taking action, explicitly state:
    - **plans/**: Are plan statuses current? Any that should be marked done or archived? Check externally-created plans via keyword filters (\`spec\`, \`implementation-plan\`).
    - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
     - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
-    - **plans/ diagrams**: For each plan, audit its associated \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) against task metadata. Check for six drift types: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but no diagram node), topology mismatch (edges don't match dependencies), stale plan-level comments (\`%% status/ready/blocked/next-action\` inconsistent with actual graph state), incomplete/missing rich node metadata (per-node \`%%\` comment blocks absent or stale). Load \`to-diagram\` skill for drift detection rules. Metadata always wins. **Repair strategy:** For phantom nodes (diagram node without backing Task record), create the missing Task record via \`create_project_task\` with \`planId\` set and title from the node label — do NOT delete the diagram node, as it represents planned work. For other drift types, regenerate the \`.mmd\` file deterministically from current task metadata using the scope-change regeneration algorithm.
-7. Based on the sub-agent's structured diff, propose corrections clearly.
+     - **plans/ diagrams**: For each plan, audit its associated \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) against task metadata. Check for six drift types: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but no diagram node), topology mismatch (edges don't match dependencies), stale plan-level comments (\`%% status/ready/blocked/next-action\` inconsistent with actual graph state), incomplete/missing rich node metadata (per-node \`%%\` comment blocks absent or stale). Load \`to-diagram\` skill for drift detection rules. Metadata always wins. **Repair strategy:** For phantom nodes (diagram node without backing Task record), create the missing Task record via \`create_project_task\` with \`planId\` set and title from the node label — do NOT delete the diagram node, as it represents planned work. For other drift types, regenerate the \`.mmd\` file deterministically from current task metadata using the scope-change regeneration algorithm.
+    - **AGENTS.md**: Is the project's \`AGENTS.md\` present and up-to-date?
+      Run \`spoc validate <slug> --json\` — it reports a warning if AGENTS.md is missing.
+      If missing or stale (last updated > 30 days ago), dispatch a codebase-analysis sub-agent
+      to produce a fresh \`--analysis-file\` JSON, then run \`spoc sync-agents-md <slug>
+      --analysis-file=<path> --token=$TOKEN\` under write-gate to regenerate.
+      Also symlink presence: verify the symlink exists at each workspace path.
+ 7. Based on the sub-agent's structured diff, propose corrections clearly.
 8. **Write-gate (mandatory):** Call \`propose_dag_write\` with the full proposed diff (doc updates, plan meta updates, knowledge entry updates, status changes) as the operations list. Present the summary to the user. Ask "Ready to apply these corrections to the DAG?" Wait for user confirmation. Pass the returned token to \`apply_dag_write\` before applying any changes.
 9. Apply updates via \`update_project_doc\`, \`update_project_plan_meta\`, \`update_project_knowledge_meta\`, etc.
 10. If needed, update lifecycle status with \`update_project_status\`.

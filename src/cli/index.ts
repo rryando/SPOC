@@ -46,6 +46,7 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "lint-bundle":
     case "deploy-superpowers":
     case "sync-agents-md":
+    case "agents-md":
       return handleDagCommand(command, args.slice(1));
 
     default:
