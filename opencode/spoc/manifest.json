@@ -13,7 +13,9 @@
     { "source": "prompts/qa-analyst.txt", "destination": "prompts/qa-analyst.txt" },
     { "source": "prompts/oncall-ops.txt", "destination": "prompts/oncall-ops.txt" },
     { "source": "prompts/spoc-docs.txt", "destination": "prompts/spoc-docs.txt" },
-    { "source": "prompts/system-architect.txt", "destination": "prompts/system-architect.txt" }
+    { "source": "prompts/system-architect.txt", "destination": "prompts/system-architect.txt" },
+    { "source": "prompts/code-reviewer.txt", "destination": "prompts/code-reviewer.txt" },
+    { "source": "prompts/docs-researcher.txt", "destination": "prompts/docs-researcher.txt" }
   ],
   "ownedPaths": [
     "skills/spoc",
@@ -73,7 +75,7 @@
           "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
           "mode": "subagent",
           "model": "github-copilot/claude-haiku-4.5",
-          "prompt": "You are a code review specialist. Review code like a thoughtful teammate, focusing on correctness, edge cases, maintainability, architecture, and test quality. Prefer concrete, evidence-backed findings over generic style commentary.",
+          "prompt": "{file:./prompts/code-reviewer.txt}",
           "permission": {
             "edit": "deny",
             "webfetch": "deny"
@@ -94,7 +96,7 @@
             "bash": "ask",
             "webfetch": "allow"
           },
-          "prompt": "You are a documentation and research specialist. Focus on producing clear documentation, synthesizing external information, and handling document-heavy tasks carefully. Prefer preserving source meaning over clever rewriting."
+          "prompt": "{file:./prompts/docs-researcher.txt}"
         }
       },
       {

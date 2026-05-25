@@ -73,6 +73,8 @@ function curatedBundlePayloadFiles(): string[] {
     // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
     ...spocNativeSkillFiles,
     // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
+    "prompts/code-reviewer.txt",
+    "prompts/docs-researcher.txt",
     "prompts/oncall-ops.txt",
     "prompts/qa-analyst.txt",
     "prompts/software-engineer.txt",

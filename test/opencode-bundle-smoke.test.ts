@@ -97,6 +97,8 @@ describe("opencode SPOC bundle bundle", () => {
       { source: "prompts/oncall-ops.txt", destination: "prompts/oncall-ops.txt" },
       { source: "prompts/spoc-docs.txt", destination: "prompts/spoc-docs.txt" },
       { source: "prompts/system-architect.txt", destination: "prompts/system-architect.txt" },
+      { source: "prompts/code-reviewer.txt", destination: "prompts/code-reviewer.txt" },
+      { source: "prompts/docs-researcher.txt", destination: "prompts/docs-researcher.txt" },
     ]);
     expect(manifest.config.requiredMerges).toEqual(
       expect.arrayContaining([
