@@ -198,10 +198,17 @@ export function ingestGraph(
   const nodeMap = new Map(graph.nodes.map(n => [n.id, n]));
 
   // God nodes (degree > 95th percentile — top 5% most connected)
+  // Exclude test files — they naturally import many modules but aren't architectural hubs
+  const isTestFile = (file: string) =>
+    /\.(test|spec)\.[jt]sx?$/.test(file) ||
+    file.startsWith("test/") ||
+    file.startsWith("tests/") ||
+    file.includes("/__tests__/");
+
   const degrees = graph.nodes.map(n => n.degree).filter(d => d > 0);
   const threshold = percentile(degrees, 95);
   const godNodes = graph.nodes
-    .filter(n => n.degree > threshold && n.file) // must have a file reference
+    .filter(n => n.degree > threshold && n.file && !isTestFile(n.file))
     .sort((a, b) => b.degree - a.degree)
     .slice(0, 8); // cap god nodes at 8 to leave room for other kinds
 
@@ -243,6 +250,8 @@ export function ingestGraph(
     const nodeA = nodeMap.get(link.source);
     const nodeB = nodeMap.get(link.target);
     if (!nodeA || !nodeB || !nodeA.file || !nodeB.file) continue;
+    // Skip test files — test↔source coupling is expected, not interesting
+    if (isTestFile(nodeA.file) || isTestFile(nodeB.file)) continue;
     const dirA = nodeA.file.split("/").slice(0, 2).join("/"); // top-level module dir
     const dirB = nodeB.file.split("/").slice(0, 2).join("/");
     if (dirA && dirB && dirA !== dirB && (nodeA.degree > threshold || nodeB.degree > threshold)) {

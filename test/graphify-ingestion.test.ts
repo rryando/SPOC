@@ -229,4 +229,54 @@ describe("ingestGraph", () => {
     expect(result.stats.godNodes).toBeGreaterThanOrEqual(1);
     rmSync(dir, { recursive: true });
   });
+
+  it("excludes test files from god nodes and cross-module couplings", () => {
+    const dir = makeTmpDir();
+    // Create graph where the highest-degree node is a test file
+    const graph = {
+      nodes: [
+        { id: "t1", label: "GodTest", file_type: "code", source_file: "test/god.test.ts" },
+        { id: "s1", label: "ServiceA", file_type: "code", source_file: "src/moduleA/service.ts" },
+        { id: "s2", label: "ServiceB", file_type: "code", source_file: "src/moduleB/service.ts" },
+        { id: "s3", label: "Helper", file_type: "code", source_file: "src/moduleA/helper.ts" },
+        { id: "s4", label: "Utils", file_type: "code", source_file: "src/moduleB/utils.ts" },
+        { id: "s5", label: "Low1", file_type: "code", source_file: "src/moduleC/low1.ts" },
+        { id: "s6", label: "Low2", file_type: "code", source_file: "src/moduleC/low2.ts" },
+        { id: "s7", label: "Low3", file_type: "code", source_file: "src/moduleC/low3.ts" },
+      ],
+      links: [
+        // Test file has highest degree (7 links — imports everything)
+        { source: "t1", target: "s1", relation: "imports", weight: 1 },
+        { source: "t1", target: "s2", relation: "imports", weight: 1 },
+        { source: "t1", target: "s3", relation: "imports", weight: 1 },
+        { source: "t1", target: "s4", relation: "imports", weight: 1 },
+        { source: "t1", target: "s5", relation: "imports", weight: 1 },
+        { source: "t1", target: "s6", relation: "imports", weight: 1 },
+        { source: "t1", target: "s7", relation: "imports", weight: 1 },
+        // ServiceA has degree 4
+        { source: "s1", target: "s3", relation: "calls", weight: 1 },
+        { source: "s1", target: "s5", relation: "calls", weight: 1 },
+        { source: "s1", target: "s6", relation: "calls", weight: 1 },
+      ],
+    };
+    const graphPath = writeGraph(dir, graph);
+    const result = ingestGraph(graphPath, "test-slug");
+
+    // God nodes should NOT include the test file
+    const godProposals = result.proposals.filter(p => p.kind === "module");
+    for (const p of godProposals) {
+      expect(p.sourceFiles[0].path).not.toMatch(/\.test\./);
+      expect(p.sourceFiles[0].path).not.toMatch(/^test\//);
+    }
+
+    // Cross-module couplings should NOT include test file links
+    const gotchaProposals = result.proposals.filter(p => p.kind === "gotcha");
+    for (const p of gotchaProposals) {
+      for (const sf of p.sourceFiles) {
+        expect(sf.path).not.toMatch(/\.test\./);
+        expect(sf.path).not.toMatch(/^test\//);
+      }
+    }
+    rmSync(dir, { recursive: true });
+  });
 });
