@@ -6,6 +6,9 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { getDataDir } from "./paths.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +49,42 @@ export class WriteGateError extends Error {
 
 const store = new Map<string, WriteProposal>();
 
+// ---------------------------------------------------------------------------
+// File-backed persistence (cross-process token sharing)
+// ---------------------------------------------------------------------------
+
+function getTokensDir(): string {
+  return join(getDataDir(), "tokens");
+}
+
+function persistProposal(proposal: WriteProposal): void {
+  try {
+    const dir = getTokensDir();
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${proposal.token}.json`), JSON.stringify(proposal), "utf-8");
+  } catch (err) {
+    process.stderr.write(`[spoc] warn: failed to persist token to disk: ${(err as Error).message}\n`);
+  }
+}
+
+function loadProposalFromDisk(token: string): WriteProposal | undefined {
+  try {
+    const filePath = join(getTokensDir(), `${token}.json`);
+    if (!existsSync(filePath)) return undefined;
+    const data = JSON.parse(readFileSync(filePath, "utf-8")) as WriteProposal;
+    store.set(token, data);
+    return data;
+  } catch (err) {
+    process.stderr.write(`[spoc] warn: failed to read token from disk: ${(err as Error).message}\n`);
+    return undefined;
+  }
+}
+
+function storeSet(token: string, proposal: WriteProposal): void {
+  store.set(token, proposal);
+  persistProposal(proposal);
+}
+
 /**
  * When true, requireWriteGate() becomes a no-op.
  * Only used in tests to avoid updating every existing test caller.
@@ -80,7 +119,7 @@ export function createWriteProposal(input: WriteProposalInput, nowMs: number = D
     expiresAt: new Date(nowMs + input.ttlMs).toISOString(),
     consumedAt: null,
   };
-  store.set(token, proposal);
+  storeSet(token, proposal);
   return proposal;
 }
 
@@ -88,7 +127,7 @@ export function createWriteProposal(input: WriteProposalInput, nowMs: number = D
  * Retrieve a proposal by token. Returns undefined if not found.
  */
 export function getWriteProposal(token: string): WriteProposal | undefined {
-  return store.get(token);
+  return store.get(token) ?? loadProposalFromDisk(token);
 }
 
 /**
@@ -118,7 +157,7 @@ export function consumeWriteProposal(
 
   proposal.consumedAt = new Date(nowMs).toISOString();
   // Update store
-  store.set(proposal.token, proposal);
+  storeSet(proposal.token, proposal);
   return proposal;
 }
 
@@ -134,7 +173,7 @@ export function consumeWriteProposalToken(
   targetSlug: string,
   nowMs: number = Date.now(),
 ): WriteProposal {
-  const proposal = store.get(token);
+  const proposal = store.get(token) ?? loadProposalFromDisk(token);
   if (!proposal) {
     throw new WriteGateError("Proposal not found");
   }
@@ -171,7 +210,7 @@ export function requireWriteGate(
     );
   }
 
-  const proposal = store.get(token);
+  const proposal = store.get(token) ?? loadProposalFromDisk(token);
   if (!proposal) {
     throw new WriteGateError("Proposal not found");
   }
@@ -196,7 +235,7 @@ export function requireWriteGate(
   }
 
   proposal.consumedAt = new Date(nowMs).toISOString();
-  store.set(token, proposal);
+  storeSet(token, proposal);
   return proposal;
 }
 
@@ -205,4 +244,16 @@ export function requireWriteGate(
  */
 export function clearWriteProposals(): void {
   store.clear();
+  try {
+    const dir = getTokensDir();
+    if (existsSync(dir)) {
+      for (const file of readdirSync(dir)) {
+        if (file.endsWith(".json")) {
+          unlinkSync(join(dir, file));
+        }
+      }
+    }
+  } catch (err) {
+    process.stderr.write(`[spoc] warn: failed to clear tokens from disk: ${(err as Error).message}\n`);
+  }
 }
