@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export interface GraphifyInfo {
@@ -38,7 +38,6 @@ export function detectGraphify(): GraphifyInfo {
 export interface ExtractionResult {
   success: true;
   graphJsonPath: string;
-  reportMdPath: string;
 }
 
 export interface ExtractionError {
@@ -64,19 +63,34 @@ export interface IngestionResult {
   stats: {
     godNodes: number;
     communities: number;
-    surprisingConnections: number;
+    crossModuleCouplings: number;
     totalProposals: number;
   };
 }
 
-interface GraphNode {
+// Graphify output format (from `graphify update` or `graphify extract`)
+interface RawGraphNode {
   id: string;
   label: string;
-  type: string;
-  file: string;
-  community: number;
-  degree: number;
+  file_type?: string;
+  source_file?: string;
+  source_location?: string;
+  // Clustered graphs may include these:
+  type?: string;
+  file?: string;
+  community?: number;
+  degree?: number;
   metadata?: Record<string, unknown>;
+}
+
+interface RawGraphLink {
+  source: string;
+  target: string;
+  relation?: string;
+  type?: string;
+  confidence?: string;
+  source_file?: string;
+  weight?: number;
 }
 
 interface GraphCommunity {
@@ -86,41 +100,76 @@ interface GraphCommunity {
   summary?: string;
 }
 
-interface GraphJson {
-  nodes: GraphNode[];
-  edges: Array<{ source: string; target: string; type: string; weight: number }>;
-  communities: GraphCommunity[];
+interface RawGraphJson {
+  nodes: RawGraphNode[];
+  links?: RawGraphLink[];
+  edges?: RawGraphLink[];
+  communities?: GraphCommunity[];
 }
 
-function parseGraphJson(path: string): GraphJson | null {
-  try {
-    const raw = readFileSync(path, "utf-8");
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data?.nodes)) return null;
-    return data as GraphJson;
-  } catch {
-    return null;
-  }
+// Normalized internal node with computed fields
+interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  file: string;
+  community: number;
+  degree: number;
 }
 
-function parseSurprisingConnections(reportPath: string): Array<{ a: string; b: string; reason: string }> {
-  if (!existsSync(reportPath)) return [];
+function parseGraphJson(graphPath: string): { nodes: GraphNode[]; communities: GraphCommunity[] } | null {
   try {
-    const content = readFileSync(reportPath, "utf-8");
-    const section = content.split("## Surprising Connections")[1];
-    if (!section) return [];
-    const lines = section.split("\n");
-    const results: Array<{ a: string; b: string; reason: string }> = [];
-    for (const line of lines) {
-      if (line.startsWith("## ")) break; // next section
-      const match = line.match(/\*\*(\w+)\*\*\s*↔\s*\*\*(\w+)\*\*.*?—\s*(.+)/);
-      if (match) {
-        results.push({ a: match[1], b: match[2], reason: match[3].trim() });
+    const raw = readFileSync(graphPath, "utf-8");
+    const data: RawGraphJson = JSON.parse(raw);
+    if (!Array.isArray(data?.nodes) || data.nodes.length === 0) return null;
+
+    // Normalize links (graphify uses "links" key; older format used "edges")
+    const links = data.links || data.edges || [];
+
+    // Compute degree from links
+    const degreeMap = new Map<string, number>();
+    for (const link of links) {
+      degreeMap.set(link.source, (degreeMap.get(link.source) || 0) + 1);
+      degreeMap.set(link.target, (degreeMap.get(link.target) || 0) + 1);
+    }
+
+    // Normalize nodes
+    const nodes: GraphNode[] = data.nodes.map(n => ({
+      id: n.id,
+      label: n.label,
+      type: n.type || n.file_type || "unknown",
+      file: n.file || n.source_file || "",
+      community: n.community ?? -1,
+      degree: n.degree ?? degreeMap.get(n.id) ?? 0,
+    }));
+
+    // Use communities if available; otherwise synthesize from source_file grouping
+    let communities: GraphCommunity[] = data.communities || [];
+    if (communities.length === 0) {
+      // Group nodes by directory prefix as pseudo-communities
+      const dirGroups = new Map<string, string[]>();
+      for (const node of nodes) {
+        if (!node.file) continue;
+        const dir = node.file.split("/").slice(0, -1).join("/") || ".";
+        const list = dirGroups.get(dir) || [];
+        list.push(node.id);
+        dirGroups.set(dir, list);
+      }
+      let communityId = 0;
+      for (const [dir, nodeIds] of dirGroups) {
+        if (nodeIds.length >= 3) {
+          communities.push({
+            id: communityId++,
+            label: dir,
+            nodes: nodeIds,
+          });
+        }
       }
     }
-    return results;
+
+    return { nodes, communities };
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -135,12 +184,11 @@ function percentile(values: number[], p: number): number {
 
 export function ingestGraph(
   graphJsonPath: string,
-  reportMdPath: string,
   _slug: string,
 ): IngestionResult {
   const empty: IngestionResult = {
     proposals: [],
-    stats: { godNodes: 0, communities: 0, surprisingConnections: 0, totalProposals: 0 },
+    stats: { godNodes: 0, communities: 0, crossModuleCouplings: 0, totalProposals: 0 },
   };
 
   const graph = parseGraphJson(graphJsonPath);
@@ -149,12 +197,13 @@ export function ingestGraph(
   const proposals: KnowledgeProposal[] = [];
   const nodeMap = new Map(graph.nodes.map(n => [n.id, n]));
 
-  // God nodes (degree > 75th percentile)
-  const degrees = graph.nodes.map(n => n.degree);
-  const threshold = percentile(degrees, 75);
+  // God nodes (degree > 95th percentile — top 5% most connected)
+  const degrees = graph.nodes.map(n => n.degree).filter(d => d > 0);
+  const threshold = percentile(degrees, 95);
   const godNodes = graph.nodes
-    .filter(n => n.degree > threshold)
-    .sort((a, b) => b.degree - a.degree);
+    .filter(n => n.degree > threshold && n.file) // must have a file reference
+    .sort((a, b) => b.degree - a.degree)
+    .slice(0, 8); // cap god nodes at 8 to leave room for other kinds
 
   for (const node of godNodes) {
     proposals.push({
@@ -166,10 +215,10 @@ export function ingestGraph(
     });
   }
 
-  // Community clusters (sorted by size desc)
+  // Community clusters (sorted by size desc, top 8)
   const communities = [...(graph.communities || [])].sort(
     (a, b) => b.nodes.length - a.nodes.length,
-  );
+  ).slice(0, 8);
 
   for (const community of communities) {
     const memberFiles = community.nodes
@@ -179,50 +228,42 @@ export function ingestGraph(
     proposals.push({
       title: `Architecture cluster: ${community.label}`,
       kind: "architecture",
-      summary: community.summary || `Cluster containing ${community.nodes.length} nodes.`,
+      summary: community.summary || `Cluster containing ${community.nodes.length} related entities in ${community.label}.`,
       keywords: [community.label.toLowerCase(), "cluster", "architecture"],
       sourceFiles: uniqueFiles.map(p => ({ path: p })),
     });
   }
 
-  // Surprising connections from report
-  const surprising = parseSurprisingConnections(reportMdPath);
-  for (const conn of surprising) {
-    const nodeA = graph.nodes.find(n => n.label === conn.a);
-    const nodeB = graph.nodes.find(n => n.label === conn.b);
-    const files: Array<{ path: string }> = [];
-    if (nodeA) files.push({ path: nodeA.file });
-    if (nodeB) files.push({ path: nodeB.file });
-    proposals.push({
-      title: `Cross-module coupling: ${conn.a} ↔ ${conn.b}`,
-      kind: "gotcha",
-      summary: conn.reason,
-      keywords: [conn.a.toLowerCase(), conn.b.toLowerCase(), "coupling", "gotcha"],
-      sourceFiles: files,
-    });
+  // Cross-module coupling: find links between different top-level directories where at least one node is high-degree
+  const crossModule: Array<{ a: GraphNode; b: GraphNode; combinedDegree: number }> = [];
+  const rawContent = readFileSync(graphJsonPath, "utf-8");
+  const rawData = JSON.parse(rawContent) as RawGraphJson;
+  const allLinks = rawData.links || rawData.edges || [];
+  for (const link of allLinks) {
+    const nodeA = nodeMap.get(link.source);
+    const nodeB = nodeMap.get(link.target);
+    if (!nodeA || !nodeB || !nodeA.file || !nodeB.file) continue;
+    const dirA = nodeA.file.split("/").slice(0, 2).join("/"); // top-level module dir
+    const dirB = nodeB.file.split("/").slice(0, 2).join("/");
+    if (dirA && dirB && dirA !== dirB && (nodeA.degree > threshold || nodeB.degree > threshold)) {
+      crossModule.push({ a: nodeA, b: nodeB, combinedDegree: nodeA.degree + nodeB.degree });
+    }
   }
-
-  // Pattern detection: 3+ nodes with same type in same community
-  for (const community of graph.communities || []) {
-    const typeCounts = new Map<string, GraphNode[]>();
-    for (const nodeId of community.nodes) {
-      const node = nodeMap.get(nodeId);
-      if (!node) continue;
-      const list = typeCounts.get(node.type) || [];
-      list.push(node);
-      typeCounts.set(node.type, list);
-    }
-    for (const [type, nodes] of typeCounts) {
-      if (nodes.length >= 3) {
-        proposals.push({
-          title: `Recurring pattern: ${nodes.length} ${type}s in ${community.label}`,
-          kind: "pattern",
-          summary: `${nodes.length} ${type} entities clustered in "${community.label}": ${nodes.map(n => n.label).join(", ")}.`,
-          keywords: [type, "pattern", community.label.toLowerCase()],
-          sourceFiles: nodes.map(n => ({ path: n.file })),
-        });
-      }
-    }
+  // Sort by combined degree, deduplicate, take top 5
+  crossModule.sort((a, b) => b.combinedDegree - a.combinedDegree);
+  const seen = new Set<string>();
+  for (const { a, b } of crossModule) {
+    const key = [a.id, b.id].sort().join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    proposals.push({
+      title: `Cross-module coupling: ${a.label} ↔ ${b.label}`,
+      kind: "gotcha",
+      summary: `High-connectivity entities ${a.label} (${a.file}) and ${b.label} (${b.file}) are linked across module boundaries.`,
+      keywords: [a.label.toLowerCase(), b.label.toLowerCase(), "coupling", "cross-module"],
+      sourceFiles: [{ path: a.file }, { path: b.file }],
+    });
+    if (proposals.filter(p => p.kind === "gotcha").length >= 5) break;
   }
 
   // Cap at 20
@@ -233,7 +274,7 @@ export function ingestGraph(
     stats: {
       godNodes: godNodes.length,
       communities: communities.length,
-      surprisingConnections: surprising.length,
+      crossModuleCouplings: capped.filter(p => p.kind === "gotcha").length,
       totalProposals: capped.length,
     },
   };
@@ -320,7 +361,8 @@ export function runExtraction(workspacePath: string): ExtractionOutcome {
   }
 
   const absolutePath = resolve(workspacePath);
-  const result = spawnSync("graphify", ["extract", absolutePath, "--no-viz", "--force"], {
+  // Use `update --force --no-cluster` for AST-only extraction (no LLM API key needed)
+  const result = spawnSync("graphify", ["update", absolutePath, "--force", "--no-cluster"], {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
     timeout: 120_000,
@@ -346,19 +388,44 @@ export function runExtraction(workspacePath: string): ExtractionOutcome {
   }
 
   const graphJsonPath = join(absolutePath, "graphify-out", "graph.json");
-  const reportMdPath = join(absolutePath, "graphify-out", "GRAPH_REPORT.md");
 
-  if (!existsSync(graphJsonPath) || !existsSync(reportMdPath)) {
+  if (!existsSync(graphJsonPath)) {
     return {
       success: false,
-      error: "Extraction completed but expected output files not found",
+      error: "Extraction completed but graph.json not found",
       code: "ENOENT",
     };
   }
 
+  // Ensure graphify-out/ is in .gitignore so extraction output doesn't pollute the repo
+  ensureGitignoreEntry(absolutePath, "graphify-out/");
+
   return {
     success: true,
     graphJsonPath,
-    reportMdPath,
   };
+}
+
+/**
+ * Append an entry to .gitignore if it's not already present.
+ * Creates the file if it doesn't exist.
+ */
+function ensureGitignoreEntry(workspacePath: string, entry: string): void {
+  const gitignorePath = join(workspacePath, ".gitignore");
+  try {
+    if (existsSync(gitignorePath)) {
+      const content = readFileSync(gitignorePath, "utf-8");
+      // Check if entry already present (exact line match)
+      const lines = content.split("\n").map((l) => l.trim());
+      if (lines.includes(entry)) return;
+      // Append with newline separator if file doesn't end with one
+      const separator = content.endsWith("\n") ? "" : "\n";
+      appendFileSync(gitignorePath, `${separator}${entry}\n`, "utf-8");
+    } else {
+      // Create .gitignore with the entry
+      appendFileSync(gitignorePath, `${entry}\n`, "utf-8");
+    }
+  } catch {
+    // Non-fatal — don't fail extraction over .gitignore issues
+  }
 }

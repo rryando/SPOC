@@ -9,6 +9,8 @@ vi.mock("node:child_process", () => ({
 
 vi.mock("node:fs", () => ({
   existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+  appendFileSync: vi.fn(),
 }));
 
 vi.mock("@clack/prompts", () => ({
@@ -42,8 +44,16 @@ vi.mock("../src/cli/bundle-installer.js", () => ({
 const mockedExecSync = vi.mocked(childProcess.execSync);
 const mockedSpawnSync = vi.mocked(childProcess.spawnSync);
 const mockedExistsSync = vi.mocked(fs.existsSync);
+const mockedReadFileSync = vi.mocked(fs.readFileSync);
+const mockedAppendFileSync = vi.mocked(fs.appendFileSync);
 
 import { detectGraphify, runExtraction, queryGraph, pathBetween } from "../src/utils/graphify.js";
+
+import { beforeEach } from "vitest";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("detectGraphify", () => {
   it("returns available:false when binary is not found (ENOENT)", () => {
@@ -119,7 +129,6 @@ describe("runExtraction", () => {
     expect(result).toEqual({
       success: true,
       graphJsonPath: "/tmp/project/graphify-out/graph.json",
-      reportMdPath: "/tmp/project/graphify-out/GRAPH_REPORT.md",
     });
   });
 
@@ -169,9 +178,59 @@ describe("runExtraction", () => {
     const result = runExtraction("/tmp/project");
     expect(result).toEqual({
       success: false,
-      error: "Extraction completed but expected output files not found",
+      error: "Extraction completed but graph.json not found",
       code: "ENOENT",
     });
+  });
+
+  it("adds graphify-out/ to .gitignore on successful extraction", () => {
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "graphify --version") return "graphify 0.8.18\n";
+      if (cmd === "which graphify") return "/usr/local/bin/graphify\n";
+      return "";
+    });
+    mockedSpawnSync.mockReturnValue({
+      status: 0,
+      stdout: "Done",
+      stderr: "",
+      error: undefined as unknown as Error,
+      pid: 1234,
+      output: [],
+      signal: null,
+    });
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue("node_modules/\ndist/\n");
+
+    runExtraction("/tmp/project");
+
+    expect(mockedAppendFileSync).toHaveBeenCalledWith(
+      "/tmp/project/.gitignore",
+      "graphify-out/\n",
+      "utf-8",
+    );
+  });
+
+  it("does not duplicate graphify-out/ in .gitignore if already present", () => {
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "graphify --version") return "graphify 0.8.18\n";
+      if (cmd === "which graphify") return "/usr/local/bin/graphify\n";
+      return "";
+    });
+    mockedSpawnSync.mockReturnValue({
+      status: 0,
+      stdout: "Done",
+      stderr: "",
+      error: undefined as unknown as Error,
+      pid: 1234,
+      output: [],
+      signal: null,
+    });
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue("node_modules/\ngraphify-out/\ndist/\n");
+
+    runExtraction("/tmp/project");
+
+    expect(mockedAppendFileSync).not.toHaveBeenCalled();
   });
 });
 

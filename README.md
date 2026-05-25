@@ -433,3 +433,49 @@ The SPOC bundle flows **repo → config only**. Never overwrite repo files from 
 - **No config → repo**: deployed config is ephemeral output. Manual config edits are overwritten on next deploy.
 - **Lint before deploy**: bundle integrity is binary. Skipping lint for "small changes" risks manifest/file mismatch.
 - **Write-gate**: all DAG mutations require a `spoc write propose` token consumed via `spoc write apply` before the write proceeds. Expired tokens require fresh re-proposal.
+
+## Graphify Integration (Optional)
+
+SPOC optionally integrates with [graphify](https://github.com/safishamsi/graphify) to enrich the DAG with structural knowledge derived from AST-based code graph extraction. No LLM API key is needed — graphify uses tree-sitter for pure AST parsing.
+
+### What It Does
+
+When graphify is available on PATH, SPOC can:
+
+1. **Extract** a code graph via `graphify update <workspace> --force --no-cluster`
+2. **Ingest** the graph into SPOC knowledge proposals (god nodes, architecture clusters, cross-module couplings)
+3. **Persist** proposals as durable knowledge entries in the DAG
+4. **Query** the graph for structural questions (`queryGraph`, `pathBetween`)
+
+### When It Runs
+
+| Trigger | What Happens |
+|---|---|
+| `spoc init` (new project) | TUI offers to install graphify if not found. If available, runs full extraction → produces up to 20 knowledge proposals → creates entries in the DAG. |
+| SYNC workflow | Re-extracts the graph, compares proposals against existing knowledge entries, surfaces stale/new/drifted entries. |
+| Ad-hoc queries | `queryGraph()` and `pathBetween()` answer structural questions from the cached graph. |
+
+### Output
+
+Extraction produces `graphify-out/graph.json` in the workspace directory (automatically added to `.gitignore`). This file contains nodes (functions, classes, exports) and links (imports, calls, references) derived purely from AST analysis.
+
+Knowledge proposals are capped at 20 per extraction:
+- **God nodes** (max 8) — highest-connectivity modules that are likely architectural hubs
+- **Architecture clusters** (max 8) — directory-based groupings revealing module boundaries
+- **Cross-module couplings** (max 5) — links between high-degree nodes in different top-level directories
+
+### Installation
+
+Graphify is a Python package. SPOC's `spoc init` wizard offers to install it automatically:
+
+```bash
+# Manual install
+pip install graphify-ts
+
+# Verify
+graphify --version
+```
+
+### Graceful Degradation
+
+If graphify is not installed, SPOC operates normally without code-graph analysis. All graphify-related features are optional and gated behind `detectGraphify()` availability checks.

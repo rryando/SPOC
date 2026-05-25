@@ -441,8 +441,8 @@ Before taking action, explicitly state:
 #### Optional: Graphify Codebase Analysis
 If \`graphify\` is available on PATH (check via \`detectGraphify()\` from \`src/utils/graphify.ts\`),
 the analysis sub-agent should additionally:
-1. Run \`runExtraction(workspacePath)\` to generate \`graphify-out/graph.json\` and \`GRAPH_REPORT.md\`
-2. Call \`ingestGraph(graphJsonPath, reportMdPath, slug)\` to produce knowledge entry proposals
+1. Run \`runExtraction(workspacePath)\` to generate \`graphify-out/graph.json\` (also adds \`graphify-out/\` to \`.gitignore\` automatically)
+2. Call \`ingestGraph(graphJsonPath, slug)\` to produce knowledge entry proposals (max 20: 8 god nodes, 8 architecture clusters, 5 cross-module couplings)
 3. Create SPOC knowledge entries from proposals via \`create_project_knowledge_entry\`
 4. Call \`graphCache.invalidate(slug)\` (from \`src/retrieval/graph-cache.ts\`) to rebuild the graph with new knowledge
 
@@ -531,8 +531,8 @@ Results feed into SPOC's graph retrieval layer automatically via cache invalidat
    - **plans/**: Are plan statuses current? Any that should be marked done or archived? Check externally-created plans via keyword filters (\`spec\`, \`implementation-plan\`).
     - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
     - **Optional: Graphify Re-Analysis** — If \`graphify\` is available and \`<workspace>/graphify-out/graph.json\` exists from a previous extraction:
-      1. Run \`graphify extract <workspace> --update --no-viz\` to refresh only changed files
-      2. Call \`ingestGraph()\` on the updated output to get fresh knowledge proposals
+      1. Run \`runExtraction(workspacePath)\` to refresh the graph (\`graphify update <path> --force --no-cluster\`)
+      2. Call \`ingestGraph(graphJsonPath, slug)\` on the updated output to get fresh knowledge proposals
       3. Compare proposals against existing knowledge entries:
          - Entries referencing files that no longer appear in the graph → mark as potentially stale
          - New proposals not matching any existing entry → suggest creation
