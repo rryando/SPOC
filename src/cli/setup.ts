@@ -1,4 +1,5 @@
 import * as p from "@clack/prompts";
+import { execSync } from "node:child_process";
 import color from "picocolors";
 import {
   configExists,
@@ -19,6 +20,7 @@ import {
   detectSpocBundleInstall,
   installSpocBundle,
 } from "./bundle-installer.js";
+import { detectGraphify } from "../utils/graphify.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -291,9 +293,92 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     applyAgentModelConfig(modelConfig);
   }
 
+  // ── Optional graphify installation ──────────────────────────────────────────
+  await promptGraphifyInstall();
+
   p.outro(
     color.green("Done!") +
       " You can re-run this setup at any time with " +
       color.cyan("npm run init"),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Graphify Installation Prompt
+// ---------------------------------------------------------------------------
+
+/**
+ * Detects Python 3.10+ availability and returns the major.minor version,
+ * or null if Python is not found or version is insufficient.
+ */
+function detectPython310(): { version: string; command: string } | null {
+  for (const cmd of ["python3", "python"]) {
+    try {
+      const output = execSync(`${cmd} --version`, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 5000,
+      }).trim();
+      const match = output.match(/(\d+)\.(\d+)\.(\d+)/);
+      if (match) {
+        const major = Number.parseInt(match[1], 10);
+        const minor = Number.parseInt(match[2], 10);
+        if (major >= 3 && minor >= 10) {
+          return { version: `${major}.${minor}.${match[3]}`, command: cmd };
+        }
+      }
+    } catch {
+      // Command not found or failed, try next
+    }
+  }
+  return null;
+}
+
+/**
+ * Prompts the user to install graphify if it's not already available
+ * and Python 3.10+ is detected. Gracefully handles all decline/failure paths.
+ */
+export async function promptGraphifyInstall(): Promise<void> {
+  const info = detectGraphify();
+  if (info.available) return;
+
+  const python = detectPython310();
+  if (!python) {
+    p.log.info(
+      `${color.dim("Graphify requires Python 3.10+ — skipping optional install.")}`,
+    );
+    return;
+  }
+
+  const shouldInstall = await p.confirm({
+    message: "Install graphify for automatic codebase analysis?",
+    initialValue: false,
+  });
+
+  if (p.isCancel(shouldInstall) || !shouldInstall) return;
+
+  const installCommands = [
+    "uv tool install graphifyy",
+    "pipx install graphifyy",
+    "pip install graphifyy",
+  ];
+
+  const s = p.spinner();
+  s.start("Installing graphify…");
+
+  for (const cmd of installCommands) {
+    try {
+      execSync(cmd, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 60_000,
+      });
+      s.stop(`${color.green("✔")} Graphify installed via ${color.dim(cmd.split(" ")[0])}`);
+      return;
+    } catch {
+      // Try next installer
+    }
+  }
+
+  s.stop(`${color.yellow("⚠")} Could not install graphify — all installers failed.`);
 }

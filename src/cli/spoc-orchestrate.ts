@@ -437,6 +437,20 @@ Before taking action, explicitly state:
    \`create_project_knowledge_entry\`.
 7. The explore/analysis sub-agent should create structured knowledge entries.
    See \`skills/init-project.md\` (Knowledge Categories section) for the full reference table the analysis sub-agent should use when creating knowledge entries.
+
+#### Optional: Graphify Codebase Analysis
+If \`graphify\` is available on PATH (check via \`detectGraphify()\` from \`src/utils/graphify.ts\`),
+the analysis sub-agent should additionally:
+1. Run \`runExtraction(workspacePath)\` to generate \`graphify-out/graph.json\` and \`GRAPH_REPORT.md\`
+2. Call \`ingestGraph(graphJsonPath, reportMdPath, slug)\` to produce knowledge entry proposals
+3. Create SPOC knowledge entries from proposals via \`create_project_knowledge_entry\`
+4. Call \`graphCache.invalidate(slug)\` (from \`src/retrieval/graph-cache.ts\`) to rebuild the graph with new knowledge
+
+This is optional — if graphify is not installed, INIT proceeds normally without code-graph analysis.
+The generated knowledge entries (architecture clusters, high-connectivity modules, cross-module couplings)
+provide rich structural context for future sessions without requiring codebase re-scanning.
+Results feed into SPOC's graph retrieval layer automatically via cache invalidation.
+
 8. Confirm created slug and initial status.
 
 ### BRAINSTORM Workflow
@@ -515,8 +529,18 @@ Before taking action, explicitly state:
    - **dependencies.md**: Do the listed upstream/downstream relationships still exist?
    - **knowledge.md**: Is the landing page summary still accurate vs structured entries?
    - **plans/**: Are plan statuses current? Any that should be marked done or archived? Check externally-created plans via keyword filters (\`spec\`, \`implementation-plan\`).
-   - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
-    - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
+    - **knowledge/**: Are entries still accurate? Any missing entries for recent discoveries?
+    - **Optional: Graphify Re-Analysis** — If \`graphify\` is available and \`<workspace>/graphify-out/graph.json\` exists from a previous extraction:
+      1. Run \`graphify extract <workspace> --update --no-viz\` to refresh only changed files
+      2. Call \`ingestGraph()\` on the updated output to get fresh knowledge proposals
+      3. Compare proposals against existing knowledge entries:
+         - Entries referencing files that no longer appear in the graph → mark as potentially stale
+         - New proposals not matching any existing entry → suggest creation
+         - Entries whose sourceFiles have moved communities → flag structural drift
+      4. After any knowledge updates, call \`graphCache.invalidate(slug)\`
+      This step is advisory — it surfaces drift and proposes changes but doesn't auto-write.
+      The orchestrator includes graphify-detected drift in the SYNC write-gate summary.
+     - \`sourceFiles\` references on knowledge entries and plans: referenced paths still exist in the codebase?
      - **plans/ diagrams**: For each plan, audit its associated \`.diagram.mmd\` file (\`~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd\`) against task metadata. Check for six drift types: classDef status mismatch (node shows \`:::done\` but task is \`in_progress\`), phantom nodes (diagram node has no corresponding task), missing nodes (task exists but no diagram node), topology mismatch (edges don't match dependencies), stale plan-level comments (\`%% status/ready/blocked/next-action\` inconsistent with actual graph state), incomplete/missing rich node metadata (per-node \`%%\` comment blocks absent or stale). Load \`to-diagram\` skill for drift detection rules. Metadata always wins. **Repair strategy:** For phantom nodes (diagram node without backing Task record), create the missing Task record via \`create_project_task\` with \`planId\` set and title from the node label — do NOT delete the diagram node, as it represents planned work. For other drift types, regenerate the \`.mmd\` file deterministically from current task metadata using the scope-change regeneration algorithm.
     - **AGENTS.md**: Is the project's \`AGENTS.md\` present and up-to-date?
       Run \`spoc validate <slug> --json\` — it reports a warning if AGENTS.md is missing.
