@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ORCHESTRATE_PROMPT_TEXT } from "../prompts/spoc-orchestrate.js";
-import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../prompts/spoc-orchestrate-caveman.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
+import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 import { readJsonSafeSync } from "../utils/json.js";
 import type { ModelTierConfig } from "./config.js";
 
@@ -59,18 +59,18 @@ function deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): 
 
 /** Tier assignment for each known agent. */
 const AGENT_TIER_MAP: Record<string, "heavy" | "standard" | "light"> = {
-  "coder-expert": "heavy",
+  "software-engineer": "heavy",
   "docs-researcher": "heavy",
   "spoc-docs": "heavy",
-  "code-doctor": "heavy",
+  "oncall-ops": "heavy",
   "system-architect": "heavy",
   plan: "heavy",
   general: "heavy",
   build: "standard",
   explore: "light",
   "code-reviewer": "light",
-  analyzer: "light",
-  "code-quality": "light",
+  "tech-architect": "light",
+  "qa-analyst": "light",
 };
 
 /**
@@ -412,7 +412,7 @@ export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteRes
  * Applies ModelTierConfig to all known agent entries in opencode.json.
  * Sub-agents always get a `model` field with the resolved value.
  * Primary agents only get a `model` field if perAgent override exists.
- * Call this AFTER superpowers install so it overwrites hardcoded manifest models.
+ * Call this AFTER bundle install so it overwrites hardcoded manifest models.
  */
 export function applyAgentModelConfig(modelConfig: ModelTierConfig): void {
   const configFile = resolve(opencodeConfigDir(), "opencode.json");

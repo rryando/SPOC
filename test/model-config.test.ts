@@ -169,7 +169,7 @@ describe("applyAgentModelConfig", () => {
         "SPOC Orchestrator": { prompt: "test" },
         "SPOC Caveman": { prompt: "test" },
         explore: { prompt: "explore things" },
-        "coder-expert": { prompt: "code stuff" },
+        "software-engineer": { prompt: "code stuff" },
         build: { prompt: "build stuff" },
       },
     };
@@ -180,7 +180,7 @@ describe("applyAgentModelConfig", () => {
     const result = JSON.parse(await readFile(configFile, "utf-8"));
     // Sub-agents get tier models
     expect(result.agent.explore.model).toBe("small/model");
-    expect(result.agent["coder-expert"].model).toBe("big/model");
+    expect(result.agent["software-engineer"].model).toBe("big/model");
     expect(result.agent.build.model).toBe("mid/model");
     // Primary agents get no model field (no perAgent override)
     expect(result.agent["SPOC Orchestrator"].model).toBeUndefined();
@@ -191,7 +191,7 @@ describe("applyAgentModelConfig", () => {
     const config = {
       agent: {
         explore: { prompt: "explore" },
-        "coder-expert": { prompt: "code" },
+        "software-engineer": { prompt: "code" },
       },
     };
     writeFileSync(configFile, JSON.stringify(config));
@@ -205,7 +205,7 @@ describe("applyAgentModelConfig", () => {
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
     expect(result.agent.explore.model).toBe("custom/explorer");
-    expect(result.agent["coder-expert"].model).toBe("big/model");
+    expect(result.agent["software-engineer"].model).toBe("big/model");
   });
 
   it("applies perAgent override to primary agents", async () => {

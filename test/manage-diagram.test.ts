@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const scriptPath = resolve(
   import.meta.dirname,
-  "../opencode/superpowers/skills/to-diagram/scripts/manage-diagram.mjs",
+  "../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
 );
 
 function run(command: string, filePath: string, ...args: string[]) {

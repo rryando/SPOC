@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Bundle linter — detects drift/issues in opencode superpowers bundle
+// Bundle linter — detects drift/issues in opencode SPOC bundle bundle
 // without overwriting repo or config.
 //
 // Env vars:
-//   BUNDLE_LINT_BUNDLE_ROOT  — override bundle root (default: opencode/superpowers)
+//   BUNDLE_LINT_BUNDLE_ROOT  — override bundle root (default: opencode/spoc)
 //   BUNDLE_LINT_CONFIG_ROOT  — override config skills root for drift detection
-//                              (default: ~/.config/opencode/skills/superpowers)
+//                              (default: ~/.config/opencode/skills/spoc)
 //
 // Outputs JSON to stdout: { issues: [...], summary: { errors, warnings } }
 // Exit code: 0 if no errors, 1 if errors found.
@@ -15,8 +15,8 @@ import { homedir } from "node:os";
 import { relative, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-const defaultBundleRoot = resolve(repoRoot, "opencode/superpowers");
-const defaultConfigRoot = resolve(homedir(), ".config/opencode/skills/superpowers");
+const defaultBundleRoot = resolve(repoRoot, "opencode/spoc");
+const defaultConfigRoot = resolve(homedir(), ".config/opencode/skills/spoc");
 
 const bundleRoot = process.env.BUNDLE_LINT_BUNDLE_ROOT
   ? resolve(repoRoot, process.env.BUNDLE_LINT_BUNDLE_ROOT)
@@ -29,7 +29,7 @@ const configRoot = process.env.BUNDLE_LINT_CONFIG_ROOT
 const preservedFiles = new Set([
   "manifest.json",
   "bundle-runtime.json",
-  ".opencode/plugins/superpowers.js",
+  ".opencode/plugins/spoc.js",
   "skills/loop/SKILL.md",
   "skills/caveman-commit/SKILL.md",
   "skills/caveman-review/SKILL.md",

@@ -7,6 +7,7 @@ import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 vi.mock("@clack/prompts", () => {
   const confirm = vi.fn();
   const note = vi.fn();
+  const text = vi.fn();
 
   return {
     intro: vi.fn(),
@@ -16,131 +17,141 @@ vi.mock("@clack/prompts", () => {
     isCancel: () => false,
     spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
     confirm,
+    text,
     __confirm: confirm,
     __note: note,
+    __text: text,
   };
 });
 
-vi.mock("../src/cli/opencode-superpowers.js", () => ({
-  detectOpencodeSuperpowersInstall: vi.fn(() => ({ state: "absent" })),
-  installBundledOpencodeSuperpowers: vi.fn(() => ({
+vi.mock("../src/cli/bundle-installer.js", () => ({
+  detectSpocBundleInstall: vi.fn(() => ({ state: "absent" })),
+  installSpocBundle: vi.fn(() => ({
     status: "installed",
-    summary: "Installed bundled superpowers",
+    summary: "Installed bundled SPOC skills",
   })),
 }));
 
 describe("OpenCode setup flow", () => {
   beforeEach(async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm).mockReset();
     vi.mocked((prompts as any).__note).mockReset();
-    vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReset();
-    vi.mocked(installer.installBundledOpencodeSuperpowers).mockReset();
-    vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
+    vi.mocked((prompts as any).__text).mockReset();
+    // text prompts return empty strings by default (model config)
+    vi.mocked((prompts as any).__text).mockResolvedValue("");
+    vi.mocked(installer.detectSpocBundleInstall).mockReset();
+    vi.mocked(installer.installSpocBundle).mockReset();
+    vi.mocked(installer.detectSpocBundleInstall).mockReturnValue({
       state: "absent",
     } as any);
-    vi.mocked(installer.installBundledOpencodeSuperpowers).mockReturnValue({
+    vi.mocked(installer.installSpocBundle).mockReturnValue({
       status: "installed",
-      summary: "Installed bundled superpowers",
+      summary: "Installed bundled SPOC skills",
     } as any);
   });
 
-  it("installs bundled superpowers during init when user confirms setup", async () => {
+  it("installs bundled SPOC skills during init when user confirms setup", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true); // register agent
 
     await withTempHomeDir(async () => {
       await runSetup("init");
-      expect(installer.installBundledOpencodeSuperpowers).toHaveBeenCalledWith({
+      expect(installer.installSpocBundle).toHaveBeenCalledWith({
         autoConfirmReplacement: false,
       });
       expect((prompts as any).__note).toHaveBeenCalledWith(
-        expect.stringContaining("Installed bundled superpowers"),
-        "OpenCode Superpowers",
+        expect.stringContaining("Installed bundled SPOC skills"),
+        "OpenCode SPOC Bundle",
       );
     });
   });
 
-  it("re-syncs bundled superpowers during config when user confirms setup", async () => {
+  it("re-syncs bundled SPOC skills during config when user confirms setup", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true); // register agent
 
     await withTempHomeDir(async () => {
       await runSetup("config");
-      expect(installer.installBundledOpencodeSuperpowers).toHaveBeenCalledWith({
+      expect(installer.installSpocBundle).toHaveBeenCalledWith({
         autoConfirmReplacement: false,
       });
     });
   });
 
-  it("skips bundled superpowers install when the user declines OpenCode agent registration", async () => {
+  it("skips bundled SPOC skills install when the user declines OpenCode agent registration", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(false); // decline agent registration
 
     await withTempHomeDir(async () => {
       await runSetup("init");
-      expect(installer.installBundledOpencodeSuperpowers).not.toHaveBeenCalled();
+      expect(installer.installSpocBundle).not.toHaveBeenCalled();
       expect((prompts as any).__note).toHaveBeenCalledWith(
         expect.stringContaining("declined SPOC Orchestrator registration"),
-        "OpenCode Superpowers",
+        "OpenCode SPOC Bundle",
       );
     });
   });
 
-  it("asks before replacing a foreign OpenCode superpowers install during init", async () => {
+  it("asks before replacing a foreign OpenCode SPOC bundle install during init", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
-    vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
+    vi.mocked(installer.detectSpocBundleInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
-      .mockResolvedValueOnce(true); // replace Superpowers
+      .mockResolvedValueOnce(true); // replace SPOC Bundle
 
     await withTempHomeDir(async () => {
       await runSetup("init");
-      expect(installer.installBundledOpencodeSuperpowers).toHaveBeenCalledWith({
+      expect(installer.installSpocBundle).toHaveBeenCalledWith({
         autoConfirmReplacement: true,
       });
     });
   });
 
-  it("asks before replacing a foreign OpenCode superpowers install during config", async () => {
+  it("asks before replacing a foreign OpenCode SPOC bundle install during config", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
-    vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
+    vi.mocked(installer.detectSpocBundleInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
-      .mockResolvedValueOnce(true); // replace Superpowers
+      .mockResolvedValueOnce(true); // replace SPOC Bundle
 
     await withTempHomeDir(async () => {
       await runSetup("config");
-      expect(installer.installBundledOpencodeSuperpowers).toHaveBeenCalledWith({
+      expect(installer.installSpocBundle).toHaveBeenCalledWith({
         autoConfirmReplacement: true,
       });
     });
@@ -148,23 +159,24 @@ describe("OpenCode setup flow", () => {
 
   it("skips replacement when the user declines foreign install takeover", async () => {
     const prompts = await import("@clack/prompts");
-    const installer = await import("../src/cli/opencode-superpowers.js");
+    const installer = await import("../src/cli/bundle-installer.js");
 
-    vi.mocked(installer.detectOpencodeSuperpowersInstall).mockReturnValue({
+    vi.mocked(installer.detectSpocBundleInstall).mockReturnValue({
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
       .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // write MCP
       .mockResolvedValueOnce(true) // register agent
-      .mockResolvedValueOnce(false); // decline Superpowers
+      .mockResolvedValueOnce(false); // decline SPOC Bundle
 
     await withTempHomeDir(async () => {
       await runSetup("init");
-      expect(installer.installBundledOpencodeSuperpowers).not.toHaveBeenCalled();
+      expect(installer.installSpocBundle).not.toHaveBeenCalled();
       expect((prompts as any).__note).toHaveBeenCalledWith(
-        expect.stringContaining("Skipped OpenCode bundled Superpowers install"),
-        "OpenCode Superpowers",
+        expect.stringContaining("Skipped OpenCode bundled SPOC Bundle install"),
+        "OpenCode SPOC Bundle",
       );
     });
   });
@@ -173,7 +185,9 @@ describe("OpenCode setup flow", () => {
     const prompts = await import("@clack/prompts");
     const { readFileSync } = await import("node:fs");
 
-    vi.mocked((prompts as any).__confirm).mockResolvedValueOnce(true); // setup confirm only — MCP and agent already present, no prompts
+    vi.mocked((prompts as any).__confirm)
+      .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false); // customizeAgents — MCP and agent already present, no prompts
 
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
@@ -209,7 +223,9 @@ describe("OpenCode setup flow", () => {
     const prompts = await import("@clack/prompts");
     const { readFileSync } = await import("node:fs");
 
-    vi.mocked((prompts as any).__confirm).mockResolvedValueOnce(true); // setup confirm only — both already present, no extra prompts
+    vi.mocked((prompts as any).__confirm)
+      .mockResolvedValueOnce(true) // setup confirm
+      .mockResolvedValueOnce(false); // customizeAgents — both already present, no extra prompts
 
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");

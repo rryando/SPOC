@@ -134,7 +134,7 @@ export const taskIndexSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// OpenCode superpowers manifest (source bundle)
+// OpenCode SPOC bundle manifest (source bundle)
 // ---------------------------------------------------------------------------
 
 const configMergeSchema = z.object({

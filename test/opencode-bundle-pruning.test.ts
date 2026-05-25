@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/superpowers");
+const bundleRoot = resolve(root, "opencode/spoc");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 
 type RuntimeManifest = {
@@ -31,7 +31,7 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
 }
 
 // SPOC-native skills: authored in this repo, not sourced from upstream.
-// Must match the skill entries in scripts/build-opencode-superpowers-bundle.mjs preservedOutputFiles.
+// Must match the skill entries in scripts/build-opencode-bundle.mjs preservedOutputFiles.
 const spocNativeSkillFiles = [
   "skills/loop/SKILL.md",
   "skills/caveman-commit/SKILL.md",
@@ -45,7 +45,7 @@ describe("checked-in opencode bundle pruning", () => {
       // Repo-authored preserved files (not sourced from installed location)
       "bundle-runtime.json",
       "manifest.json",
-      ".opencode/plugins/superpowers.js",
+      ".opencode/plugins/spoc.js",
       ...Object.entries(runtimeManifest.skills).flatMap(([skillName, skillFiles]) =>
         skillFiles.map((relativeFilePath) => `skills/${skillName}/${relativeFilePath}`),
       ),
@@ -53,6 +53,13 @@ describe("checked-in opencode bundle pruning", () => {
       ...runtimeManifest.plugin,
       // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
       ...spocNativeSkillFiles,
+      // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
+      "prompts/oncall-ops.txt",
+      "prompts/qa-analyst.txt",
+      "prompts/software-engineer.txt",
+      "prompts/spoc-docs.txt",
+      "prompts/system-architect.txt",
+      "prompts/tech-architect.txt",
     ].sort();
 
     expect(listRelativeFiles(bundleRoot).sort()).toEqual(expectedBundleFiles);

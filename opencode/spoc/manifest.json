@@ -1,0 +1,215 @@
+{
+  "bundleId": "spoc-opencode-bundle",
+  "installMode": "opencode-spoc",
+  "bundleVersionSource": "package.json",
+  "sourceRoot": "opencode/spoc",
+  "skills": {
+    "source": "skills",
+    "destination": "skills/spoc"
+  },
+  "agents": [
+    { "source": "prompts/software-engineer.txt", "destination": "prompts/software-engineer.txt" },
+    { "source": "prompts/tech-architect.txt", "destination": "prompts/tech-architect.txt" },
+    { "source": "prompts/qa-analyst.txt", "destination": "prompts/qa-analyst.txt" },
+    { "source": "prompts/oncall-ops.txt", "destination": "prompts/oncall-ops.txt" },
+    { "source": "prompts/spoc-docs.txt", "destination": "prompts/spoc-docs.txt" },
+    { "source": "prompts/system-architect.txt", "destination": "prompts/system-architect.txt" }
+  ],
+  "ownedPaths": [
+    "skills/spoc",
+    "plugins/spoc.js"
+  ],
+  "plugin": {
+    "required": true,
+    "source": ".opencode/plugins/spoc.js",
+    "destination": "plugins/spoc.js"
+  },
+  "config": {
+    "requiredMerges": [
+      {
+        "path": [
+          "model"
+        ],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "build",
+          "model"
+        ],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "plan",
+          "model"
+        ],
+        "value": "github-copilot/claude-opus-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "general",
+          "model"
+        ],
+        "value": "github-copilot/claude-opus-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "explore",
+          "model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
+      },
+      {
+        "path": [
+          "agent",
+          "code-reviewer"
+        ],
+        "value": {
+          "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "prompt": "You are a code review specialist. Review code like a thoughtful teammate, focusing on correctness, edge cases, maintainability, architecture, and test quality. Prefer concrete, evidence-backed findings over generic style commentary.",
+          "permission": {
+            "edit": "deny",
+            "webfetch": "deny"
+          }
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "docs-researcher"
+        ],
+        "value": {
+          "description": "Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "allow"
+          },
+          "prompt": "You are a documentation and research specialist. Focus on producing clear documentation, synthesizing external information, and handling document-heavy tasks carefully. Prefer preserving source meaning over clever rewriting."
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "tech-architect"
+        ],
+        "value": {
+          "description": "Architecture and analysis specialist. Deep structural reasoning, refactor guidance, trade-off evaluation, and root cause analysis without making hasty edits.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "deny"
+          },
+          "prompt": "{file:./prompts/tech-architect.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "software-engineer"
+        ],
+        "value": {
+          "description": "Implementation specialist. Writes code, runs tests, ships features. Loads quick-dev, code-agent, test-driven-development, executing-plans, finishing-a-development-branch, and aesthetic skills as needed.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "allow",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow"
+          },
+          "prompt": "{file:./prompts/software-engineer.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "spoc-docs"
+        ],
+        "value": {
+          "description": "SPOC documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. Knows SPOC structure intimately.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "allow",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow"
+          },
+          "prompt": "{file:./prompts/spoc-docs.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "qa-analyst"
+        ],
+        "value": {
+          "description": "Quality enforcement specialist. Proactive code audits, review dispatch, convention compliance, and verification gate enforcement.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow"
+          },
+          "prompt": "{file:./prompts/qa-analyst.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "oncall-ops"
+        ],
+        "value": {
+          "description": "Debugging and diagnosis specialist. Finds root causes through systematic investigation, log triage, bisect, and performance profiling.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "ask",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow"
+          },
+          "prompt": "{file:./prompts/oncall-ops.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "system-architect"
+        ],
+        "value": {
+          "description": "Architecture and design specialist. Module boundaries, dependency graphs, migration strategies, and cross-project design decisions.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "allow",
+            "mcp": "allow"
+          },
+          "prompt": "{file:./prompts/system-architect.txt}"
+        }
+      },
+      {
+        "path": [
+          "small_model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
+      }
+    ]
+  }
+}

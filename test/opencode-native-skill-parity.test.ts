@@ -3,10 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const buildScriptPath = resolve(root, "scripts/build-opencode-superpowers-bundle.mjs");
+const buildScriptPath = resolve(root, "scripts/build-opencode-bundle.mjs");
 const bundleBuildTestPath = resolve(root, "test/opencode-bundle-build.test.ts");
 const bundlePruningTestPath = resolve(root, "test/opencode-bundle-pruning.test.ts");
-const installerTestPath = resolve(root, "test/opencode-superpowers-installer.test.ts");
+const installerTestPath = resolve(root, "test/opencode-bundle-installer.test.ts");
 
 /**
  * Extract skill file entries (e.g. "skills/loop/SKILL.md") from the
@@ -63,7 +63,7 @@ describe("SPOC-native skill parity across sync points", () => {
 
     expect(names, [
       "SPOC_NATIVE_SKILL_NAMES in test/opencode-bundle-build.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-superpowers-bundle.mjs.`,
+      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
       `Expected: ${JSON.stringify(preservedSkillNames)}`,
       `Got:      ${JSON.stringify(names)}`,
     ].join("\n")).toEqual(preservedSkillNames);
@@ -75,27 +75,27 @@ describe("SPOC-native skill parity across sync points", () => {
 
     expect(files, [
       "spocNativeSkillFiles in test/opencode-bundle-pruning.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-superpowers-bundle.mjs.`,
+      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
       `Expected: ${JSON.stringify(preservedSkillFiles)}`,
       `Got:      ${JSON.stringify(files)}`,
     ].join("\n")).toEqual(preservedSkillFiles);
   });
 
-  it("keeps spocNativeSkillFiles in opencode-superpowers-installer.test.ts aligned with preservedOutputFiles", () => {
+  it("keeps spocNativeSkillFiles in opencode-bundle-installer.test.ts aligned with preservedOutputFiles", () => {
     const testSource = readFileSync(installerTestPath, "utf-8");
 
     // Verify the constant exists with the expected name
     const hasConstant = /const\s+spocNativeSkillFiles\s*=/.test(testSource);
     expect(hasConstant, [
-      "Could not find `const spocNativeSkillFiles` in test/opencode-superpowers-installer.test.ts.",
+      "Could not find `const spocNativeSkillFiles` in test/opencode-bundle-installer.test.ts.",
       "If it was renamed, update this parity test accordingly.",
     ].join("\n")).toBe(true);
 
     const files = extractSpocNativeSkillFiles(testSource);
 
     expect(files, [
-      "spocNativeSkillFiles in test/opencode-superpowers-installer.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-superpowers-bundle.mjs.`,
+      "spocNativeSkillFiles in test/opencode-bundle-installer.test.ts is out of sync",
+      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
       `Expected: ${JSON.stringify(preservedSkillFiles)}`,
       `Got:      ${JSON.stringify(files)}`,
     ].join("\n")).toEqual(preservedSkillFiles);
@@ -103,7 +103,7 @@ describe("SPOC-native skill parity across sync points", () => {
 
   it("has every SPOC-native skill present on disk", () => {
     for (const skillFile of preservedSkillFiles) {
-      const diskPath = resolve(root, "opencode/superpowers", skillFile);
+      const diskPath = resolve(root, "opencode/spoc", skillFile);
       expect(existsSync(diskPath), [
         `SPOC-native skill file missing on disk: ${skillFile}`,
         `Expected at: ${diskPath}`,

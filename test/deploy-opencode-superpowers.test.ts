@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const deployScript = resolve(root, "scripts/deploy-opencode-superpowers.mjs");
+const deployScript = resolve(root, "scripts/deploy-opencode-bundle.mjs");
 
 type DeployResult = {
   dryRun: boolean;
@@ -37,28 +37,28 @@ function setupBundleRoot(tempRoot: string) {
   const bundleRoot = resolve(tempRoot, "bundle");
   // Minimal manifest.json
   const manifest = {
-    bundleId: "spoc-opencode-superpowers",
-    installMode: "opencode-superpowers",
-    sourceRoot: "opencode/superpowers",
-    skills: { source: "skills", destination: "skills/superpowers" },
+    bundleId: "spoc-opencode-bundle",
+    installMode: "opencode-spoc",
+    sourceRoot: "opencode/spoc",
+    skills: { source: "skills", destination: "skills/spoc" },
     agents: [],
     // ownedPaths matches manifest schema: directories/files the deployer owns for removal tests
-    ownedPaths: ["skills/superpowers", "plugins/superpowers.js"],
+    ownedPaths: ["skills/spoc", "plugins/spoc.js"],
     plugin: {
       required: true,
-      source: ".opencode/plugins/superpowers.js",
-      destination: "plugins/superpowers.js",
+      source: ".opencode/plugins/spoc.js",
+      destination: "plugins/spoc.js",
     },
     config: { requiredMerges: [] },
   };
   writeFile(bundleRoot, "manifest.json", JSON.stringify(manifest, null, 2));
   writeFile(bundleRoot, "skills/planner/SKILL.md", "# Planner skill");
   writeFile(bundleRoot, "skills/planner/notes.md", "notes content");
-  writeFile(bundleRoot, ".opencode/plugins/superpowers.js", "// plugin code");
+  writeFile(bundleRoot, ".opencode/plugins/spoc.js", "// plugin code");
   return bundleRoot;
 }
 
-describe("deploy-opencode-superpowers", () => {
+describe("deploy-opencode-bundle", () => {
   it("defaults to dry-run and reports files to add", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "deploy-dry-"));
     const configRoot = resolve(tempRoot, "config");
@@ -74,11 +74,11 @@ describe("deploy-opencode-superpowers", () => {
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
       expect(result.dryRun).toBe(true);
-      expect(result.filesAdded).toContain("skills/superpowers/planner/SKILL.md");
-      expect(result.filesAdded).toContain("skills/superpowers/planner/notes.md");
-      expect(result.filesAdded).toContain("plugins/superpowers.js");
+      expect(result.filesAdded).toContain("skills/spoc/planner/SKILL.md");
+      expect(result.filesAdded).toContain("skills/spoc/planner/notes.md");
+      expect(result.filesAdded).toContain("plugins/spoc.js");
       // Dry-run: files should NOT actually be written
-      expect(existsSync(resolve(configRoot, "skills/superpowers/planner/SKILL.md"))).toBe(false);
+      expect(existsSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"))).toBe(false);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -103,9 +103,9 @@ describe("deploy-opencode-superpowers", () => {
       expect(result.filesAdded.length).toBeGreaterThan(0);
       // Files actually written
       expect(
-        readFileSync(resolve(configRoot, "skills/superpowers/planner/SKILL.md"), "utf-8"),
+        readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8"),
       ).toBe("# Planner skill");
-      expect(readFileSync(resolve(configRoot, "plugins/superpowers.js"), "utf-8")).toBe(
+      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe(
         "// plugin code",
       );
     } finally {
@@ -120,8 +120,8 @@ describe("deploy-opencode-superpowers", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Pre-populate config with old content
-      writeFile(configRoot, "skills/superpowers/planner/SKILL.md", "old content");
-      writeFile(configRoot, "skills/superpowers/planner/notes.md", "notes content"); // same
+      writeFile(configRoot, "skills/spoc/planner/SKILL.md", "old content");
+      writeFile(configRoot, "skills/spoc/planner/notes.md", "notes content"); // same
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -130,8 +130,8 @@ describe("deploy-opencode-superpowers", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesChanged).toContain("skills/superpowers/planner/SKILL.md");
-      expect(result.filesUnchanged).toContain("skills/superpowers/planner/notes.md");
+      expect(result.filesChanged).toContain("skills/spoc/planner/SKILL.md");
+      expect(result.filesUnchanged).toContain("skills/spoc/planner/notes.md");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -144,7 +144,7 @@ describe("deploy-opencode-superpowers", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Config has a file no longer in bundle
-      writeFile(configRoot, "skills/superpowers/obsolete/SKILL.md", "old skill");
+      writeFile(configRoot, "skills/spoc/obsolete/SKILL.md", "old skill");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -153,7 +153,7 @@ describe("deploy-opencode-superpowers", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesRemoved).toContain("skills/superpowers/obsolete/SKILL.md");
+      expect(result.filesRemoved).toContain("skills/spoc/obsolete/SKILL.md");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -165,7 +165,7 @@ describe("deploy-opencode-superpowers", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "skills/superpowers/obsolete/SKILL.md", "old skill");
+      writeFile(configRoot, "skills/spoc/obsolete/SKILL.md", "old skill");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -175,8 +175,8 @@ describe("deploy-opencode-superpowers", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesRemoved).toContain("skills/superpowers/obsolete/SKILL.md");
-      expect(existsSync(resolve(configRoot, "skills/superpowers/obsolete/SKILL.md"))).toBe(false);
+      expect(result.filesRemoved).toContain("skills/spoc/obsolete/SKILL.md");
+      expect(existsSync(resolve(configRoot, "skills/spoc/obsolete/SKILL.md"))).toBe(false);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -198,7 +198,7 @@ describe("deploy-opencode-superpowers", () => {
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
       expect(result.restartRequired).toBe(true);
-      expect(result.filesAdded).toContain("plugins/superpowers.js");
+      expect(result.filesAdded).toContain("plugins/spoc.js");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -210,7 +210,7 @@ describe("deploy-opencode-superpowers", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "plugins/superpowers.js", "// old plugin");
+      writeFile(configRoot, "plugins/spoc.js", "// old plugin");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -231,7 +231,7 @@ describe("deploy-opencode-superpowers", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "plugins/superpowers.js", "// old plugin");
+      writeFile(configRoot, "plugins/spoc.js", "// old plugin");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -256,9 +256,9 @@ describe("deploy-opencode-superpowers", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Pre-populate with identical content so no change
-      writeFile(configRoot, "skills/superpowers/planner/SKILL.md", "# Planner skill");
-      writeFile(configRoot, "skills/superpowers/planner/notes.md", "notes content");
-      writeFile(configRoot, "plugins/superpowers.js", "// plugin code");
+      writeFile(configRoot, "skills/spoc/planner/SKILL.md", "# Planner skill");
+      writeFile(configRoot, "skills/spoc/planner/notes.md", "notes content");
+      writeFile(configRoot, "plugins/spoc.js", "// plugin code");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -281,7 +281,7 @@ describe("deploy-opencode-superpowers", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Config has extra file that doesn't exist in bundle
-      writeFile(configRoot, "skills/superpowers/planner/custom.md", "user custom");
+      writeFile(configRoot, "skills/spoc/planner/custom.md", "user custom");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,

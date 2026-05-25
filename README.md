@@ -29,21 +29,21 @@ The `node dist/index.js init` wizard can automatically write the MCP entry for s
 }
 ```
 
-### OpenCode Managed Superpowers
+### OpenCode Managed SPOC Bundle
 
-selecting OpenCode in `spoc init` installs the SPOC-customized Superpowers distribution.
+selecting OpenCode in `spoc init` installs the SPOC-customized bundle distribution.
 
-- SPOC becomes the manager of the active `superpowers` set for OpenCode.
-- existing generic Superpowers installs may be replaced after confirmation.
-- `spoc config` re-syncs SPOC-owned OpenCode Superpowers files automatically.
+- SPOC becomes the manager of the active SPOC bundle for OpenCode.
+- existing generic SPOC Bundle installs may be replaced after confirmation.
+- `spoc config` re-syncs SPOC-owned OpenCode bundle files automatically.
 - bundled install is skipped when the SPOC orchestrator agent is disabled or not registered.
 
 SPOC ships a curated OpenCode runtime bundle.
 
-- all Superpowers skills remain available in OpenCode.
-- all shipped Superpowers agent definitions are bundled.
+- all SPOC Bundle skills remain available in OpenCode.
+- all shipped SPOC agent definitions are bundled.
 - non-runtime support files are intentionally excluded to keep the package lean.
-- `opencode/superpowers/bundle-runtime.json` defines the curated runtime payload.
+- `opencode/spoc/bundle-runtime.json` defines the curated runtime payload.
 
 ## CLI Commands
 
@@ -349,7 +349,7 @@ SPOC ships a second OpenCode primary agent, **SPOC Caveman**, that layers [cavem
 - **Intensity levels** — `lite`, `full` (default), `ultra`. Caveman auto-escalates to full prose when the user asks a clarifying question or signals confusion.
 - **Strict carve-outs** — caveman-speak applies only to chat narration. Tool arguments, DAG document content (overview/tasks/plans/knowledge), code, commit messages, and structured output stay in full prose.
 - **Sub-agent propagation** — when SPOC Caveman dispatches a sub-agent, it prepends an inheritance block so the sub-agent narrates in caveman-speak too, while respecting the same carve-outs.
-- **Companion skills** — `caveman-commit` (terse Conventional Commits) and `caveman-review` (one-line PR findings with severity prefix) are bundled with the OpenCode superpowers install.
+- **Companion skills** — `caveman-commit` (terse Conventional Commits) and `caveman-review` (one-line PR findings with severity prefix) are bundled with the SPOC bundle install.
 
 ---
 
@@ -472,15 +472,15 @@ Prompts are registered as slash commands and can be individually enabled/disable
 
 ## Superpowers Bundle Release Playbook
 
-The opencode superpowers bundle flows **repo → config only**. Never overwrite repo files from config.
+The SPOC bundle flows **repo → config only**. Never overwrite repo files from config.
 
 ### Workflow
 
-1. **Edit** skills/agents/plugins in `opencode/superpowers/` (repo source of truth).
+1. **Edit** skills/agents/plugins in `opencode/spoc/` (repo source of truth).
 2. **Build bundle** — `npm run build:bundle` (produces `bundle-runtime.json`, hashes, etc.).
 3. **Lint** — `node scripts/lint-bundle.mjs` or use the `lint_bundle` MCP tool. Must pass with zero errors before deploying.
-4. **Deploy dry-run** — `node scripts/deploy-opencode-superpowers.mjs` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
-5. **Deploy actual** — set `DEPLOY_DRY_RUN=false` or use the `deploy_opencode_superpowers` MCP tool with `dryRun: false`.
+4. **Deploy dry-run** — `node scripts/deploy-opencode-bundle.mjs` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
+5. **Deploy actual** — set `DEPLOY_DRY_RUN=false` or use the `deploy_spoc_bundle` MCP tool with `dryRun: false`.
 6. **Restart** IDE/agent host — deployed skills are loaded at startup; changes require a process restart.
 
 ### Key rules

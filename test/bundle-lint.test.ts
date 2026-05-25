@@ -40,7 +40,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { planner: ["SKILL.md", "notes.md"] },
         agents: [],
         plugin: [],
@@ -80,7 +80,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { planner: ["SKILL.md"] },
         agents: [],
         plugin: [],
@@ -119,7 +119,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { planner: ["notes.md"] },
         agents: [],
         plugin: [],
@@ -157,7 +157,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { "to-diagram": ["SKILL.md", "scripts/manage-diagram.mjs"] },
         agents: [],
         plugin: [],
@@ -196,7 +196,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { "spoc-dashboard": ["SKILL.md", "package.json"] },
         agents: [],
         plugin: [],
@@ -237,7 +237,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { planner: ["SKILL.md"] },
         agents: [],
         plugin: [],
@@ -278,14 +278,14 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/superpowers",
+        sourceRoot: "~/.config/opencode/skills/spoc",
         skills: { planner: ["SKILL.md"] },
         agents: [],
         plugin: [],
       };
       writeFile(bundleRoot, "bundle-runtime.json", JSON.stringify(manifest, null, 2));
       writeFile(bundleRoot, "manifest.json", JSON.stringify({ bundleId: "test" }));
-      writeFile(bundleRoot, ".opencode/plugins/superpowers.js", "plugin");
+      writeFile(bundleRoot, ".opencode/plugins/spoc.js", "plugin");
       writeFile(bundleRoot, "skills/planner/SKILL.md", "skill");
 
       const proc = spawnSync("node", [linterScript], {

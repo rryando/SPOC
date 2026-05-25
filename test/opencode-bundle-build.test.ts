@@ -13,9 +13,9 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/superpowers");
+const bundleRoot = resolve(root, "opencode/spoc");
 const skillsRoot = resolve(bundleRoot, "skills");
-const runtimeManifestPath = resolve(root, "opencode/superpowers/bundle-runtime.json");
+const runtimeManifestPath = resolve(root, "opencode/spoc/bundle-runtime.json");
 
 function expectRelativePathInBundle(relativePath: string, label: string) {
   const looksWindowsAbsolute = /^[A-Za-z]:[\\/]/.test(relativePath) || /^\\\\/.test(relativePath);
@@ -42,7 +42,7 @@ function writeRuntimeFile(rootPath: string, relativePath: string, content: strin
 }
 
 function runBundleBuild(env: NodeJS.ProcessEnv) {
-  return spawnSync("node", [resolve(root, "scripts/build-opencode-superpowers-bundle.mjs")], {
+  return spawnSync("node", [resolve(root, "scripts/build-opencode-bundle.mjs")], {
     cwd: root,
     env: {
       ...process.env,
@@ -80,8 +80,8 @@ function listSourceSkillNames(sourceRoot: string) {
 
 // SPOC-native skills authored in this repo; they live in the bundle under skills/
 // but are not declared in bundle-runtime.json and are not sourced from the upstream
-// superpowers install. Must stay in sync with preservedOutputFiles in
-// scripts/build-opencode-superpowers-bundle.mjs.
+// SPOC bundle install. Must stay in sync with preservedOutputFiles in
+// scripts/build-opencode-bundle.mjs.
 const SPOC_NATIVE_SKILL_NAMES = new Set(["loop", "caveman-commit", "caveman-review"]);
 
 function listTopLevelAgentPaths(sourceRoot: string) {
@@ -129,9 +129,9 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(outputRoot, "extra/nested.txt", "remove nested");
 
       const result = runBundleBuild({
-        SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-        SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-        SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).toBe(0);
@@ -173,9 +173,9 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(sourceRoot, "planner/SKILL.md", "skill");
 
       const result = runBundleBuild({
-        SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-        SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-        SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
@@ -207,9 +207,9 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(sourceRoot, "reviewer/SKILL.md", "reviewer");
 
       const result = runBundleBuild({
-        SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-        SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-        SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
@@ -239,9 +239,9 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(sourceRoot, "agents/reviewer.md", "reviewer");
 
       const result = runBundleBuild({
-        SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-        SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-        SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
@@ -287,9 +287,9 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-          SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-          SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status, invalidPathCase.label).not.toBe(0);
@@ -336,9 +336,9 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-          SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-          SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -381,9 +381,9 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-          SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-          SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -444,9 +444,9 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-          SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-          SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -476,9 +476,9 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(sourceRoot, "agents/reviews/reviewer.md", "reviewer");
 
       const result = runBundleBuild({
-        SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-        SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-        SPOC_SUPERPOWERS_RUNTIME_MANIFEST: runtimeManifestPath,
+        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
@@ -495,7 +495,7 @@ describe("opencode bundle runtime manifest", () => {
     const runtimeManifest = JSON.parse(readFileSync(runtimeManifestPath, "utf-8"));
 
     expect(runtimeManifest).toEqual({
-      sourceRoot: "~/.config/opencode/skills/superpowers",
+      sourceRoot: "~/.config/opencode/skills/spoc",
       skills: {
         aesthetic: ["SKILL.md", "CATALOG.md"],
         "architecture-review": ["SKILL.md"],

@@ -196,11 +196,11 @@ function resolveManageDiagramScript(): string | null {
   const candidates = [
     resolve(
       import.meta.dirname,
-      "../../opencode/superpowers/skills/to-diagram/scripts/manage-diagram.mjs",
+      "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
     ),
     resolve(
       homedir(),
-      ".config/opencode/skills/superpowers/to-diagram/scripts/manage-diagram.mjs",
+      ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
     ),
   ];
   for (const p of candidates) {

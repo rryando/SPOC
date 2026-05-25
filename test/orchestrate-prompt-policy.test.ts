@@ -1,8 +1,8 @@
 import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
-import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate-caveman.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
+import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/cli/spoc-orchestrate-caveman.js";
 
 describe("orchestrate prompt policy — lifecycle tools", () => {
   const LIFECYCLE_TOOLS = [
@@ -11,7 +11,7 @@ describe("orchestrate prompt policy — lifecycle tools", () => {
     "validate_project_state",
     "transition_project_task",
     "lint_bundle",
-    "deploy_opencode_superpowers",
+    "deploy_spoc_bundle",
   ];
 
   for (const tool of LIFECYCLE_TOOLS) {
@@ -93,12 +93,12 @@ describe("orchestrate prompt policy — lifecycle tools", () => {
     expect(ORCHESTRATE_PROMPT_TEXT).toMatch(/expired.*re-propose|TTL exceeded.*re-propose/i);
   });
 
-  it("bundle release requires lint_bundle before deploy_opencode_superpowers", () => {
+  it("bundle release requires lint_bundle before deploy_spoc_bundle", () => {
     const bundleSection = ORCHESTRATE_PROMPT_TEXT.slice(
       ORCHESTRATE_PROMPT_TEXT.indexOf("### Bundle and Release"),
     );
     const lintIdx = bundleSection.indexOf("lint_bundle");
-    const deployIdx = bundleSection.indexOf("deploy_opencode_superpowers");
+    const deployIdx = bundleSection.indexOf("deploy_spoc_bundle");
     expect(lintIdx).toBeGreaterThan(-1);
     expect(deployIdx).toBeGreaterThan(-1);
     expect(lintIdx).toBeLessThan(deployIdx);
@@ -173,7 +173,7 @@ describe("orchestrate prompt policy — diagram drift types enumeration", () => 
 
 describe("orchestrate prompt policy — skill routing coverage", () => {
   const root = resolve(import.meta.dirname, "..");
-  const skillsDir = resolve(root, "opencode/superpowers/skills");
+  const skillsDir = resolve(root, "opencode/spoc/skills");
   const allSkills = readdirSync(skillsDir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)

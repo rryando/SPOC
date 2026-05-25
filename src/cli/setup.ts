@@ -20,9 +20,9 @@ import {
   writeOpencodeAgent,
 } from "./instructions.js";
 import {
-  detectOpencodeSuperpowersInstall,
-  installBundledOpencodeSuperpowers,
-} from "./opencode-superpowers.js";
+  detectSpocBundleInstall,
+  installSpocBundle,
+} from "./bundle-installer.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -91,7 +91,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   }
 
   p.note(
-    "Used by: coder-expert, docs-researcher, spoc-docs, code-doctor, system-architect, plan, general",
+    "Used by: software-engineer, docs-researcher, spoc-docs, oncall-ops, system-architect, plan, general",
     "Heavy tier agents",
   );
 
@@ -119,7 +119,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     process.exit(0);
   }
 
-  p.note("Used by: explore, code-reviewer, analyzer, code-quality", "Light tier agents");
+  p.note("Used by: explore, code-reviewer, tech-architect, qa-analyst", "Light tier agents");
 
   // T004 will wire modelConfig into agent registration calls below.
   const modelConfig: ModelTierConfig = {
@@ -142,18 +142,18 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   if (customizeAgents) {
     // Agent tier mapping for display
     const agentTiers: Array<{ name: string; tier: "heavy" | "standard" | "light" }> = [
-      { name: "coder-expert", tier: "heavy" },
+      { name: "software-engineer", tier: "heavy" },
       { name: "docs-researcher", tier: "heavy" },
       { name: "spoc-docs", tier: "heavy" },
-      { name: "code-doctor", tier: "heavy" },
+      { name: "oncall-ops", tier: "heavy" },
       { name: "system-architect", tier: "heavy" },
       { name: "plan", tier: "heavy" },
       { name: "general", tier: "heavy" },
       { name: "build", tier: "standard" },
       { name: "explore", tier: "light" },
       { name: "code-reviewer", tier: "light" },
-      { name: "analyzer", tier: "light" },
-      { name: "code-quality", tier: "light" },
+      { name: "tech-architect", tier: "light" },
+      { name: "qa-analyst", tier: "light" },
     ];
 
     p.note(
@@ -292,18 +292,18 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   if (selectedOpenCode && orchestrateEnabled && !opencodeAgentActive) {
     p.note(
-      `${color.yellow("⊘")} Skipped bundled OpenCode Superpowers install because the user declined SPOC Orchestrator registration`,
-      "OpenCode Superpowers",
+      `${color.yellow("⊘")} Skipped bundled OpenCode SPOC Bundle install because the user declined SPOC Orchestrator registration`,
+      "OpenCode SPOC Bundle",
     );
   }
 
   if (selectedOpenCode && orchestrateEnabled && opencodeAgentActive) {
-    const detection = detectOpencodeSuperpowersInstall();
+    const detection = detectSpocBundleInstall();
 
     if (detection.state === "foreign-existing") {
       const shouldReplace = await p.confirm({
         message:
-          "Replace the active OpenCode superpowers setup with the bundled SPOC-customized version? Future spoc config runs will keep it synced.",
+          "Replace the active OpenCode SPOC bundle setup with the bundled SPOC-customized version? Future spoc config runs will keep it synced.",
         initialValue: true,
       });
 
@@ -313,22 +313,22 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       }
 
       if (shouldReplace) {
-        const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: true });
-        p.note(result.summary, "OpenCode Superpowers");
+        const result = installSpocBundle({ autoConfirmReplacement: true });
+        p.note(result.summary, "OpenCode SPOC Bundle");
       } else {
         p.note(
-          `${color.yellow("⊘")} Skipped OpenCode bundled Superpowers install`,
-          "OpenCode Superpowers",
+          `${color.yellow("⊘")} Skipped OpenCode bundled SPOC Bundle install`,
+          "OpenCode SPOC Bundle",
         );
       }
     } else {
-      const result = installBundledOpencodeSuperpowers({ autoConfirmReplacement: false });
-      p.note(result.summary, "OpenCode Superpowers");
+      const result = installSpocBundle({ autoConfirmReplacement: false });
+      p.note(result.summary, "OpenCode SPOC Bundle");
     }
   }
 
   // ── Apply model config to all agent entries ────────────────────────────────
-  // Runs after superpowers install to overwrite hardcoded manifest models
+  // Runs after bundle install to overwrite hardcoded manifest models
   // with the user's configured tier values.
   if (selectedOpenCode && opencodeAgentActive) {
     applyAgentModelConfig(modelConfig);

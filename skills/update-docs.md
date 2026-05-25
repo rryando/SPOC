@@ -137,7 +137,7 @@ Use `tasks.md` for execution queue state, not full feature planning narratives. 
 
 #### Plan Keyword Conventions
 
-External agent workflows (e.g. superpowers skills) store documents in SPOC as plans with specific keywords:
+External agent workflows (e.g. SPOC skills) store documents in SPOC as plans with specific keywords:
 
 | Keywords | Status | Origin |
 |----------|--------|--------|

@@ -34,7 +34,7 @@ function writeFile(rootPath: string, relativePath: string, content: string) {
 }
 
 function runBundleBuild(env: NodeJS.ProcessEnv) {
-  return spawnSync("node", [resolve(root, "scripts/build-opencode-superpowers-bundle.mjs")], {
+  return spawnSync("node", [resolve(root, "scripts/build-opencode-bundle.mjs")], {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf-8",
@@ -163,9 +163,9 @@ describe("file-existence validation", () => {
     writeFile(sourceRoot, "planner/SKILL.md", "skill");
 
     const result = runBundleBuild({
-      SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-      SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-      SPOC_SUPERPOWERS_RUNTIME_MANIFEST: manifestPath,
+      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+      SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
 
     expect(result.status).not.toBe(0);
@@ -250,7 +250,7 @@ describe("end-to-end manifest smoke test", () => {
         reviewer: ["SKILL.md"],
       },
       agents: ["agents/helper.md"],
-      plugin: [".opencode/plugins/superpowers.js"],
+      plugin: [".opencode/plugins/spoc.js"],
     };
 
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
@@ -258,12 +258,12 @@ describe("end-to-end manifest smoke test", () => {
     writeFile(sourceRoot, "planner/notes.md", "planner-notes");
     writeFile(sourceRoot, "reviewer/SKILL.md", "reviewer-skill");
     writeFile(sourceRoot, "agents/helper.md", "agent-helper");
-    writeFile(sourceRoot, ".opencode/plugins/superpowers.js", "plugin-code");
+    writeFile(sourceRoot, ".opencode/plugins/spoc.js", "plugin-code");
 
     const result = runBundleBuild({
-      SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
-      SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-      SPOC_SUPERPOWERS_RUNTIME_MANIFEST: manifestPath,
+      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
+      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+      SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
 
     expect(result.status).toBe(0);
@@ -280,7 +280,7 @@ describe("end-to-end manifest smoke test", () => {
       "reviewer-skill",
     );
     expect(readFileSync(resolve(outputRoot, "agents/helper.md"), "utf-8")).toBe("agent-helper");
-    expect(readFileSync(resolve(outputRoot, ".opencode/plugins/superpowers.js"), "utf-8")).toBe(
+    expect(readFileSync(resolve(outputRoot, ".opencode/plugins/spoc.js"), "utf-8")).toBe(
       "plugin-code",
     );
   });

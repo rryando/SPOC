@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/superpowers");
+const bundleRoot = resolve(root, "opencode/spoc");
 const manifestPath = resolve(bundleRoot, "manifest.json");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 const skillsDir = resolve(bundleRoot, "skills");
@@ -68,29 +68,36 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
 }
 
 function runBundleBuild(outputRoot: string, sourceRoot: string) {
-  return spawnSync("node", [resolve(root, "scripts/build-opencode-superpowers-bundle.mjs")], {
+  return spawnSync("node", [resolve(root, "scripts/build-opencode-bundle.mjs")], {
     cwd: root,
     env: {
       ...process.env,
-      SPOC_SUPERPOWERS_OUTPUT_ROOT: outputRoot,
-      SPOC_SUPERPOWERS_SOURCE_ROOT: sourceRoot,
+      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
     },
     encoding: "utf-8",
   });
 }
 
-describe("opencode superpowers bundle", () => {
+describe("opencode SPOC bundle bundle", () => {
   it("ships a manifest with required install metadata", () => {
     const manifest = readJsonFile<InstallerManifest>(manifestPath);
 
-    expect(manifest.bundleId).toBe("spoc-opencode-superpowers");
-    expect(manifest.installMode).toBe("opencode-superpowers");
-    expect(manifest.sourceRoot).toBe("opencode/superpowers");
+    expect(manifest.bundleId).toBe("spoc-opencode-bundle");
+    expect(manifest.installMode).toBe("opencode-spoc");
+    expect(manifest.sourceRoot).toBe("opencode/spoc");
     expect(manifest.skills.source).toBe("skills");
-    expect(manifest.skills.destination).toBe("skills/superpowers");
+    expect(manifest.skills.destination).toBe("skills/spoc");
     expect(manifest.plugin.required).toBe(true);
-    expect(manifest.plugin.source).toBe(".opencode/plugins/superpowers.js");
-    expect(manifest.agents).toEqual([]);
+    expect(manifest.plugin.source).toBe(".opencode/plugins/spoc.js");
+    expect(manifest.agents).toEqual([
+      { source: "prompts/software-engineer.txt", destination: "prompts/software-engineer.txt" },
+      { source: "prompts/tech-architect.txt", destination: "prompts/tech-architect.txt" },
+      { source: "prompts/qa-analyst.txt", destination: "prompts/qa-analyst.txt" },
+      { source: "prompts/oncall-ops.txt", destination: "prompts/oncall-ops.txt" },
+      { source: "prompts/spoc-docs.txt", destination: "prompts/spoc-docs.txt" },
+      { source: "prompts/system-architect.txt", destination: "prompts/system-architect.txt" },
+    ]);
     expect(manifest.config.requiredMerges).toEqual(
       expect.arrayContaining([
         {
@@ -128,7 +135,7 @@ describe("opencode superpowers bundle", () => {
           }),
         },
         {
-          path: ["agent", "analyzer"],
+          path: ["agent", "tech-architect"],
           value: expect.objectContaining({
             mode: "subagent",
             model: "github-copilot/claude-haiku-4.5",
@@ -151,7 +158,7 @@ describe("opencode superpowers bundle", () => {
       "skills",
       "sourceRoot",
     ]);
-    expect(runtimeManifest.sourceRoot).toBe("~/.config/opencode/skills/superpowers");
+    expect(runtimeManifest.sourceRoot).toBe("~/.config/opencode/skills/spoc");
     expect(runtimeManifest.excludePatterns).toEqual([
       "**/references/**",
       "**/examples/**",

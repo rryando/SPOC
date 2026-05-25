@@ -34,6 +34,18 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "diagram":
     case "batch":
     case "validate":
+    case "project":
+    case "write":
+    case "doc":
+    case "dependency":
+    case "paths":
+    case "loop":
+    case "audit":
+    case "diff":
+    case "git-log":
+    case "lint-bundle":
+    case "deploy-superpowers":
+    case "sync-agents-md":
       return handleDagCommand(command, args.slice(1));
 
     default:

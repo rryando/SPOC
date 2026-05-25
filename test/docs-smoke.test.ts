@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/prompts/spoc-orchestrate.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
 
 // Resolve relative to project root (one level up from test/)
 const root = resolve(import.meta.dirname, "..");
 
 const readme = readFileSync(resolve(root, "README.md"), "utf-8");
-const openCodeManagedSuperpowersSection = readme.slice(
-  readme.indexOf("### OpenCode Managed Superpowers"),
+const openCodeManagedSpocSection = readme.slice(
+  readme.indexOf("### OpenCode Managed SPOC Bundle"),
   readme.indexOf("## CLI Commands"),
 );
 const orchestrateSkill = readFileSync(resolve(root, "skills/orchestrate.md"), "utf-8");
@@ -80,25 +80,25 @@ describe("docs and skills smoke tests", () => {
     expect(orchestratePrompt).toContain("memory");
   });
 
-  it("README explains that OpenCode setup installs SPOC-managed superpowers", () => {
-    expect(openCodeManagedSuperpowersSection).toContain(
+  it("README explains that OpenCode setup installs SPOC bundle", () => {
+    expect(openCodeManagedSpocSection).toContain(
       "selecting OpenCode in `spoc init` installs",
     );
-    expect(openCodeManagedSuperpowersSection).toContain("manager of the active `superpowers` set");
-    expect(openCodeManagedSuperpowersSection).toContain(
-      "generic Superpowers installs may be replaced",
+    expect(openCodeManagedSpocSection).toContain("manager of the active SPOC bundle");
+    expect(openCodeManagedSpocSection).toContain(
+      "generic SPOC Bundle installs may be replaced",
     );
-    expect(openCodeManagedSuperpowersSection).toContain("`spoc config` re-syncs");
-    expect(openCodeManagedSuperpowersSection).toContain("orchestrator agent is disabled");
+    expect(openCodeManagedSpocSection).toContain("`spoc config` re-syncs");
+    expect(openCodeManagedSpocSection).toContain("orchestrator agent is disabled");
   });
 
   it("README explains the curated OpenCode runtime bundle", () => {
-    expect(openCodeManagedSuperpowersSection).toContain("curated OpenCode runtime bundle");
-    expect(openCodeManagedSuperpowersSection).toContain("Superpowers skills remain available");
-    expect(openCodeManagedSuperpowersSection).toContain("agent definitions are bundled");
-    expect(openCodeManagedSuperpowersSection).toContain("excluded to keep the package lean");
-    expect(openCodeManagedSuperpowersSection).toContain(
-      "`opencode/superpowers/bundle-runtime.json`",
+    expect(openCodeManagedSpocSection).toContain("curated OpenCode runtime bundle");
+    expect(openCodeManagedSpocSection).toContain("SPOC Bundle skills remain available");
+    expect(openCodeManagedSpocSection).toContain("agent definitions are bundled");
+    expect(openCodeManagedSpocSection).toContain("excluded to keep the package lean");
+    expect(openCodeManagedSpocSection).toContain(
+      "`opencode/spoc/bundle-runtime.json`",
     );
   });
 });

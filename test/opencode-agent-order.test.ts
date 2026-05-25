@@ -5,7 +5,7 @@ import { writeOpencodeAgent } from "../src/cli/instructions.js";
 import {
   CAVEMAN_PREAMBLE,
   ORCHESTRATE_CAVEMAN_PROMPT_TEXT,
-} from "../src/prompts/spoc-orchestrate-caveman.js";
+} from "../src/cli/spoc-orchestrate-caveman.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 describe("writeOpencodeAgent — agent key order", () => {
