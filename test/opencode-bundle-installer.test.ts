@@ -11,7 +11,7 @@ import {
   readInstalledSpocBundleManifest,
   type SourceSpocBundleManifest,
   writeInstalledSpocBundleManifest,
-} from "../src/cl./bundle-installer.js";
+} from "../src/cli/bundle-installer.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 const bundleRoot = resolve(import.meta.dirname, "..", "opencode", "spoc");
