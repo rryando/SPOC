@@ -18,8 +18,8 @@ const exploreDagSkill = readFileSync(resolve(root, "skills/explore-dag.md"), "ut
 const orchestratePrompt = ORCHESTRATE_PROMPT_TEXT;
 
 describe("docs and skills smoke tests", () => {
-  it("README mentions create_project_plan tool", () => {
-    expect(readme).toContain("create_project_plan");
+  it("README mentions plan create command", () => {
+    expect(readme).toContain("spoc plan create");
   });
 
   it("update-docs skill mentions knowledge entries", () => {

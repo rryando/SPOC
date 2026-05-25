@@ -1,6 +1,6 @@
 # SPOC
 
-MCP server for agentic DAG-based project management. Tracks projects, their documentation, statuses, and inter-project dependencies as a directed acyclic graph.
+CLI-based DAG for agentic project management. Tracks projects, documentation, tasks, plans, and knowledge as a directed acyclic graph — designed for AI agents to read structured context instead of scanning codebases from scratch each session.
 
 ## Quick Start
 
@@ -8,115 +8,154 @@ MCP server for agentic DAG-based project management. Tracks projects, their docu
 npm install
 npm run build
 
-# Interactive setup wizard — configures IDEs and agents
-node dist/index.js init
+# Interactive setup wizard — configures OpenCode agents and deploys the SPOC bundle
+spoc init
 ```
 
-The setup wizard writes the MCP server entry to your chosen IDE/platform, which will start the server automatically. On first run, SPOC creates `~/.spoc/` to store project data and configuration.
-
-### MCP Client Configuration
-
-The `node dist/index.js init` wizard can automatically write the MCP entry for supported IDEs (VS Code/Copilot, GitHub Copilot CLI, Claude Code, OpenCode). You can also configure it manually:
-
-```json
-{
-  "mcpServers": {
-    "spoc": {
-      "command": "node",
-      "args": ["/absolute/path/to/spoc/dist/index.js"]
-    }
-  }
-}
-```
+On first run, SPOC creates `~/.spoc/` to store project data and `~/.config/opencode/` for agent configuration.
 
 ### OpenCode Managed SPOC Bundle
 
-selecting OpenCode in `spoc init` installs the SPOC-customized bundle distribution.
+Running `spoc init` installs the SPOC-customized bundle distribution for OpenCode — selecting OpenCode in `spoc init` installs the curated OpenCode runtime bundle. SPOC becomes the manager of the active SPOC bundle for OpenCode.
 
-- SPOC becomes the manager of the active SPOC bundle for OpenCode.
-- existing generic SPOC Bundle installs may be replaced after confirmation.
-- `spoc config` re-syncs SPOC-owned OpenCode bundle files automatically.
-- bundled install is skipped when the SPOC orchestrator agent is disabled or not registered.
-
-SPOC ships a curated OpenCode runtime bundle.
-
-- all SPOC Bundle skills remain available in OpenCode.
-- all shipped SPOC agent definitions are bundled.
-- non-runtime support files are intentionally excluded to keep the package lean.
-- `opencode/spoc/bundle-runtime.json` defines the curated runtime payload.
+- Registers **SPOC Orchestrator** and **SPOC Caveman** as primary agents
+- Deploys bundled skills, agent prompts, and plugins to `~/.config/opencode/`
+- Existing generic SPOC Bundle installs may be replaced after confirmation
+- `spoc config` re-syncs SPOC-owned files automatically
+- Bundled install is skipped when the SPOC orchestrator agent is disabled or not registered
+- All SPOC Bundle skills remain available in OpenCode
+- All shipped SPOC agent definitions are bundled
+- Non-runtime support files are intentionally excluded to keep the package lean
+- `opencode/spoc/bundle-runtime.json` defines the curated runtime payload
 
 ## CLI Commands
 
+SPOC is CLI-only. All operations are available through the `spoc` binary:
+
+### Setup
+
 | Command | Description |
 |---|---|
-| `node dist/index.js init` | Interactive setup wizard — select IDEs, enable/disable agents, write MCP configs |
-| `node dist/index.js config` | Reconfigure an existing installation (same wizard, preserves existing choices) |
+| `spoc init` | Interactive setup wizard — configure agents, deploy bundle |
+| `spoc config` | Reconfigure an existing installation |
+
+### DAG Operations
+
+| Command | Description |
+|---|---|
+| `spoc context [--path=<dir>]` | Resolve project context from workspace directory |
+| `spoc project list` | List all projects and dependency edges |
+| `spoc project get <slug>` | Get project metadata or a specific doc (`--doc=overview`) |
+| `spoc project init <name>` | Create a new project in the DAG |
+| `spoc project delete <slug>` | Remove a project from the DAG |
+| `spoc project status <slug> <status>` | Change project lifecycle status |
+| `spoc doc update <slug> <docType>` | Update a project document |
+| `spoc dependency add <slug> <target>` | Add a dependency edge |
+| `spoc dependency remove <slug> <target>` | Remove a dependency edge |
+| `spoc paths update <slug>` | Manage workspace directory paths |
+
+### Tasks
+
+| Command | Description |
+|---|---|
+| `spoc task list <slug>` | List tasks (filterable by status/priority) |
+| `spoc task get <slug> <taskId>` | Get task metadata |
+| `spoc task create <slug> <title>` | Create a structured task |
+| `spoc task update <slug> <taskId>` | Update task fields |
+| `spoc task transition <slug> <taskId> <status>` | Transition task status with guard-rails |
+| `spoc task delete <slug> <taskId>` | Remove a task |
+
+### Plans
+
+| Command | Description |
+|---|---|
+| `spoc plan list <slug>` | List plans with status and metadata |
+| `spoc plan get <slug> <planId> [--body]` | Get plan metadata/body |
+| `spoc plan create <slug> <title>` | Create a structured plan |
+| `spoc plan update-meta <slug> <planId>` | Update plan metadata |
+| `spoc plan update-body <slug> <planId>` | Replace plan body |
+| `spoc plan delete <slug> <planId>` | Delete a plan |
+
+### Knowledge
+
+| Command | Description |
+|---|---|
+| `spoc knowledge list <slug>` | List knowledge entries |
+| `spoc knowledge get <slug> <entryId> [--body]` | Get entry metadata/body |
+| `spoc knowledge create <slug> <title>` | Create a knowledge entry |
+| `spoc knowledge update-meta <slug> <entryId>` | Update entry metadata |
+| `spoc knowledge update-body <slug> <entryId>` | Replace entry body |
+| `spoc knowledge search <slug> "<query>"` | BM25 search over knowledge |
+| `spoc knowledge delete <slug> <entryId>` | Delete a knowledge entry |
+
+### Search & Diagnostics
+
+| Command | Description |
+|---|---|
+| `spoc search <slug> "<query>"` | Cross-type search (plans + knowledge + tasks) |
+| `spoc validate <slug>` | Structural health check |
+| `spoc diagram ready <slug> <planId>` | Show next executable diagram nodes |
+| `spoc audit <slug>` | Project state audit |
+| `spoc diff <slug>` | Show DAG changes |
+| `spoc git-log <slug>` | Query git history for a project |
+
+### Bundle & Deployment
+
+| Command | Description |
+|---|---|
+| `spoc lint-bundle` | Validate bundle manifest integrity |
+| `spoc deploy-superpowers` | Deploy validated bundle to OpenCode config |
+| `spoc sync-agents-md <slug>` | Generate AGENTS.md for workspace directories |
+
+### Write-Gate
+
+| Command | Description |
+|---|---|
+| `spoc write propose "<summary>" --ops=<op> --slug=<slug>` | Propose a DAG mutation, get a token |
+| `spoc write apply <token>` | Execute a proposed write |
+
+All mutating commands require `--token=<token>` from a prior `spoc write propose`.
+
+All commands support `--json` for structured agent-consumable output.
 
 ## Data Directory
 
-By default, all project data is stored in `~/.spoc/`.
+All project data is stored in `~/.spoc/` by default.
 
 Override with the `SPOC_DATA_DIR` environment variable:
 
 ```bash
-SPOC_DATA_DIR=/path/to/custom/dir node dist/index.js
-```
-
-Or in your MCP client config:
-
-```json
-{
-  "mcpServers": {
-    "spoc": {
-      "command": "node",
-      "args": ["/absolute/path/to/spoc/dist/index.js"],
-      "env": {
-        "SPOC_DATA_DIR": "/path/to/custom/dir"
-      }
-    }
-  }
-}
+SPOC_DATA_DIR=/path/to/custom/dir spoc context
 ```
 
 ## Write-Gate Token Model
 
-Mutating DAG operations use a two-step confirmation protocol:
+Mutating DAG operations use a two-step confirmation protocol to prevent accidental state changes:
 
-1. **`propose_dag_write`** — Agent describes intended mutation. Server returns a single-use `confirmationToken` scoped to the specific project + operation. Accepts optional `ttlMs` to override the default expiry.
-2. **`apply_dag_write`** — Agent sends the token back to execute the write. Token is consumed on use; replays are rejected.
+1. **`spoc write propose`** — Describe intended mutation. Returns a single-use `token` scoped to the specific project + operation. Accepts optional `--ttl` to override the default expiry.
+2. **`spoc write apply`** — Consume the token to authorize the write. Token is consumed on use; replays are rejected.
+3. **Pass `--token` to write commands** — The consumed token authorizes the mutation.
 
 ### TTL Semantics
 
 - Default TTL is **120 seconds** from proposal creation.
-- Override with `ttlMs` parameter at proposal time.
-- Token lookup does **not** extend TTL — the clock starts at creation and never resets.
-- Partial failures do **not** extend or retry the token automatically.
-- Expired tokens require a fresh `propose_dag_write` call.
+- Override with `--ttl` parameter at proposal time.
+- Expired tokens require a fresh `spoc write propose` call.
+- Tokens persist to `$SPOC_DATA_DIR/tokens/` as JSON files for cross-process CLI usage.
 
-### Gated Mutating Tools
+### Gated Mutating Commands
 
-All of the following tools require a valid `confirmationToken` (consumed via `apply_dag_write`). Without a valid token the write is refused.
+All of the following require a valid `--token` (from `spoc write propose` → `spoc write apply`):
 
-| Tool | Category |
+| Command | Category |
 |---|---|
-| `update_project_doc` | Project |
-| `update_project_status` | Project |
-| `delete_project` | Project |
-| `manage_dependency` | Project |
-| `create_project_plan` | Plans |
-| `update_project_plan_meta` | Plans |
-| `update_project_plan_body` | Plans |
-| `delete_project_plan` | Plans |
-| `create_project_knowledge_entry` | Knowledge |
-| `update_project_knowledge_meta` | Knowledge |
-| `update_project_knowledge_body` | Knowledge |
-| `delete_project_knowledge_entry` | Knowledge |
-| `create_project_task` | Tasks |
-| `update_project_task` | Tasks |
-| `delete_project_task` | Tasks |
-| `transition_project_task` | Tasks |
-
-This prevents accidental or unauthorized DAG mutations by requiring explicit agent intent for every state change.
+| `spoc doc update` | Project |
+| `spoc project status` | Project |
+| `spoc project delete` | Project |
+| `spoc dependency add/remove` | Project |
+| `spoc plan create/update-meta/update-body/delete` | Plans |
+| `spoc knowledge create/update-meta/update-body/delete` | Knowledge |
+| `spoc task create/update/delete/transition` | Tasks |
 
 ## Development
 
@@ -136,8 +175,11 @@ npm install
 # Build TypeScript
 npm run build
 
-# Run the MCP server (stdio transport)
-npm run start
+# Run CLI directly
+node dist/index.js <command>
+
+# Or via npm link / npx
+spoc <command>
 
 # Watch mode during development
 npm run dev
@@ -210,7 +252,7 @@ For programmatic task management, SPOC provides a structured task API alongside 
 
 **Task priorities:** `high`, `medium`, `low`
 
-When structured tasks exist, `tasks.md` is auto-rendered from the structured data as a backward-compatible view. The two surfaces coexist — `update_project_doc(tasks)` writes directly to `tasks.md`, while the task tools manage `tasks/index.json`.
+When structured tasks exist, `tasks.md` is auto-rendered from the structured data as a backward-compatible view.
 
 ### Knowledge Entry Kinds
 
@@ -232,11 +274,13 @@ Plans track the lifecycle of feature work:
 
 `proposed` → `planned` → `in_progress` → `done` → `archived`
 
+### Plan Diagrams
+
+Each plan can have an associated `.diagram.mmd` file (Mermaid) that serves as an **agentic execution map**. Agents read the diagram first for task selection and sub-agent dispatch before loading plan prose. Diagrams encode task status via `classDef` and include rich per-node metadata for automated execution.
+
 ### Concurrency
 
-SPOC uses advisory file locking to prevent data corruption when multiple MCP clients write simultaneously. Lock files are created alongside protected resources (e.g., `meta.json.lock`) and automatically expire after 10 seconds if the holding process crashes.
-
-All server-side file I/O uses `node:fs/promises` for non-blocking operation within the MCP event loop. CLI commands (`src/cli/`) remain synchronous as they run in their own process.
+SPOC uses advisory file locking to prevent data corruption when multiple CLI processes write simultaneously. Lock files are created alongside protected resources (e.g., `meta.json.lock`) and automatically expire after 10 seconds if the holding process crashes.
 
 ---
 
@@ -247,11 +291,11 @@ All server-side file I/O uses `node:fs/promises` for non-blocking operation with
 ```mermaid
 flowchart TD
     User([User Request])
-    Orch{"/spoc-orchestrate\n(intent classification)"}
-    Init["/spoc-init\nCreate project, scan codebase,\npopulate docs & knowledge"]
-    Brain["/spoc-brainstorm\nExplore approaches, create\nplans & task breakdowns"]
-    Exec["/spoc-execute\nPick highest-priority task,\nimplement, update docs"]
-    Sync["/spoc-sync\nRe-scan codebase, audit docs,\nreconcile with reality"]
+    Orch{"SPOC Orchestrator\n(intent classification)"}
+    Init["INIT\nCreate project, scan codebase,\npopulate docs & knowledge"]
+    Brain["BRAINSTORM\nExplore approaches, create\nplans & task breakdowns"]
+    Exec["EXECUTE\nPick highest-priority task,\nimplement, update docs"]
+    Sync["SYNC\nRe-scan codebase, audit docs,\nreconcile with reality"]
     Explore["EXPLORE\n(read-only)\nList projects, inspect\nstatus & dependencies"]
     Multi["MULTI\nChain workflows\nin sequence"]
 
@@ -280,10 +324,10 @@ flowchart TD
 
 ### Orchestrator Flow
 
-The orchestrator (`/spoc-orchestrate`) is the recommended entry point. Every request goes through three phases:
+The SPOC Orchestrator is the recommended entry point (registered as a primary agent in OpenCode). Every request goes through three phases:
 
 1. **Classify** — detect intent as one of six types (INIT, BRAINSTORM, EXECUTE, SYNC, EXPLORE, MULTI)
-2. **Route** — delegate to the appropriate specialist workflow with the right tool set
+2. **Route** — delegate to the appropriate specialist workflow with sub-agents
 3. **Complete** — summarize what was done, current project state, and recommended next steps
 
 If intent is ambiguous, the orchestrator asks exactly one clarifying question before proceeding.
@@ -296,7 +340,7 @@ SPOC presents three main surfaces to agents: **Queue / Plan / Memory**.
 - **Plan** — multi-step work tracked in structured plans
 - **Memory** — durable reusable knowledge tracked in structured knowledge entries
 
-When available, `resolve_project_context` returns an **operating brief** with:
+`spoc context` returns an **operating brief** with:
 - current focus
 - recommended surface
 - why
@@ -304,156 +348,56 @@ When available, `resolve_project_context` returns an **operating brief** with:
 
 ### Specialist Workflows
 
-Each specialist prompt can also be invoked directly:
+The orchestrator routes to these workflows internally:
 
-| Prompt | Argument | What It Does |
-|---|---|---|
-| `/spoc-orchestrate` | _(none)_ | Classifies intent and routes to the right workflow |
-| `/spoc-init` | _(none)_ | Creates a new project, performs a full codebase scan, populates docs and knowledge entries |
-| `/spoc-brainstorm` | `project` (slug) | Reviews existing state, collaboratively explores approaches, creates plans and tasks |
-| `/spoc-execute` | `project` (slug) | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
-| `/spoc-sync` | `project` (slug) | Re-scans codebase, audits all docs against reality, reconciles differences |
+| Workflow | What It Does |
+|---|---|
+| INIT | Creates a new project, performs codebase scan, populates docs and knowledge entries |
+| BRAINSTORM | Reviews existing state, explores approaches, creates plans and task breakdowns |
+| EXECUTE | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
+| SYNC | Re-scans codebase, audits all docs against reality, reconciles differences |
+| EXPLORE | Lists projects, inspects status and dependencies (read-only) |
+| MULTI | Chains multiple workflows in sequence for compound requests |
 
 ### Workspace Integration
 
 Workspace paths connect local directories to SPOC projects, enabling two features:
 
-**Context resolution** — When an agent starts a session in a directory, `resolve_project_context` matches it against registered workspace paths and returns the project's overview, operating brief, current focus, recent knowledge, and active plans. This gives the agent immediate project awareness without manual lookup.
+**Context resolution** — When an agent starts a session in a directory, `spoc context` matches it against registered workspace paths and returns the project's overview, operating brief, current focus, recent knowledge, and active plans.
 
-**AGENTS.md generation** — `sync_agents_md` assembles a guardrail document from three sources and symlinks it into each workspace directory:
+**AGENTS.md generation** — `spoc sync-agents-md` assembles a guardrail document from three sources and symlinks it into each workspace directory:
 
 1. **Coding discipline rules** — 7 non-negotiable principles (DRY, Single Responsibility, etc.)
-2. **Codebase analysis** — provided by the calling LLM after scanning the project (tech stack, directory structure, naming conventions, code patterns)
+2. **Codebase analysis** — provided by the calling LLM after scanning the project
 3. **Project context** — pulled from SPOC (overview, current focus, dependencies, active plans)
-
-Register workspace paths with `update_project_paths`. A project can have multiple paths (e.g., monorepo subdirectories).
-
-### Supported IDEs
-
-The `init` wizard can auto-configure these IDEs/tools:
-
-| IDE / Tool | Config Path |
-|---|---|
-| VS Code (Copilot) | `~/.vscode/mcp.json` |
-| GitHub Copilot CLI | `~/.config/github-copilot/mcp.json` |
-| Claude Code | `~/.claude/claude_desktop_config.json` |
-| OpenCode | `~/.config/opencode/opencode.json` |
-
-When OpenCode agent registration is enabled, SPOC appears in the agent switcher as `SPOC - (Orchestrator)`.
 
 ### SPOC Caveman
 
-SPOC ships a second OpenCode primary agent, **SPOC Caveman**, that layers [caveman-speak](https://github.com/JuliusBrussee/caveman) (MIT) on top of the standard orchestrator for ~65% fewer tokens on chat-facing narration. Tab in the OpenCode agent switcher to cycle between `SPOC Orchestrator` (default) and `SPOC Caveman`.
+SPOC ships a second primary agent, **SPOC Caveman**, that layers [caveman-speak](https://github.com/JuliusBrussee/caveman) (MIT) on top of the standard orchestrator for ~65% fewer tokens on chat-facing narration. Tab in the OpenCode agent switcher to cycle between `SPOC Orchestrator` (default) and `SPOC Caveman`.
 
-- **Same capabilities** — identical workflow routing (INIT / BRAINSTORM / EXECUTE / SYNC / EXPLORE / MULTI), tool access, and sub-agent delegation as the standard orchestrator.
-- **Intensity levels** — `lite`, `full` (default), `ultra`. Caveman auto-escalates to full prose when the user asks a clarifying question or signals confusion.
-- **Strict carve-outs** — caveman-speak applies only to chat narration. Tool arguments, DAG document content (overview/tasks/plans/knowledge), code, commit messages, and structured output stay in full prose.
-- **Sub-agent propagation** — when SPOC Caveman dispatches a sub-agent, it prepends an inheritance block so the sub-agent narrates in caveman-speak too, while respecting the same carve-outs.
-- **Companion skills** — `caveman-commit` (terse Conventional Commits) and `caveman-review` (one-line PR findings with severity prefix) are bundled with the SPOC bundle install.
-
----
-
-## MCP Tools
-
-### Project Management
-
-| Tool | Description |
-|---|---|
-| `init_project` | Initialize a new project in the DAG with templates for overview, tasks, dependencies, and knowledge docs |
-| `update_project_doc` | Update a project document (`overview`, `tasks`, `dependencies`, `knowledge`) |
-| `update_project_status` | Change a project's status (`draft` / `active` / `completed` / `archived`) |
-| `manage_dependency` | Add or remove dependency edges between projects with cycle detection |
-| `list_projects` | List all projects in the DAG with their status and dependency edges |
-| `get_project` | Get a project's metadata or a specific document (overview, tasks, dependencies, knowledge) |
-
-### Plans
-
-| Tool | Description |
-|---|---|
-| `create_project_plan` | Create a structured plan for feature work within a project |
-| `list_project_plans` | List all plans for a project with their status and metadata |
-| `get_project_plan` | Get a plan's metadata and body content |
-| `update_project_plan_meta` | Update a plan's title, status, or other metadata |
-| `update_project_plan_body` | Replace a plan's body content |
-
-### Tasks
-
-| Tool | Description |
-|---|---|
-| `create_project_task` | Create a structured task in a project's task queue |
-| `list_project_tasks` | List tasks for a project, optionally filtered by status and/or priority |
-| `get_project_task` | Get a task's full metadata (title, status, priority) |
-| `update_project_task` | Update a task's title, status, or priority |
-| `delete_project_task` | Remove a task from the project's task queue |
-
-### Knowledge
-
-| Tool | Description |
-|---|---|
-| `create_project_knowledge_entry` | Create a structured knowledge entry for durable project memory |
-| `list_project_knowledge_entries` | List all knowledge entries for a project with their metadata |
-| `get_project_knowledge_entry` | Get a knowledge entry's metadata and body content |
-| `update_project_knowledge_meta` | Update a knowledge entry's title, kind, or other metadata |
-| `update_project_knowledge_body` | Replace a knowledge entry's body content |
-
-### Workspace Integration
-
-| Tool | Description |
-|---|---|
-| `update_project_paths` | Add, remove, or set workspace directory paths for a project (maps local directories to SPOC projects) |
-| `resolve_project_context` | Resolve project context from a workspace directory path — returns assembled overview, active tasks, knowledge, and plans |
-| `sync_agents_md` | Generate and write an `AGENTS.md` file to a project's workspace directories (coding discipline rules + codebase analysis + project context) |
-
-### Delete / Cleanup
-
-| Tool | Description |
-|---|---|
-| `delete_project` | Remove a project and all its data from the DAG |
-| `delete_project_plan` | Delete a structured plan from a project |
-| `delete_project_knowledge_entry` | Delete a knowledge entry from a project |
-
-### Write-Gate Tools
-
-| Tool | Role | Description |
-|---|---|---|
-| `propose_dag_write` | Issues token | Propose a DAG mutation; returns a single-use `confirmationToken` (default TTL 120 s, override with `ttlMs`) |
-| `apply_dag_write` | Consumes token | Execute a proposed write by supplying the `confirmationToken`; consumed on use, replays rejected |
-
-## MCP Resources
-
-| Resource | Description |
-|---|---|
-| `spoc://projects` | List all tracked projects |
-| `spoc://projects/{slug}` | Get details for a specific project |
-| `spoc://projects/{slug}/plans` | List all plans for a project |
-| `spoc://projects/{slug}/plans/{planId}` | Get a plan's body content |
-| `spoc://projects/{slug}/plans/{planId}/meta` | Get a plan's metadata |
-| `spoc://projects/{slug}/knowledge` | List all knowledge entries for a project |
-| `spoc://projects/{slug}/knowledge/{entryId}` | Get a knowledge entry's body content |
-| `spoc://projects/{slug}/knowledge/{entryId}/meta` | Get a knowledge entry's metadata |
-| `spoc://skills/*` | Agent skill guides (init-project, update-docs, explore-dag, orchestrate) |
-
-## MCP Prompts (Slash Commands)
-
-Prompts are registered as slash commands and can be individually enabled/disabled via `node dist/index.js config`. See [Specialist Workflows](#specialist-workflows) above for details on each prompt.
+- **Same capabilities** — identical workflow routing, tool access, and sub-agent delegation
+- **Intensity levels** — `lite`, `full` (default), `ultra`
+- **Strict carve-outs** — caveman-speak applies only to chat narration. Tool arguments, DAG content, code, commit messages, and structured output stay in full prose.
+- **Companion skills** — `caveman-commit` and `caveman-review` are bundled with the SPOC bundle
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── index.ts          # Server entrypoint (shebang + bootstrap)
-│   ├── cli/              # CLI subcommands (init, config) with interactive TUI
-│   ├── agents/           # Agent definitions (names, hints for prompt registration)
-│   ├── prompts/          # MCP prompt (slash command) handlers
-│   ├── tools/            # MCP tool handlers
-│   ├── resources/        # MCP resource handlers
+│   ├── index.ts          # CLI entrypoint
+│   ├── cli/              # CLI commands, TUI setup wizard, bundle installer
 │   └── utils/            # DAG logic, paths, templates, errors, workspace matching
-├── templates/            # Mustache-style templates for new projects
-├── skills/               # Agent skill markdown guides
+├── opencode/spoc/        # SPOC bundle source (skills, prompts, plugins, manifests)
+│   ├── skills/           # Agent skill markdown guides
+│   ├── prompts/          # Agent prompt text files
+│   ├── manifest.json     # Bundle install manifest
+│   └── bundle-runtime.json  # Curated runtime payload definition
+├── scripts/              # Build, lint, deploy helpers, spoc-cli.mjs entry point
+├── templates/            # Doc templates rendered on project init
 ├── test/                 # Vitest test suite
 └── ~/.spoc/              # Runtime data (created on first run)
     ├── config.json       # Agent/IDE configuration
-    ├── meta.json         # Root DAG graph
+    ├── tokens/           # Write-gate token persistence
     └── projects/         # Per-project directories
         └── {slug}/
             ├── meta.json       # Project metadata (name, description, workspace paths)
@@ -461,16 +405,17 @@ Prompts are registered as slash commands and can be individually enabled/disable
             ├── tasks.md
             ├── dependencies.md
             ├── knowledge.md
-            ├── AGENTS.md       # Generated guardrail doc (via sync_agents_md)
+            ├── AGENTS.md       # Generated guardrail doc (via sync-agents-md)
             ├── tasks/          # Structured task queue
             │   └── index.json
-            ├── plans/          # Structured plans for feature work
-            │   └── {planId}.md
+            ├── plans/          # Structured plans + diagrams
+            │   ├── {planId}.md
+            │   └── {planId}.diagram.mmd
             └── knowledge/      # Structured knowledge entries
                 └── {entryId}.md
 ```
 
-## Superpowers Bundle Release Playbook
+## Bundle Release Playbook
 
 The SPOC bundle flows **repo → config only**. Never overwrite repo files from config.
 
@@ -478,14 +423,13 @@ The SPOC bundle flows **repo → config only**. Never overwrite repo files from 
 
 1. **Edit** skills/agents/plugins in `opencode/spoc/` (repo source of truth).
 2. **Build bundle** — `npm run build:bundle` (produces `bundle-runtime.json`, hashes, etc.).
-3. **Lint** — `node scripts/lint-bundle.mjs` or use the `lint_bundle` MCP tool. Must pass with zero errors before deploying.
-4. **Deploy dry-run** — `node scripts/deploy-opencode-bundle.mjs` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
-5. **Deploy actual** — set `DEPLOY_DRY_RUN=false` or use the `deploy_spoc_bundle` MCP tool with `dryRun: false`.
+3. **Lint** — `spoc lint-bundle`. Must pass with zero errors before deploying.
+4. **Deploy dry-run** — `spoc deploy-superpowers` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
+5. **Deploy actual** — `spoc deploy-superpowers --no-dry-run`.
 6. **Restart** IDE/agent host — deployed skills are loaded at startup; changes require a process restart.
 
 ### Key rules
 
 - **No config → repo**: deployed config is ephemeral output. Manual config edits are overwritten on next deploy.
 - **Lint before deploy**: bundle integrity is binary. Skipping lint for "small changes" risks manifest/file mismatch.
-- **Drift detection**: `lint_bundle` with `BUNDLE_LINT_CONFIG_ROOT` detects when deployed config diverges from bundle (warns, not errors).
-- **Write-gate**: all DAG mutations (plan/task/doc updates) require a `propose_dag_write` token consumed via `apply_dag_write` before the write proceeds. Expired tokens require fresh re-proposal.
+- **Write-gate**: all DAG mutations require a `spoc write propose` token consumed via `spoc write apply` before the write proceeds. Expired tokens require fresh re-proposal.
