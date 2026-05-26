@@ -20,7 +20,11 @@ export function failure(
   return { ok: false, code, message, ...opts };
 }
 
-export function render(result: CLIResult, flags: { json: boolean; lean: boolean }, command?: string): void {
+export function render(
+  result: CLIResult,
+  flags: { json: boolean; lean: boolean },
+  command?: string,
+): void {
   if (flags.json) {
     const output = flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
     if (result.ok) {

@@ -88,7 +88,11 @@ defineCommand({
     },
     stdin: { type: "boolean", required: false, description: "Read operations JSON from stdin" },
     "list-ops": { type: "boolean", description: "List valid batch operations" },
-    "fail-fast": { type: "boolean", required: false, description: "Abort on first operation failure" },
+    "fail-fast": {
+      type: "boolean",
+      required: false,
+      description: "Abort on first operation failure",
+    },
   },
   handler: handleBatch,
 });

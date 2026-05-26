@@ -17,11 +17,7 @@ import {
 import { resolveProject } from "../../utils/project-resolver.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
 import { renderBrief } from "../brief-renderer.js";
-import {
-  type CLIResult,
-  type CommandFlags,
-  defineCommand,
-} from "../command-registry.js";
+import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
@@ -178,5 +174,3 @@ function pickFirstProseParagraph(content: string): string {
   const fallback = paragraphs[0] ?? "";
   return fallback.length > 200 ? fallback.slice(0, 200) : fallback;
 }
-
-

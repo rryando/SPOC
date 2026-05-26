@@ -3,19 +3,40 @@
 type Rec = Record<string, unknown>;
 
 const STATUS_MARKER: Record<string, string> = {
-  in_progress: "[/]", backlog: "[ ]", done: "[x]", cancelled: "[-]",
+  in_progress: "[/]",
+  backlog: "[ ]",
+  done: "[x]",
+  cancelled: "[-]",
 };
 
-function marker(s: string): string { return STATUS_MARKER[s] ?? "[ ]"; }
+function marker(s: string): string {
+  return STATUS_MARKER[s] ?? "[ ]";
+}
 
 const NULL_COMMANDS = new Set([
-  "batch", "loop start", "loop cancel", "loop status",
-  "lint-bundle", "deploy-superpowers", "git-log", "sync-agents-md",
-  "dependency add", "dependency remove", "doc update", "paths update",
-  "project init", "project update-doc", "project update-status", "project update-paths",
-  "task delete", "plan delete", "plan update-body",
-  "knowledge delete", "knowledge update-body",
-  "diagram status", "diagram sort-metadata",
+  "batch",
+  "loop start",
+  "loop cancel",
+  "loop status",
+  "lint-bundle",
+  "deploy-superpowers",
+  "git-log",
+  "sync-agents-md",
+  "dependency add",
+  "dependency remove",
+  "doc update",
+  "paths update",
+  "project init",
+  "project update-doc",
+  "project update-status",
+  "project update-paths",
+  "task delete",
+  "plan delete",
+  "plan update-body",
+  "knowledge delete",
+  "knowledge update-body",
+  "diagram status",
+  "diagram sort-metadata",
 ]);
 
 // Group A — Single Entity
@@ -37,9 +58,13 @@ function formatPlanGet(d: Rec): string {
   const lines: string[] = [];
   lines.push(`**${d.title}**`);
   lines.push(`Status: ${d.status}`);
-  if (d.summary) { lines.push(""); lines.push(String(d.summary)); }
+  if (d.summary) {
+    lines.push("");
+    lines.push(String(d.summary));
+  }
   if (Array.isArray(d.keywords) && d.keywords.length > 0) {
-    lines.push(""); lines.push(`Tags: ${(d.keywords as string[]).join(", ")}`);
+    lines.push("");
+    lines.push(`Tags: ${(d.keywords as string[]).join(", ")}`);
   }
   return lines.join("\n").trimEnd();
 }
@@ -60,9 +85,13 @@ function formatKnowledgeGet(d: Rec): string {
   if (d.body) return formatKnowledgeBody(d);
   const lines: string[] = [];
   lines.push(`**${rec.title}** (${rec.kind})`);
-  if (rec.summary) { lines.push(""); lines.push(String(rec.summary)); }
+  if (rec.summary) {
+    lines.push("");
+    lines.push(String(rec.summary));
+  }
   if (Array.isArray(rec.keywords) && rec.keywords.length > 0) {
-    lines.push(""); lines.push(`Tags: ${(rec.keywords as string[]).join(", ")}`);
+    lines.push("");
+    lines.push(`Tags: ${(rec.keywords as string[]).join(", ")}`);
   }
   return lines.join("\n").trimEnd();
 }
@@ -81,7 +110,7 @@ function formatKnowledgeBody(d: Rec): string {
 // Group B — Lists
 
 function formatTaskList(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).tasks ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).tasks ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   lines.push(`## Tasks (${arr.length})`);
@@ -104,7 +133,7 @@ function formatTaskList(d: unknown): string {
 }
 
 function formatPlanList(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).plans ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).plans ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   lines.push(`## Plans (${arr.length})`);
@@ -116,7 +145,7 @@ function formatPlanList(d: unknown): string {
 }
 
 function formatKnowledgeList(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).entries ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).entries ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   lines.push(`## Knowledge (${arr.length})`);
@@ -128,7 +157,7 @@ function formatKnowledgeList(d: unknown): string {
 }
 
 function formatProjectList(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).projects ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).projects ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   lines.push(`## Projects (${arr.length})`);
@@ -142,21 +171,29 @@ function formatProjectList(d: unknown): string {
 
 // Group C — Body / Passthrough
 
-function formatPassthrough(d: Rec): string { return String(d.content ?? d.output ?? "").trimEnd(); }
+function formatPassthrough(d: Rec): string {
+  return String(d.content ?? d.output ?? "").trimEnd();
+}
 
 function formatProjectGet(d: Rec): string {
   if (d.content) return String(d.content).trimEnd();
   const lines: string[] = [];
   lines.push(`# ${d.name}`);
-  if (d.description) { lines.push(""); lines.push(String(d.description)); }
-  if (d.status) { lines.push(""); lines.push(`Status: ${d.status}`); }
+  if (d.description) {
+    lines.push("");
+    lines.push(String(d.description));
+  }
+  if (d.status) {
+    lines.push("");
+    lines.push(`Status: ${d.status}`);
+  }
   return lines.join("\n").trimEnd();
 }
 
 // Group D — Search
 
 function formatSearch(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).results ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).results ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   for (let i = 0; i < arr.length; i++) {
@@ -168,7 +205,7 @@ function formatSearch(d: unknown): string {
 }
 
 function formatRelated(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).related ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).related ?? []);
   const arr = items as Rec[];
   const lines: string[] = [];
   lines.push(`## Related (${arr.length})`);
@@ -222,13 +259,13 @@ function formatDiff(d: Rec): string {
 }
 
 function formatDiagramReady(d: unknown): string {
-  const items = Array.isArray(d) ? d : (d as Rec).ready ?? (d as Rec).nodes ?? [];
+  const items = Array.isArray(d) ? d : ((d as Rec).ready ?? (d as Rec).nodes ?? []);
   const arr = items as (string | Rec)[];
   const lines: string[] = [];
   lines.push("## Ready Nodes");
   lines.push("");
   for (const node of arr) {
-    const id = typeof node === "string" ? node : (node as Rec).id ?? (node as Rec).nodeId;
+    const id = typeof node === "string" ? node : ((node as Rec).id ?? (node as Rec).nodeId);
     lines.push(`- ${id}`);
   }
   return lines.join("\n").trimEnd();

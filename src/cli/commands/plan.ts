@@ -47,7 +47,11 @@ defineCommand({
       enum: ["proposed", "planned", "in_progress", "done", "archived"],
     },
     keywords: { type: "string", description: "Comma-separated keywords to filter by" },
-    fields: { type: "string", required: false, description: "Comma-separated field names to include in output" },
+    fields: {
+      type: "string",
+      required: false,
+      description: "Comma-separated field names to include in output",
+    },
   },
   handler: handlePlanList,
 });
@@ -328,7 +332,11 @@ async function handlePlanUpdateBody(
   if (flags.dryRun) {
     return success({
       dryRun: true,
-      wouldUpdate: { planId: plan.id, slug, source: bodyInline ? "inline" : bodyFile ? "file" : "stdin" },
+      wouldUpdate: {
+        planId: plan.id,
+        slug,
+        source: bodyInline ? "inline" : bodyFile ? "file" : "stdin",
+      },
     });
   }
 
