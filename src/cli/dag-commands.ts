@@ -4,7 +4,7 @@
 
 import { execSync, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import {
@@ -55,12 +55,13 @@ import { retrieveForTask, type TaskContext } from "../retrieval/task-scoped.js";
 import { isLeanMode, formatJsonOutput } from "./lean-output.js";
 import { deriveOperatingBrief, safeTime } from "../utils/workflow-policy.js";
 import {
-  createWriteProposal,
-  consumeWriteProposalToken,
   requireWriteGate,
   WriteGateError,
 } from "../utils/write-gate.js";
 import { cancelLoop, findActiveLoop, readLoopState, startLoop } from "../utils/loop-state.js";
+import { getCommand } from "./command-registry.js";
+import { parseArgs } from "./arg-parser.js";
+import "./commands/index.js";
 
 // Module-level lean mode flag, set by handleDagCommand
 let _leanMode = false;
@@ -2471,473 +2472,6 @@ async function handleValidate(args: string[], json: boolean): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// project command
-// ---------------------------------------------------------------------------
-
-async function handleProject(args: string[], json: boolean): Promise<void> {
-  const subcommand = args[0];
-
-  switch (subcommand) {
-    case "list":
-      return handleProjectList(json);
-    case "get":
-      return handleProjectGet(args.slice(1), json);
-    case "init":
-      return handleProjectInit(args.slice(1), json);
-    case "delete":
-      return handleProjectDelete(args.slice(1), json);
-    case "status":
-      return handleProjectStatus(args.slice(1), json);
-    case undefined:
-      return handleProjectList(json);
-    default:
-      cliError(`Error: unknown project subcommand "${subcommand}". Use: list, get, init, delete, status`);
-  }
-}
-
-async function handleProjectList(json: boolean): Promise<void> {
-  const dataDir = getDataDir();
-  let rootMeta;
-  try {
-    rootMeta = await readRootMeta(dataDir);
-  } catch {
-    cliError("Error: could not read SPOC data directory");
-    return;
-  }
-
-  // Enrich with description from each project's meta.json
-  const projects = [];
-  for (const node of rootMeta.projects) {
-    const metaPath = resolve(dataDir, "projects", node.id, "meta.json");
-    let description = "";
-    if (existsSync(metaPath)) {
-      const raw = await readJsonSafe<Record<string, unknown>>(metaPath);
-      if (raw && typeof raw.description === "string") {
-        description = raw.description;
-      }
-    }
-    projects.push({
-      slug: node.id,
-      name: node.name,
-      status: node.status,
-      description,
-      dependsOn: node.dependsOn,
-    });
-  }
-
-  if (json) {
-    console.log(jsonOut(projects));
-    return;
-  }
-
-  // Formatted output
-  if (projects.length === 0) {
-    console.log("No projects found.");
-    return;
-  }
-
-  for (const p of projects) {
-    console.log(`${p.slug} (${p.status})`);
-    console.log(`  Name: ${p.name}`);
-    if (p.description) console.log(`  Desc: ${p.description}`);
-    if (p.dependsOn.length > 0) console.log(`  Deps: ${p.dependsOn.join(", ")}`);
-    console.log();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// project get/init/delete/status subcommands
-// ---------------------------------------------------------------------------
-
-async function handleProjectGet(args: string[], json: boolean): Promise<void> {
-  const slug = args[0];
-  if (!slug) {
-    cliError("Error: usage: spoc project get <slug> [--doc=<type>]");
-    return;
-  }
-
-  const projectDir = getProjectDir(slug);
-  if (!existsSync(projectDir)) {
-    cliError(`Error: project "${slug}" not found`);
-    return;
-  }
-
-  const doc = extractFlag(args, "--doc") as ProjectDocType | undefined;
-
-  if (doc) {
-    const fileName = PROJECT_DOC_FILES[doc];
-    if (!fileName) {
-      cliError(`Error: invalid doc type "${doc}". Valid: overview, tasks, dependencies, knowledge`);
-      return;
-    }
-    const filePath = resolve(projectDir, fileName);
-    if (!existsSync(filePath)) {
-      cliError(`Error: doc file not found: ${fileName}`);
-      return;
-    }
-    const content = await readFile(filePath, "utf-8");
-    if (json) {
-      console.log(jsonOut({ slug, doc, content }));
-    } else {
-      console.log(content);
-    }
-    return;
-  }
-
-  // Return project metadata
-  const metaPath = resolve(projectDir, "meta.json");
-  const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
-
-  if (json) {
-    console.log(jsonOut(meta));
-  } else {
-    console.log(`Slug:        ${meta.id}`);
-    console.log(`Name:        ${meta.name}`);
-    console.log(`Description: ${meta.description}`);
-    console.log(`Status:      ${meta.status}`);
-    if (meta.repoUrl) console.log(`Repo:        ${meta.repoUrl}`);
-    console.log(`Created:     ${meta.createdAt}`);
-    if (meta.workspacePaths?.length > 0) {
-      console.log(`Paths:       ${meta.workspacePaths.join(", ")}`);
-    }
-  }
-}
-
-async function handleProjectInit(args: string[], json: boolean): Promise<void> {
-  const name = extractFlag(args, "--name");
-  const description = extractFlag(args, "--description");
-  const repoUrl = extractFlag(args, "--repo-url");
-  const dependsOnRaw = extractFlag(args, "--depends-on");
-
-  if (!name) {
-    cliError("Error: --name is required");
-    return;
-  }
-  if (!description) {
-    cliError("Error: --description is required");
-    return;
-  }
-
-  const token = extractFlag(args, "--token");
-  const slug = slugify(name);
-  try {
-    requireWriteGate(token, slug, "tool:init_project");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      renderWriteGateError(err, json);
-      return;
-    }
-    throw err;
-  }
-
-  const dataDir = getDataDir();
-  const projectDir = resolve(dataDir, "projects", slug);
-  const dependsOn = dependsOnRaw ? dependsOnRaw.split(",").map((s) => s.trim()) : [];
-
-  try {
-    const rootMeta = await readRootMeta(dataDir);
-
-    if (rootMeta.projects.some((p) => p.id === slug)) {
-      cliError(`Error: project "${slug}" already exists`);
-      return;
-    }
-
-    if (dependsOn.length > 0) {
-      const missing = validateDependencies(rootMeta.projects, dependsOn);
-      if (missing.length > 0) {
-        cliError(`Error: dependencies not found: ${missing.join(", ")}`);
-        return;
-      }
-      for (const dep of dependsOn) {
-        if (wouldCreateCycle(rootMeta.projects, slug, dep)) {
-          cliError(`Error: adding dependency "${dep}" would create a cycle`);
-          return;
-        }
-      }
-    }
-
-    await mkdir(projectDir, { recursive: true });
-
-    const now = new Date().toISOString();
-    const variables: Record<string, string> = {
-      id: slug,
-      name,
-      description,
-      repoUrl: repoUrl ?? "",
-      status: "draft",
-      createdAt: now,
-      dependsOnList: dependsOn.length > 0 ? dependsOn.join(", ") : "—",
-      statusBlock: "**Status:** draft\n",
-      repoBlock: repoUrl ? `**Repo:** ${repoUrl}\n` : "",
-      upstreamBlock: dependsOn.length > 0 ? dependsOn.map((d) => `- ${d}`).join("\n") : "- None",
-    };
-
-    const templates = [
-      { tmpl: "project-meta.json.tmpl", out: "meta.json" },
-      { tmpl: "project.md.tmpl", out: "overview.md" },
-      { tmpl: "task.md.tmpl", out: "tasks.md" },
-      { tmpl: "dependency.md.tmpl", out: "dependencies.md" },
-      { tmpl: "knowledge.md.tmpl", out: "knowledge.md" },
-    ];
-
-    for (const { tmpl, out } of templates) {
-      const content = renderTemplate(getTemplatePath(tmpl), variables);
-      await writeFile(resolve(projectDir, out), content, "utf-8");
-    }
-
-    // Inject workspacePaths
-    const metaJsonPath = resolve(projectDir, "meta.json");
-    const metaObj = JSON.parse(readFileSync(metaJsonPath, "utf-8"));
-    metaObj.workspacePaths = [normalizeWorkspacePath(process.cwd())];
-    await writeFile(metaJsonPath, JSON.stringify(metaObj, null, 2), "utf-8");
-
-    // Create indexes
-    await mkdir(resolve(projectDir, "plans"), { recursive: true });
-    await mkdir(resolve(projectDir, "knowledge"), { recursive: true });
-    await mkdir(resolve(projectDir, "tasks"), { recursive: true });
-    await writeFile(resolve(projectDir, "plans", "index.json"), JSON.stringify({ plans: [] }, null, 2), "utf-8");
-    await writeFile(resolve(projectDir, "knowledge", "index.json"), JSON.stringify({ entries: [] }, null, 2), "utf-8");
-    await writeFile(resolve(projectDir, "tasks", "index.json"), JSON.stringify({ tasks: [] }, null, 2), "utf-8");
-
-    // Update root meta
-    rootMeta.projects.push({ id: slug, name, status: "draft", dependsOn });
-    await writeRootMeta(dataDir, rootMeta);
-
-    if (json) {
-      console.log(jsonOut({ slug, name, status: "draft", dependsOn }));
-    } else {
-      console.log(`Project "${name}" initialized at projects/${slug}/`);
-    }
-  } catch (err) {
-    cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-async function handleProjectDelete(args: string[], json: boolean): Promise<void> {
-  const slug = args.find((a) => !a.startsWith("--"));
-  if (!slug) {
-    cliError("Error: usage: spoc project delete <slug> --token=<token>");
-    return;
-  }
-
-  const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:delete_project");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      renderWriteGateError(err, json);
-      return;
-    }
-    throw err;
-  }
-
-  const dataDir = getDataDir();
-  try {
-    const rootMeta = await readRootMeta(dataDir);
-    const projectIdx = rootMeta.projects.findIndex((p) => p.id === slug);
-    if (projectIdx === -1) {
-      cliError(`Error: project "${slug}" not found`);
-      return;
-    }
-
-    const projectDir = resolve(dataDir, "projects", slug);
-    await rm(projectDir, { recursive: true, force: true });
-
-    rootMeta.projects.splice(projectIdx, 1);
-    for (const p of rootMeta.projects) {
-      p.dependsOn = p.dependsOn.filter((dep) => dep !== slug);
-    }
-    await writeRootMeta(dataDir, rootMeta);
-
-    if (json) {
-      console.log(jsonOut({ deleted: slug }));
-    } else {
-      console.log(`Deleted project "${slug}" and removed all dependency edges.`);
-    }
-  } catch (err) {
-    cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-async function handleProjectStatus(args: string[], json: boolean): Promise<void> {
-  const positional = args.filter((a) => !a.startsWith("--"));
-  const slug = positional[0];
-  const status = positional[1];
-
-  if (!slug || !status) {
-    cliError("Error: usage: spoc project status <slug> <status> --token=<token>");
-    return;
-  }
-
-  const validStatuses = ["draft", "active", "completed", "archived"];
-  if (!validStatuses.includes(status)) {
-    cliError(`Error: invalid status "${status}". Valid: ${validStatuses.join(", ")}`);
-    return;
-  }
-
-  const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:update_project_status");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      renderWriteGateError(err, json);
-      return;
-    }
-    throw err;
-  }
-
-  const dataDir = getDataDir();
-  try {
-    const rootMeta = await readRootMeta(dataDir);
-    const project = rootMeta.projects.find((p) => p.id === slug);
-    if (!project) {
-      cliError(`Error: project "${slug}" not found`);
-      return;
-    }
-
-    const oldStatus = project.status;
-    project.status = status;
-    await writeRootMeta(dataDir, rootMeta);
-
-    if (json) {
-      console.log(jsonOut({ slug, previousStatus: oldStatus, newStatus: status }));
-    } else {
-      console.log(`Project "${slug}" status: ${oldStatus} → ${status}`);
-    }
-  } catch (err) {
-    cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// write command
-// ---------------------------------------------------------------------------
-
-async function handleWrite(args: string[], json: boolean): Promise<void> {
-  const subcommand = args[0];
-
-  switch (subcommand) {
-    case "propose":
-      return handleWritePropose(args.slice(1), json);
-    case "apply":
-      return handleWriteApply(args.slice(1), json);
-    default:
-      cliError(`Error: unknown write subcommand "${subcommand ?? ""}". Use: propose, apply`);
-      process.exitCode = 1;
-  }
-}
-
-async function handleWritePropose(args: string[], json: boolean): Promise<void> {
-  const slug = extractFlag(args, "--slug");
-  let summary = extractFlag(args, "--summary");
-  const opsRaw = extractFlag(args, "--ops");
-  const ttlStr = extractFlag(args, "--ttl");
-
-  // Support positional summary: spoc write propose "summary text" --ops=... --slug=...
-  if (!summary) {
-    const positional = args.find((a) => !a.startsWith("--"));
-    if (positional) {
-      summary = positional;
-    }
-  }
-
-  if (!slug) {
-    cliError("Error: --slug is required");
-    process.exitCode = 1;
-    return;
-  }
-  if (!summary) {
-    cliError("Error: --summary is required (pass as --summary=TEXT or as a positional argument)");
-    process.exitCode = 1;
-    return;
-  }
-  if (!opsRaw) {
-    cliError("Error: --ops is required (comma-separated operations)");
-    process.exitCode = 1;
-    return;
-  }
-
-  const operations = opsRaw.split(",").map((o) => o.trim());
-  const ttlMs = ttlStr ? Number.parseInt(ttlStr, 10) : 600_000;
-
-  if (_dryRun) {
-    const result = { ok: true, dryRun: true, data: { wouldCreate: { slug, summary, ops: operations, ttl: ttlMs } } };
-    if (json) {
-      console.log(jsonOut(result));
-    } else {
-      console.log("[dry-run] Would create write proposal:");
-      console.log(`  Slug: ${slug}`);
-      console.log(`  Summary: ${summary}`);
-      console.log(`  Operations: ${operations.join(", ")}`);
-      console.log(`  TTL: ${ttlMs}ms`);
-    }
-    return;
-  }
-
-  try {
-    const proposal = createWriteProposal({ slug, summary, operations, ttlMs });
-    if (json) {
-      console.log(jsonOut({
-        token: proposal.token,
-        slug: proposal.slug,
-        summary: proposal.summary,
-        operations: proposal.operations,
-        createdAt: proposal.createdAt,
-        expiresAt: proposal.expiresAt,
-      }));
-    } else {
-      console.log(`Token: ${proposal.token}`);
-      console.log(`Slug: ${proposal.slug}`);
-      console.log(`Summary: ${proposal.summary}`);
-      console.log(`Operations: ${proposal.operations.join(", ")}`);
-      console.log(`Expires: ${proposal.expiresAt}`);
-    }
-  } catch (err) {
-    cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    process.exitCode = 2;
-  }
-}
-
-async function handleWriteApply(args: string[], json: boolean): Promise<void> {
-  const token = extractFlag(args, "--token");
-  const slug = extractFlag(args, "--slug");
-
-  if (!token) {
-    cliError("Error: --token is required");
-    process.exitCode = 1;
-    return;
-  }
-  if (!slug) {
-    cliError("Error: --slug is required");
-    process.exitCode = 1;
-    return;
-  }
-
-  try {
-    const proposal = consumeWriteProposalToken(token, slug);
-    if (json) {
-      console.log(jsonOut({
-        consumed: true,
-        token: proposal.token,
-        slug: proposal.slug,
-        operations: proposal.operations,
-        consumedAt: proposal.consumedAt,
-      }));
-    } else {
-      console.log(`Applied write-gate token for project "${slug}"`);
-      console.log(`Operations: ${proposal.operations.join(", ")}`);
-    }
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
-    } else {
-      cliError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-      process.exitCode = 2;
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // doc command
@@ -3659,39 +3193,6 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
 // agents-md command
 // ---------------------------------------------------------------------------
 
-async function handleAgentsMd(args: string[], json: boolean): Promise<void> {
-  const slug = args.find((a) => !a.startsWith("--"));
-  if (!slug) {
-    cliError("Error: usage: spoc agents-md <slug> [--json]");
-    process.exitCode = 1;
-    return;
-  }
-
-  const projectDir = getProjectDir(slug);
-  if (!existsSync(projectDir)) {
-    cliError(`Error: project "${slug}" not found`);
-    process.exitCode = 1;
-    return;
-  }
-
-  const agentsMdPath = resolve(projectDir, "AGENTS.md");
-  if (!existsSync(agentsMdPath)) {
-    cliError(
-      `No AGENTS.md found for project '${slug}'. Run: spoc sync-agents-md ${slug} --analysis-file=<path> --token=<token>`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  const content = readFileSync(agentsMdPath, "utf-8");
-
-  if (json) {
-    console.log(jsonOut({ slug, content }));
-  } else {
-    console.log(content);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // audit command
 // ---------------------------------------------------------------------------
@@ -3921,6 +3422,81 @@ async function handleGitLog(args: string[], json: boolean): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Delegate a migrated command to the registry-based handler.
+ * Outputs in the legacy format (raw data to stdout, errors to stderr)
+ * for backward compatibility with tests that call handleDagCommand directly.
+ */
+async function delegateToRegistry(command: string, rawArgs: string[]): Promise<boolean> {
+  // Find the subcommand (first non-flag arg) for two-word path matching
+  const firstPositional = rawArgs.find(a => !a.startsWith("-"));
+
+  let registeredCmd;
+  let remaining: string[];
+  if (firstPositional) {
+    const twoWord = `${command} ${firstPositional}`;
+    const cmd = getCommand(twoWord);
+    if (cmd) {
+      registeredCmd = cmd;
+      // Remove the first occurrence of the subcommand from args
+      remaining = [];
+      let removed = false;
+      for (const arg of rawArgs) {
+        if (!removed && arg === firstPositional) {
+          removed = true;
+          continue;
+        }
+        remaining.push(arg);
+      }
+    }
+  }
+  if (!registeredCmd) {
+    const cmd = getCommand(command);
+    if (cmd) {
+      registeredCmd = cmd;
+      remaining = rawArgs;
+    }
+  }
+  if (!registeredCmd) return false;
+
+  const result = parseArgs(registeredCmd, remaining!);
+  if (!result.ok) {
+    // Registry can't parse these args — signal to caller to try fallback
+    return false;
+  }
+  const cmdResult = await registeredCmd.handler(result.parsed.params, result.parsed.flags);
+  if (cmdResult.ok) {
+    const flags = result.parsed.flags;
+    if (flags.json) {
+      const data = flags.lean ? stripLeanTimestamps(cmdResult.data) : cmdResult.data;
+      console.log(JSON.stringify(data));
+    } else {
+      const data = cmdResult.data;
+      if (typeof data === "string") {
+        console.log(data);
+      } else if (data !== null && data !== undefined) {
+        console.log(JSON.stringify(data, null, 2));
+      }
+    }
+    return true;
+  }
+  // Handler returned error — fall through to legacy handler for
+  // backward-compatible error formatting
+  return false;
+}
+
+/** Strip timestamp fields for lean mode compatibility */
+function stripLeanTimestamps(data: unknown): unknown {
+  if (data === null || data === undefined || typeof data !== "object") return data;
+  if (Array.isArray(data)) return data.map(stripLeanTimestamps);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (key === "createdAt" || key === "updatedAt") continue;
+    result[key] = typeof value === "object" ? stripLeanTimestamps(value) : value;
+  }
+  return result;
+}
+
+/**
  * Dispatches DAG CLI subcommands. Returns true if a command was handled.
  */
 export async function handleDagCommand(
@@ -3940,47 +3516,36 @@ export async function handleDagCommand(
 
   switch (command as DagCommand) {
     case "context":
-      await handleContext(rest, json);
-      return true;
-
     case "task":
-      await handleTask(rest, json);
-      return true;
-
     case "search":
-      await handleSearch(rest, json);
-      return true;
+    case "plan":
+    case "knowledge":
+    case "batch":
+    case "validate":
+    case "project":
+    case "write":
+    case "agents-md": {
+      const handled = await delegateToRegistry(command, args);
+      if (handled) return true;
+      // Fallback to legacy handlers for edge cases not covered by registry
+      switch (command) {
+        case "context": await handleContext(rest, json); return true;
+        case "task": await handleTask(rest, json); return true;
+        case "search": await handleSearch(rest, json); return true;
+        case "plan": await handlePlan(rest, json); return true;
+        case "knowledge": await handleKnowledge(rest, json); return true;
+        case "batch": await handleBatch(rest, json); return true;
+        case "validate": await handleValidate(rest, json); return true;
+        default: return false;
+      }
+    }
 
     case "related":
       await handleRelated(rest, json);
       return true;
 
-    case "plan":
-      await handlePlan(rest, json);
-      return true;
-
-    case "knowledge":
-      await handleKnowledge(rest, json);
-      return true;
-
     case "diagram":
       await handleDiagram(rest, json);
-      return true;
-
-    case "batch":
-      await handleBatch(rest, json);
-      return true;
-
-    case "validate":
-      await handleValidate(rest, json);
-      return true;
-
-    case "project":
-      await handleProject(rest, json);
-      return true;
-
-    case "write":
-      await handleWrite(rest, json);
       return true;
 
     case "doc":
@@ -4009,10 +3574,6 @@ export async function handleDagCommand(
 
     case "sync-agents-md":
       await handleSyncAgentsMd(rest, json);
-      return true;
-
-    case "agents-md":
-      await handleAgentsMd(rest, json);
       return true;
 
     case "audit":
