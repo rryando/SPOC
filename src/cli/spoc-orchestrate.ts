@@ -76,6 +76,7 @@ Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions, (
 - Proceed with most reasonable interpretation. State assumptions explicitly.
 - Ask only when 2+ materially divergent irreversible paths exist. One question, 2-4 numbered options.
 - Trivial ambiguities → decide and declare, don't ask.
+- **YAGNI check**: before scoping any new feature or plan, ask "Is this needed now?" Challenge requests to add things "for later" or "we might need this" — propose the minimal version first and let the user opt into more scope explicitly.
 
 ## Confidence Gate (MANDATORY)
 
@@ -242,7 +243,6 @@ flowchart TD
 | \`task-triage\` | Choosing what to work on next — backlog prioritization |
 | \`onboarding-session\` | Session start on existing project — quick orientation |
 | \`spoc-sync\` | DAG reconciliation when stale or after major work |
-| \`customize-opencode\` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
 | \`graphify-aware\` | Auto-layered when \`graphify-out/graph.json\` detected — provides structural code intelligence |
 | \`using-superpowers\` | Always — establishes how to find and use skills |
 
@@ -262,7 +262,6 @@ flowchart TD
 | Perf complaint, slow test, latency regression | \`performance-diagnosis\` | \`oncall-ops\` |
 | Knowledge entries > 30 days untouched OR SYNC reveals taxonomy drift | \`knowledge-curation\` | \`spoc-docs\` |
 | UI/visual work mentioned | \`aesthetic\` | \`software-engineer\` |
-| Editing opencode config / agents / skills | \`customize-opencode\` | orchestrator or \`software-engineer\` |
 | \`graphify-out/graph.json\` exists in workspace | \`graphify-aware\` | any sub-agent doing codebase reads |
 | Feature work needs isolation / execution plan starting | \`using-git-worktrees\` | \`software-engineer\` |
 
@@ -371,6 +370,7 @@ flowchart TD
 - Silently load the \`to-diagram\` skill before generating diagrams — never narrate conventions
 - Present plan summary → user confirms → \`spoc plan create\` and \`spoc task create\` directly
 - Never write to DAG before user confirms summary
+- **YAGNI before scope**: challenge any feature not immediately needed; propose the minimal version and let the user explicitly opt into more — *"The minimal plan is X. Do you need Y now, or can it wait?"*
 
 **Q&A Norms:** Explore first, ask second. One question per response. Concrete options with trade-offs. Prefer assumptions over questions.
 

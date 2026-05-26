@@ -39,7 +39,7 @@ flowchart TD
 | # | Dimension | What to look for |
 |---|-----------|------------------|
 | 1 | **Redundancy** | Duplicated logic across modules. Cross-module grep mandatory before flagging. |
-| 2 | **KISS** | Premature generalization, dead flexibility, over-engineered indirection |
+| 2 | **KISS / YAGNI** | Premature generalization, dead flexibility, over-engineered indirection; speculative code written "for later" with no current caller; abstractions with only one concrete use; configurable options with one known value |
 | 3 | **SOLID** | SRP violations (modules doing too much). Skip LSP/ISP/DIP unless they bite. |
 | 4 | **Dead code** | Unused exports (check callers), unreachable branches, orphaned helpers |
 | 5 | **Flow correctness** | Trace happy path end-to-end. Flag masked failures, swallowed errors. |
