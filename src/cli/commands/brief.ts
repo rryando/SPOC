@@ -61,9 +61,7 @@ async function handleBrief(params: Record<string, unknown>, flags: CommandFlags)
     const raw = await readFile(overviewPath, "utf-8");
     const content = extractOverviewContent(raw);
     if (content) {
-      // First paragraph, truncated to 200 chars
-      const firstPara = content.split(/\n\n/)[0] ?? content;
-      summary = firstPara.length > 200 ? firstPara.slice(0, 200) : firstPara;
+      summary = pickFirstProseParagraph(content);
     }
   }
 
@@ -116,6 +114,35 @@ async function handleBrief(params: Record<string, unknown>, flags: CommandFlags)
     return success(renderBrief(data));
   }
   return success(data);
+}
+
+// ---------------------------------------------------------------------------
+// Summary extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Walk paragraphs and return the first one that's actual prose (not a heading,
+ * not a list, not a code fence). Truncates to 200 chars to keep the brief tight.
+ *
+ * Rationale: the SPOC project's own overview.md opens with `## Summary` which
+ * is a heading — taking the first paragraph naively rendered the heading text
+ * verbatim. By skipping until we find prose, we always emit a real description.
+ */
+function pickFirstProseParagraph(content: string): string {
+  const paragraphs = content.split(/\n\n+/).map((p) => p.trim()).filter((p) => p.length > 0);
+  for (const para of paragraphs) {
+    // Skip headings, fenced code blocks, list-only blocks, and blockquotes
+    if (para.startsWith("#")) continue;
+    if (para.startsWith("```")) continue;
+    if (para.startsWith(">")) continue;
+    // Skip blocks that are entirely list items (every line starts with - or *)
+    const allLines = para.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (allLines.length > 0 && allLines.every((l) => /^[-*]\s/.test(l))) continue;
+    return para.length > 200 ? para.slice(0, 200) : para;
+  }
+  // Fallback: nothing prose-like found, take the first non-empty paragraph as-is
+  const fallback = paragraphs[0] ?? "";
+  return fallback.length > 200 ? fallback.slice(0, 200) : fallback;
 }
 
 // ---------------------------------------------------------------------------

@@ -243,6 +243,33 @@ describe("spoc brief", () => {
     });
   });
 
+  it("summary skips leading H2 heading and grabs first prose paragraph", async () => {
+    // Regression: spoc's own overview.md starts with `## Summary` which the
+    // brief was rendering verbatim instead of skipping to the actual prose.
+    await withTempDataDir(async (dir) => {
+      const overview = "## Summary\n\nThis is the actual project description prose.\n\n## Goals\n\n- something";
+      seedProject(dir, "test-proj", { overview });
+      const result = await runCommand("brief", ["test-proj", "--json"]);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const data = result.data as { summary: string };
+      expect(data.summary).toBe("This is the actual project description prose.");
+      expect(data.summary).not.toMatch(/^##/);
+    });
+  });
+
+  it("summary skips leading H1 followed by H2", async () => {
+    await withTempDataDir(async (dir) => {
+      const overview = "# Project Title\n\n## Summary\n\nReal prose here.\n\nMore.";
+      seedProject(dir, "test-proj", { overview });
+      const result = await runCommand("brief", ["test-proj", "--json"]);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const data = result.data as { summary: string };
+      expect(data.summary).toBe("Real prose here.");
+    });
+  });
+
   it("renders markdown when no --json flag", async () => {
     await withTempDataDir(async (dir) => {
       seedProject(dir, "test-proj");
