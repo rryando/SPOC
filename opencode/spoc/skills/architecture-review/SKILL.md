@@ -29,14 +29,14 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 **Usage:** `spoc <command> [args]`
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
+- `context [<path>] --lean --json` — resolve project context from workspace path
+- `task list <slug> [--status <s>] --json` — list tasks, optionally filtered
+- `search <slug> "<query>" [--limit N] --json` — BM25 knowledge search
+- `plan list <slug> [--status <s>] --json` — list plans
+- `knowledge list <slug> [--kind <k>] --json` — list knowledge entries
+- `diagram <slug> <planId> <action> --json` — inspect/ready/validate diagram
 - `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `validate <slug> --json` — validate project state
 
 **Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
 
@@ -62,7 +62,7 @@ The review produces a report. The report becomes SPOC artifacts (tasks / knowled
 
 Before reading any code, resolve what "the system under review" means.
 
-**Prefer SPOC context:** Use `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path. Check the project overview, knowledge entries (kind `architecture` / `module`), and plans for existing structural documentation. This establishes the intended architecture against which you evaluate the actual.
+**Prefer SPOC context:** Use `spoc context --lean --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path. Check the project overview, knowledge entries (kind `architecture` / `module`), and plans for existing structural documentation. This establishes the intended architecture against which you evaluate the actual.
 
 **Cross-project check:** Use `spoc project list --json` CLI (preferred) or `spoc_list_projects` MCP fallback to identify dependency edges. If the system under review imports from or exports to other SPOC projects, note these boundaries explicitly. Use `spoc project get <slug> --json` CLI or `spoc_get_project` with `doc: "dependencies"` for each relevant project.
 
@@ -102,6 +102,9 @@ When the system under review has SPOC dependency edges or imports from other wor
 3. Check if sibling projects have parallel implementations of the same concern (`spoc knowledge search <slug> "<query>" --json` CLI preferred, or `spoc_search_project_knowledge` MCP fallback)
 
 If no cross-project dependencies exist, state this explicitly and mark as cleared.
+
+**Optional: Graphify-Enhanced Validation**
+If `graphify-out/graph.json` exists in the workspace, use its fan-in/fan-out metrics and community clusters to cross-check manually identified architectural concerns. Do not substitute graphify output for the dimension-based audit — use it to validate findings.
 
 ## Severity Rubric (Use These Thresholds)
 
@@ -205,7 +208,7 @@ Every finding carries a handoff tag indicating how it becomes a SPOC artifact:
 This skill works in two modes depending on agent capabilities:
 
 **Mode A — Direct SPOC access (sub-agent has MCP tools):**
-- Resolve context via `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context`
+- Resolve context via `spoc context --lean --json` CLI (preferred) or `spoc_resolve_project_context`
 - List projects via `spoc project list --json` CLI (preferred) or `spoc_list_projects`
 - Search knowledge via `spoc knowledge search <slug> "<query>" --json` CLI (preferred) or `spoc_search_project_knowledge`
 - After user approval, write artifacts directly via `spoc_create_project_task`, `spoc_create_project_knowledge_entry`, `spoc_create_project_plan`

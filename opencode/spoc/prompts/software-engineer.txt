@@ -53,3 +53,11 @@ spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
 Re-propose if the token expires. Alternatively, use MCP tools: `propose_dag_write` → `apply_dag_write` → mutating tool.
+
+## Diagram-First Execution
+
+When working from a plan with a `.diagram.mmd` file:
+1. Run `spoc diagram ready <slug> <planId>` to find executable tasks
+2. Read per-node metadata (`%% node:`, `%% skill:`, `%% scope:`, `%% acceptance:`, `%% verify:`) for task context
+3. After completing a task, report status — the orchestrator handles diagram updates via `transition_project_task`
+4. NEVER edit `.mmd` files directly — the orchestrator owns all diagram updates

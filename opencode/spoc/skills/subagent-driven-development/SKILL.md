@@ -106,6 +106,64 @@ digraph process {
 }
 ```
 
+## Diagram-First Dispatch (When Plan Has `.mmd` File)
+
+Before dispatching the first implementer sub-agent, read the plan's diagram:
+
+### 1. Identify Parallelizable Tasks
+
+```bash
+manage-diagram.mjs ready <path-to-diagram.mmd>
+# or
+spoc diagram ready <slug> <planId>
+```
+
+All returned nodes can be dispatched in parallel — their dependencies are satisfied.
+
+### 2. Use Per-Node Metadata for Dispatch Context
+
+Each diagram node has metadata blocks that provide full sub-agent dispatch context:
+
+```
+%% node: T001
+%% title: Implement auth middleware  
+%% skill: code-agent
+%% scope: src/middleware/
+%% files: src/middleware/auth.ts, src/types/auth.ts
+%% acceptance: Auth middleware validates JWT and attaches user to request
+%% verify: npm test -- --grep "auth"
+```
+
+Use this to construct sub-agent prompts:
+- **skill** → which work-mode skill the sub-agent should load
+- **scope** → file boundaries for the sub-agent
+- **files** → specific files to read/modify
+- **acceptance** → done criteria to include in the prompt
+- **verify** → verification command the sub-agent must run before claiming done
+
+### 3. Diagram Ownership Rules
+
+- **Dispatcher/Orchestrator** owns all `.mmd` file updates
+- **Implementer sub-agents** MUST NOT edit `.mmd` files
+- When a sub-agent completes, the dispatcher transitions the task:
+  ```bash
+  spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId> --token=$TOKEN
+  ```
+- Both `diagramNodeId` and `planId` are required for the diagram to update
+- After transition, re-run `manage-diagram.mjs ready` to discover newly-unblocked nodes for the next dispatch round
+
+### 4. Scope Change Reporting
+
+If a sub-agent discovers that:
+- A new task is needed (not in the diagram)
+- A task should be removed or split
+- Dependencies between tasks are wrong
+
+The sub-agent reports this in its final summary. The dispatcher then:
+1. Updates task records
+2. Regenerates the diagram via `manage-diagram.mjs regenerate <file> --metadata <metadata.json>`
+3. Re-evaluates ready nodes before next dispatch round
+
 ## Model Selection
 
 Use the least powerful model that can handle each role to conserve cost and increase speed.

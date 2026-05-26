@@ -41,6 +41,26 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 
 **Prerequisite:** `dist/` must be current (`npm run build` if stale).
 
+## Sub-Agent CLI Guidance
+
+When executing this skill via sub-agent dispatch, sub-agents should use these commands for orientation:
+
+```bash
+# Project context (design-scoped for plan writing)
+spoc context <slug> --audience=designer --lean --json
+
+# Search for existing patterns and decisions
+spoc search <slug> "<keywords>" --audience=designer --lean --json
+
+# Check existing plans to avoid duplication
+spoc plan list <slug> --lean --json
+
+# Check knowledge for architectural constraints
+spoc knowledge search <slug> "<topic>" --lean --json
+```
+
+This ensures sub-agents understand the project's existing decisions, patterns, and constraints before writing new plan content.
+
 ## Execution Modes
 
 ### Agent-Direct Mode

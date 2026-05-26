@@ -52,6 +52,21 @@ You MUST complete each phase before proceeding to the next. Full playbook — in
 3. **Hypothesis and Testing** — Form a single, specific hypothesis. Test with the smallest possible change. One variable at a time. If it fails, form a new hypothesis — do not stack fixes.
 4. **Implementation** — Write a failing test case first. Implement a single targeted fix. Verify. If three fixes have failed, STOP and question the architecture before attempting a fourth.
 
+## Check SPOC Knowledge First (Phase 1 Pre-Step)
+
+Before deep investigation, check if this issue (or a similar one) is already documented:
+
+```bash
+spoc knowledge search <slug> "<error-message-or-pattern>" --audience=implementer --lean --json
+```
+
+Look for:
+- **`gotcha` entries** — known traps and edge cases
+- **`lesson` entries** — learned insights from previous debugging sessions
+- **`pattern` entries** — standard solutions to recurring problems
+
+If you find a matching entry, read it and verify whether it applies to your current bug. This can short-circuit hours of investigation with a 2-second lookup.
+
 ## Log Triage Protocol
 
 When facing runtime failures, crashes, or unexpected behavior with log output available:

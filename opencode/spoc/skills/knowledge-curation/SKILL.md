@@ -16,14 +16,14 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 **Usage:** `spoc <command> [args]`
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
+- `context [<path>] --json` — resolve project context from workspace path
+- `task <slug> [--status <s>] --json` — list tasks, optionally filtered
+- `search <slug> <query> [--limit N] --json` — BM25 knowledge search
+- `plan <slug> [--status <s>] --json` — list plans
+- `knowledge <slug> [--kind <k>] --json` — list knowledge entries
 - `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
 - `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `validate <slug> --json` — validate project state
 
 **Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
 
@@ -112,6 +112,30 @@ Cross-reference knowledge entries against:
 - Active plans (patterns discovered during planning but not captured)
 - AGENTS.md patterns section (documented patterns without knowledge entries)
 - sourceFiles across all entries (files heavily referenced vs. important files never referenced)
+
+### Step 6: Graphify-Generated Entry Validation
+
+Some knowledge entries are derived from graphify code-graph analysis. These entries often have keywords like `architecture-cluster`, `god-node`, `cross-module-coupling`, or `graphify` in their metadata.
+
+**Detection:**
+```bash
+spoc knowledge search <slug> "graphify" --lean --json
+spoc knowledge search <slug> "architecture-cluster" --lean --json
+spoc knowledge search <slug> "god-node" --lean --json
+```
+
+**Drift indicators for graphify-derived entries:**
+- `sourceFiles` reference paths that no longer exist in the codebase
+- Module boundaries described in the entry no longer match actual import graph
+- Connectivity metrics (fan-in/fan-out) have shifted significantly
+
+**Refresh workflow (if graphify is available):**
+1. Run `graphify extract <workspace>` to regenerate `graphify-out/graph.json`
+2. Compare new graph output against existing knowledge entries
+3. Flag entries where sourceFiles have moved or disappeared
+4. Propose new entries for newly-detected patterns not yet captured
+
+**If graphify is NOT available:** Validate graphify-derived entries manually by checking their `sourceFiles` against the current codebase. Flag any with broken references as potentially stale.
 
 ## Actions
 

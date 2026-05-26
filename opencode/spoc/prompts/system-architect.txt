@@ -55,3 +55,11 @@ spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
 Re-propose if the token expires. Alternatively, use MCP tools: `propose_dag_write` → `apply_dag_write` → mutating tool.
+
+## Diagrams as Execution Maps
+
+SPOC plan diagrams (`.diagram.mmd` files) serve dual purposes:
+- **Visual:** Show task dependencies and progress status via classDef coloring
+- **Agent-readable:** Rich per-node metadata provides dispatch context (skill, scope, files, acceptance, verify)
+
+When designing plans, ensure diagrams include complete per-node metadata — this enables agents to execute tasks from diagram metadata alone without reading full plan prose. Use `flowchart TD` for task dependency graphs.

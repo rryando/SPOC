@@ -15,7 +15,16 @@ Use this skill when the task is **fully bounded** with no open decisions and suc
 
 ## Behaviour
 
-1. Read enough local context to confirm understanding (relevant types, call sites, file headers)
+1. Orient + read context:
+   - **SPOC context first** (fast, token-efficient):
+     ```bash
+     spoc context [--path=<dir>] --audience=implementer --lean --json
+     ```
+   - If the task relates to a known pattern, search:
+     ```bash
+     spoc search <slug> "<keywords>" --lean --json
+     ```
+   - **Then read local files** — relevant types, call sites, file headers — targeted by what SPOC told you
 2. Execute the change directly — no planning doc, no brainstorming, no TDD ritual
 3. Run focused verification: type-check, lint, affected tests — not the full suite unless the change is pervasive
 4. Commit only when the user asks

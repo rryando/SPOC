@@ -334,6 +334,8 @@ function detectPython310(): { version: string; command: string } | null {
   return null;
 }
 
+const GRAPHIFY_URL = "https://github.com/safishamsi/graphify";
+
 /**
  * Prompts the user to install graphify if it's not already available
  * and Python 3.10+ is detected. Gracefully handles all decline/failure paths.
@@ -344,18 +346,44 @@ export async function promptGraphifyInstall(): Promise<void> {
 
   const python = detectPython310();
   if (!python) {
-    p.log.info(
-      `${color.dim("Graphify requires Python 3.10+ — skipping optional install.")}`,
+    p.note(
+      [
+        "Graphify enables automatic codebase graph analysis.",
+        "AI agents get richer structural context without scanning from scratch each session.",
+        "",
+        `${color.yellow("Requirement not met:")} Python 3.10+ is required but was not found.`,
+        "",
+        "To enable this capability, install Python 3.10+ then follow:",
+        color.cyan(GRAPHIFY_URL),
+        "",
+        `Then run:  ${color.dim("uv tool install graphifyy")}  (or pipx / pip)`,
+      ].join("\n"),
+      "Optional: Graphify",
     );
     return;
   }
 
+  p.note(
+    [
+      "Graphify enables automatic codebase graph analysis.",
+      "AI agents get richer structural context without scanning from scratch each session.",
+      "",
+      color.cyan(GRAPHIFY_URL),
+    ].join("\n"),
+    "Optional: Graphify",
+  );
+
   const shouldInstall = await p.confirm({
-    message: "Install graphify for automatic codebase analysis?",
+    message: `Install graphify now? (Python ${python.version} detected)`,
     initialValue: false,
   });
 
-  if (p.isCancel(shouldInstall) || !shouldInstall) return;
+  if (p.isCancel(shouldInstall) || !shouldInstall) {
+    p.log.info(
+      color.dim(`Install later:  uv tool install graphifyy  |  ${GRAPHIFY_URL}`),
+    );
+    return;
+  }
 
   const installCommands = [
     "uv tool install graphifyy",
@@ -380,5 +408,10 @@ export async function promptGraphifyInstall(): Promise<void> {
     }
   }
 
-  s.stop(`${color.yellow("⚠")} Could not install graphify — all installers failed.`);
+  s.stop(
+    [
+      `${color.yellow("⚠")} Could not install graphify — all installers failed.`,
+      `Install manually:  ${color.cyan(GRAPHIFY_URL)}`,
+    ].join("\n"),
+  );
 }

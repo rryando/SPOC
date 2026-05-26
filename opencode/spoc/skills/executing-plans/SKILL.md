@@ -13,6 +13,53 @@ Load plan, review critically, execute all tasks, report when complete.
 
 **Note:** Tell your human partner that SPOC works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use spoc:subagent-driven-development instead of this skill.
 
+## Diagram-First Task Selection (Mandatory)
+
+When the plan has an associated `.diagram.mmd` file, read it BEFORE the plan body:
+
+### 1. Identify Ready Nodes
+
+```bash
+manage-diagram.mjs ready <path-to-diagram.mmd>
+# or
+spoc diagram ready <slug> <planId>
+```
+
+This returns nodes whose dependencies are all `:::done` — these are executable now.
+
+### 2. Extract Per-Node Metadata
+
+Each diagram node has rich metadata in `%%` comment blocks:
+
+```
+%% node: T001
+%% title: Implement auth middleware
+%% status: backlog
+%% skill: code-agent
+%% scope: src/middleware/auth.ts
+%% files: src/middleware/auth.ts, src/types/auth.ts
+%% acceptance: Auth middleware validates JWT tokens and attaches user to request
+%% verify: npm test -- --grep "auth middleware"
+```
+
+Use this metadata to construct sub-agent prompts — it provides skill selection, file scope, acceptance criteria, and verification commands without reading the full plan body.
+
+### 3. Task Transition Protocol
+
+When a task completes, the **orchestrator** (not sub-agent) transitions it:
+
+```bash
+spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId> --token=$TOKEN
+```
+
+**Both `diagramNodeId` AND `planId` are required** — without either, the diagram node's `:::className` is silently skipped.
+
+### 4. Sub-Agent Constraints
+
+- **Sub-agents MUST NOT edit `.mmd` files** — the orchestrator owns all diagram updates
+- If a sub-agent discovers scope changes (task added/removed/dependency changed), it reports them in its final summary — the orchestrator then handles diagram regeneration
+- Sub-agents only READ the diagram for context; they never WRITE to it
+
 ## The Process
 
 ### Step 1: Load and Review Plan
@@ -28,6 +75,34 @@ For each task:
 2. Follow each step exactly (plan has bite-sized steps)
 3. Run verifications as specified
 4. Mark as completed
+
+## Sub-Agent SPOC Context Instructions
+
+When dispatching implementation sub-agents for each task, include these SPOC CLI instructions in their prompt:
+
+**Required orientation commands for sub-agents:**
+```bash
+# Project context (fast, token-efficient)
+spoc context <slug> --audience=implementer --lean --json
+
+# Search for relevant patterns/knowledge
+spoc search <slug> "<task-keywords>" --audience=implementer --lean --json
+
+# Check current task state
+spoc task list <slug> --lean --json
+```
+
+**Example sub-agent instruction block:**
+```
+Before starting this task, orient yourself:
+1. Run: spoc context <slug> --audience=implementer --lean --json
+2. Search: spoc search <slug> "<relevant-topic>" --lean --json
+3. Check tasks: spoc task list <slug> --lean --json
+
+Use this context to understand what you're building, what's already been done, and what conventions to follow.
+```
+
+These commands ensure sub-agents start with structured project context instead of scanning the codebase from scratch.
 
 ### Step 3: Complete Development
 
