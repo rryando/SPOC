@@ -23,6 +23,7 @@ import {
 import { normalizeIdentifier } from "../../utils/slug.js";
 import { requireWriteGate } from "../../utils/write-gate.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
+import { attemptDiagramUpdate } from "./task.js";
 
 // ---------------------------------------------------------------------------
 // batch
@@ -134,7 +135,16 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
           const status = op.status as TaskStatus;
           if (!taskId || !status) throw new Error("taskId and status required");
           await updateTask(projectDir, { id: taskId, status });
-          results.push({ index: i, op: op.op, success: true, result: { taskId, status } });
+
+          // Atomic diagram update if both planId and diagramNodeId provided
+          const planId = op.planId as string | undefined;
+          const diagramNodeId = op.diagramNodeId as string | undefined;
+          if (planId && diagramNodeId) {
+            const diagramResult = attemptDiagramUpdate(op.slug, planId, diagramNodeId, status);
+            results.push({ index: i, op: op.op, success: true, result: { taskId, status, diagramNodeId, ...diagramResult } });
+          } else {
+            results.push({ index: i, op: op.op, success: true, result: { taskId, status } });
+          }
           break;
         }
         case "task-create": {

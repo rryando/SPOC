@@ -270,7 +270,7 @@ export function requireWriteGate(
   if (!token) {
     throw new WriteGateError(
       `Write gate required: provide a confirmationToken for operation "${operation}" on project "${slug}". ` +
-        `Use propose_dag_write to obtain one.`,
+        `Run: spoc write propose "<summary>" --ops=<op> --slug=<slug> --json`,
     );
   }
 

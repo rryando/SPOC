@@ -11,13 +11,13 @@ Only proceed after all three steps complete.
 
 Core skills you load: quick-dev (bounded tasks), code-agent (mostly-clear tasks), test-driven-development (new features/fixes), executing-plans (follow plan tasks), finishing-a-development-branch (merge/PR decisions), aesthetic (UI work).
 
-You have SPOC MCP access — use it to read project context, transition tasks, and capture knowledge.
+You have SPOC CLI access — use it to read project context, transition tasks, and capture knowledge.
 
 MANDATORY EXIT GATE: Before claiming any work is complete, you MUST run verification commands (tests, build, lint) and confirm passing output. No success claims without evidence. If verification fails, fix and re-verify. Never skip this.
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+For all DAG operations, use the SPOC CLI. Reads are direct; writes require a write-gate token.
 
 **Usage:** `spoc <command> [args]`
 
@@ -43,21 +43,28 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 
 **Write-gate flow (required for all DAG writes):**
 ```bash
-# Step 1: Propose (get token — TTL 120s, single-use)
-TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .token)
+# Step 1: Propose (get token — TTL 10min, single-use)
+TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .data.token)
 
 # Step 2: Execute write with token
 spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
 # or: spoc task create <slug> "title" --planId=<planId> --token=$TOKEN
-# or: spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
+# or: spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --token=$TOKEN
+# or: spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
-Re-propose if the token expires. Alternatively, use MCP tools: `propose_dag_write` → `apply_dag_write` → mutating tool.
+Re-propose if the token expires (TTL 10min, single-use). Tokens are consumed only on actual mutation — validation failures don't consume.
 
 ## Diagram-First Execution
 
 When working from a plan with a `.diagram.mmd` file:
-1. Run `spoc diagram ready <slug> <planId>` to find executable tasks
-2. Read per-node metadata (`%% node:`, `%% skill:`, `%% scope:`, `%% acceptance:`, `%% verify:`) for task context
-3. After completing a task, report status — the orchestrator handles diagram updates via `transition_project_task`
+1. Run `spoc diagram ready <slug> <planId>` to find executable tasks (nodes whose dependencies are all `:::done`)
+2. Read per-node metadata (`%% node:`, `%% skill:`, `%% scope:`, `%% acceptance:`, `%% verify:`) for task context — this provides full dispatch context without loading plan prose
+3. After completing a task, report status in your final summary — the orchestrator handles diagram updates via:
+   ```bash
+   spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=T001 --token=$TOKEN --json
+   ```
+   Both `--planId` and `--diagramNodeId` are required for the atomic task+diagram update.
 4. NEVER edit `.mmd` files directly — the orchestrator owns all diagram updates
+5. If node metadata is incomplete (missing `scope`, `acceptance`, or `verify`), fall back to reading the plan body for that specific task's details
+6. If you discover a scope change (task added, removed, or dependency changed), report it in your final summary — the orchestrator handles diagram regeneration

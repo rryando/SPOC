@@ -1,6 +1,6 @@
 /**
  * Shared content extraction helpers for assembling project context.
- * Used by both resolve_project_context and sync_agents_md tools.
+ * Used by both `spoc context` and `spoc sync-agents-md` commands.
  */
 
 /**

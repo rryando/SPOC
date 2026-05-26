@@ -13,27 +13,28 @@ Start by understanding the current project context, then ask questions one at a 
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
 </HARD-GATE>
 
-## SPOC CLI — Preferred for DAG Reads
+## SPOC CLI
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
-
-**Usage:** `spoc <command> [args]`
+All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <mutating-command> --token=$TOKEN --json
+```
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `spoc context [<path>] --lean --json` — project orientation
+- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
+- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
+- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
+- `spoc project list --lean --json` — list all projects
+- `spoc search <slug> "<query>" --lean --json` — cross-type search
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Discover all commands:** `spoc --commands --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Verify SPOC is available:** `spoc --version`
 
 ## Execution Modes
 
@@ -41,18 +42,18 @@ This skill operates in two contexts depending on who loads it.
 
 ### Mode Detection
 
-- If the agent has `spoc context --audience=designer --lean --json` CLI or `spoc_resolve_project_context` MCP tool available → **Agent-Direct Mode**
+- If bash is available (can run `spoc --version`) → **Agent-Direct Mode**
 - If not → **Orchestrator Mode** (return artifact for orchestrator to persist)
 
 ### Agent-Direct Mode
 
-The agent (e.g., system-architect sub-agent) has SPOC MCP tools and writes to the DAG itself.
+The agent has bash/CLI access and writes to the DAG itself.
 
-- Resolve project context via `spoc context --audience=designer --lean --json` (prefer CLI) or `spoc_resolve_project_context` MCP fallback
-- Still uses write-gate pattern: `spoc_propose_dag_write` → `spoc_apply_dag_write` → pass `confirmationToken` to mutating tools
-- Creates plans directly via `spoc_create_project_plan` / `spoc_update_project_plan_body`
+- Resolve project context via `spoc context --audience=designer --lean --json`
+- Uses write-gate pattern: `spoc write propose "summary" --ops=<ops> --slug=<slug> --json` → extract token → pass `--token=$TOKEN` to mutating commands
+- Creates plans directly via `spoc plan create <slug> --title="..." --status=proposed --token=$TOKEN --json` / `spoc plan update-body <slug> <planId> --token=$TOKEN --json`
 - Generates diagrams and writes `.mmd` files via tools
-- Creates knowledge entries via `spoc_create_project_knowledge_entry` when discoveries warrant persistence
+- Creates knowledge entries via `spoc knowledge create <slug> --title="..." --kind=<kind> --token=$TOKEN --json` when discoveries warrant persistence
 - When user confirmation is needed (design approval, scope decisions): return to orchestrator with a structured summary and wait for confirmation relay before proceeding
 
 ### Orchestrator Mode
@@ -65,7 +66,7 @@ Agent's final message contains:
 - Diagram `.mmd` content (Mermaid source)
 - Any knowledge entries to create
 
-The orchestrator persists these via SPOC tools after user confirms.
+The orchestrator persists these via CLI commands after user confirms.
 
 ---
 
@@ -179,15 +180,13 @@ digraph brainstorming {
 
 **Storage — spoc Project Plan:**
 
-- Store the validated design as a spoc project plan using the DAG tools:
-  1. Ensure a spoc project exists for the current work (prefer `spoc project list --lean --json` CLI, or `list_projects` MCP fallback; use `init_project` to create if needed)
-  2. Create the spec as a plan: `create_project_plan` with:
-     - `slug`: the project slug
-     - `title`: `YYYY-MM-DD <topic> Design`
-     - `summary`: one-line description of the design
-     - `status`: `proposed`
-     - `keywords`: `["spec", "design"]`
-     - `body`: the full design document content (markdown)
+- Store the validated design as a spoc project plan using CLI commands:
+  1. Ensure a spoc project exists for the current work (`spoc project list --json`; use `spoc project init --token=$TOKEN --json` to create if needed)
+  2. Create the spec as a plan:
+     ```bash
+     TOKEN=$(spoc write propose "Create design spec" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+     spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="one-line description" --status=proposed --keywords='["spec", "design"]' --body="<full design markdown>" --token=$TOKEN --json
+     ```
   3. Note the returned `planId` for reference in later steps
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - No git commit needed — the spec lives in spoc, not the project repo
@@ -202,7 +201,7 @@ After writing the spec document:
 **User Review Gate:**
 After the spec review loop passes, ask the user to review the written spec before proceeding:
 
-> "Spec written and saved to spoc project plan `<planId>` in project `<slug>`. Please review it (use `spoc plan get <slug> <planId> --audience=designer --lean --json` CLI or `get_project_plan` with `includeBody: true` to read) and let me know if you want to make any changes before we start writing out the implementation plan."
+> "Spec written and saved to spoc project plan `<planId>` in project `<slug>`. Please review it (`spoc plan get <slug> <planId> --body --json`) and let me know if you want to make any changes before we start writing out the implementation plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 

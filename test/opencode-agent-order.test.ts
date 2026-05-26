@@ -125,10 +125,10 @@ describe("writeOpencodeAgent — agent key order", () => {
       const orchestratorContent = readFileSync(orchestratorPrompt, "utf-8");
       const cavemanContent = readFileSync(cavemanPrompt, "utf-8");
 
-      expect(orchestratorContent).toContain("orchestration agent for the SPOC MCP server");
+      expect(orchestratorContent).toContain("orchestration agent for SPOC, a CLI-first");
       expect(cavemanContent).toContain("Caveman Mode");
       // Caveman wraps the full orchestrator prompt
-      expect(cavemanContent).toContain("orchestration agent for the SPOC MCP server");
+      expect(cavemanContent).toContain("orchestration agent for SPOC, a CLI-first");
       // Caveman must include the sub-agent propagation rule so caveman mode
       // cascades into dispatched sub-agents
       expect(cavemanContent).toContain("Sub-Agent Propagation");

@@ -3,9 +3,12 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+import { homedir } from "node:os";
 import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
 import { success, failure } from "../output-envelope.js";
-import { getProjectDir } from "../../utils/paths.js";
+import { getDataDir, getProjectDir } from "../../utils/paths.js";
 import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
 import {
   listTasks,
@@ -168,16 +171,66 @@ defineCommand({
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
     status: { type: "string", required: true, positional: 2, description: "New status", enum: ["backlog", "in_progress", "done", "cancelled"] },
+    planId: { type: "string", description: "Plan ID (enables atomic diagram update)" },
+    diagramNodeId: { type: "string", description: "Diagram node ID to update (e.g. T001)" },
     token: { type: "string", description: "Write-gate token" },
   },
   handler: handleTaskTransition,
 });
+
+/** Map task status to diagram classDef status */
+function taskStatusToDiagramStatus(status: TaskStatus): string {
+  switch (status) {
+    case "in_progress": return "in_progress";
+    case "done": return "done";
+    case "cancelled": return "blocked";
+    case "backlog": return "backlog";
+  }
+}
+
+function findDiagramScript(): string | undefined {
+  const localPath = resolve(import.meta.dirname, "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs");
+  if (existsSync(localPath)) return localPath;
+
+  const configPath = resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs");
+  if (existsSync(configPath)) return configPath;
+
+  return undefined;
+}
+
+export function attemptDiagramUpdate(slug: string, planId: string, nodeId: string, status: TaskStatus): { diagramUpdated: boolean; diagramError?: string } {
+  const dataDir = getDataDir();
+  const diagramPath = resolve(dataDir, "projects", slug, "plans", `${planId}.diagram.mmd`);
+
+  if (!existsSync(diagramPath)) {
+    return { diagramUpdated: false, diagramError: "Diagram file not found" };
+  }
+
+  const scriptPath = findDiagramScript();
+  if (!scriptPath) {
+    return { diagramUpdated: false, diagramError: "manage-diagram.mjs script not found" };
+  }
+
+  const diagramStatus = taskStatusToDiagramStatus(status);
+  try {
+    execSync(`node "${scriptPath}" status "${diagramPath}" "${nodeId}" "${diagramStatus}"`, {
+      encoding: "utf-8",
+      timeout: 10000,
+    });
+    return { diagramUpdated: true };
+  } catch (err) {
+    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    return { diagramUpdated: false, diagramError: msg };
+  }
+}
 
 async function handleTaskTransition(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.taskId as string;
   const status = params.status as TaskStatus;
   const token = params.token as string | undefined;
+  const planId = params.planId as string | undefined;
+  const diagramNodeId = params.diagramNodeId as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -187,7 +240,7 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldTransition: { slug, taskId, status } });
+    return success({ dryRun: true, wouldTransition: { slug, taskId, status, planId, diagramNodeId } });
   }
 
   try {
@@ -203,6 +256,13 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
     const currentTask = await getTask(projectDir, taskId);
     const previousStatus = currentTask.status;
     await updateTask(projectDir, { id: taskId, status });
+
+    // Atomic diagram update if both planId and diagramNodeId provided
+    if (planId && diagramNodeId) {
+      const diagramResult = attemptDiagramUpdate(slug, planId, diagramNodeId, status);
+      return success({ taskId, previousStatus, newStatus: status, diagramNodeId, ...diagramResult });
+    }
+
     return success({ taskId, previousStatus, newStatus: status });
   } catch (err) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, err instanceof Error ? err.message : String(err));

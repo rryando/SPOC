@@ -111,3 +111,67 @@ export function extractModelPreFills(config: unknown): ModelTierConfig {
     light: smallModel || model,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Model Discovery
+// ---------------------------------------------------------------------------
+
+export interface ProviderModels {
+  provider: string;
+  models: string[];
+}
+
+/**
+ * Reads ~/.local/share/opencode/auth.json to get authenticated provider names,
+ * then runs `opencode models <provider>` for each to get available models.
+ * Returns array sorted with providers matching currentModel first.
+ */
+export async function getAvailableModels(
+  currentModel: string,
+): Promise<ProviderModels[]> {
+  const { execSync } = await import("node:child_process");
+  let authData: Record<string, unknown> = {};
+
+  try {
+    const authPath = join(homedir(), ".local", "share", "opencode", "auth.json");
+    const content = await readFile(authPath, "utf-8");
+    authData = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+
+  const providerNames = Object.keys(authData).filter(
+    (k) => authData[k] !== null && authData[k] !== undefined,
+  );
+
+  const results: ProviderModels[] = [];
+
+  for (const provider of providerNames) {
+    try {
+      const output = execSync(`opencode models ${provider}`, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 15_000,
+      }).trim();
+      const models = output
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      if (models.length > 0) {
+        results.push({ provider, models });
+      }
+    } catch {
+      // Provider models command failed, skip
+    }
+  }
+
+  // Sort: providers matching currentModel first
+  const currentProvider = currentModel.split("/")[0] || "";
+  results.sort((a, b) => {
+    const aMatch = a.provider === currentProvider ? 0 : 1;
+    const bMatch = b.provider === currentProvider ? 0 : 1;
+    return aMatch - bMatch;
+  });
+
+  return results;
+}

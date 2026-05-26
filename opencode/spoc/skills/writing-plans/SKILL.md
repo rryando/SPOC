@@ -15,31 +15,32 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated branch.
 
-**Save plans to:** spoc as a project plan using DAG tools (see Storage section below)
-- The plan is stored via `create_project_plan` with status `planned` and keywords `["implementation-plan"]`
+**Save plans to:** spoc as a project plan using CLI commands (see Storage section below)
+- The plan is stored via `spoc plan create` with status `planned` and keywords `["implementation-plan"]`
 - No files are written to the project repo
 
-## SPOC CLI — Preferred for DAG Reads
+## SPOC CLI
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
-
-**Usage:** `spoc <command> [args]`
+All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <mutating-command> --token=$TOKEN --json
+```
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `spoc context [<path>] --lean --json` — project orientation
+- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
+- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
+- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
+- `spoc project list --lean --json` — list all projects
+- `spoc search <slug> "<query>" --lean --json` — cross-type search
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Discover all commands:** `spoc --commands --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Verify SPOC is available:** `spoc --version`
 
 ## Sub-Agent CLI Guidance
 
@@ -65,17 +66,17 @@ This ensures sub-agents understand the project's existing decisions, patterns, a
 
 ### Agent-Direct Mode
 
-Agent has SPOC MCP tools available — writes plans directly to the DAG:
+Agent has bash/CLI access — writes plans directly to the DAG:
 
-- Uses `spoc_create_project_plan` with status `planned`, keywords `["implementation-plan"]`
+- Creates plan via `spoc plan create <slug> --title="..." --status=planned --keywords='["implementation-plan"]' --token=$TOKEN --json`
 - Creates associated `.diagram.mmd` file via diagram persistence rules (see Diagram Section)
-- Creates structured tasks via `spoc_create_project_task` linked to plan via `planId`
-- Uses write-gate pattern for all DAG writes (propose → confirm → apply)
+- Creates structured tasks via `spoc task create <slug> "title" --plan-id=<planId> --token=$TOKEN --json`
+- Uses write-gate pattern for all DAG writes (propose → token → command with --token)
 - For user confirmation: returns summary to orchestrator, waits for relay before persisting
 
 ### Orchestrator Mode (artifact return)
 
-Agent lacks SPOC MCP tools — returns structured plan as text in final message for orchestrator to persist:
+Agent lacks bash access — returns structured plan as text in final message for orchestrator to persist:
 
 ```
 ---plan-artifact---
@@ -97,11 +98,11 @@ sourceFiles: [{path: "...", anchor: "..."}]
 ---end---
 ```
 
-Orchestrator parses this artifact and persists via SPOC tools (`create_project_plan`, `create_project_task`, diagram file write).
+Orchestrator parses this artifact and persists via CLI commands (`spoc plan create`, `spoc task create`, diagram file write).
 
 ## Mode Detection
 
-- If `spoc_create_project_plan` tool is available in the current session → **agent-direct mode**
+- If bash is available (can run `spoc --version`) → **agent-direct mode**
 - If not available → **orchestrator mode** (return artifact in structured format above)
 
 Detect once at skill start. Announce which mode is active in the opening message.
@@ -162,7 +163,7 @@ Diagrams are **agentic execution maps**, not thin visual aids. They live in sepa
 
 **Stable node IDs:**
 - Use `T001`, `T002`, `T003`, etc. — sequential, zero-padded to 3 digits
-- When canonical structured task IDs exist (from `create_project_task`), use those as node IDs instead
+- When canonical structured task IDs exist (from `spoc task create`), use those as node IDs instead
 - Once assigned, IDs never change across renames, reorders, or regeneration
 
 **Rich per-node metadata (required for every node):**
@@ -202,7 +203,11 @@ This metadata must be populated at plan creation time even though all nodes star
 
 **At plan creation time**, all nodes start as `:::backlog` — but per-node metadata must already include skill, scope, acceptance, and verify so EXECUTE can dispatch from diagram-first context.
 
-**During EXECUTE**, when task status updates in metadata, also update the corresponding node's `:::className` in the `.mmd` file — only the class assignment changes, topology stays.
+**During EXECUTE**, when task status updates in metadata, the **orchestrator** (not implementation sub-agents) updates the corresponding node's `:::className` in the `.mmd` file via:
+```bash
+spoc task transition <slug> <taskId> <status> --planId=<planId> --diagramNodeId=<nodeId> --token=$TOKEN
+```
+This atomically transitions the task AND patches the diagram node. Only the class assignment changes, topology stays. Implementation sub-agents NEVER edit `.mmd` files.
 
 ````markdown
 ### Task N: [Component Name]
@@ -275,16 +280,18 @@ After completing each chunk of the plan:
 
 After completing each chunk and final review:
 
-1. Ensure a spoc project exists for the current work (prefer `spoc project list --json` CLI, or `list_projects` MCP fallback; use `init_project` to create if needed)
-2. Create the implementation plan: `create_project_plan` with:
-   - `slug`: the project slug
-   - `title`: `YYYY-MM-DD <feature-name> Implementation Plan`
-   - `summary`: one-line goal of the plan
-   - `status`: `planned`
-   - `keywords`: `["implementation-plan"]`
-   - `body`: the full plan content (markdown)
+1. Ensure a spoc project exists for the current work (`spoc project list --json`; use `spoc project init --token=$TOKEN --json` to create if needed)
+2. Create the implementation plan:
+   ```bash
+   TOKEN=$(spoc write propose "Create implementation plan" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+   spoc plan create <slug> --title="YYYY-MM-DD <feature-name> Implementation Plan" --summary="one-line goal" --status=planned --keywords='["implementation-plan"]' --body="<full plan markdown>" --token=$TOKEN --json
+   ```
 3. Note the returned `planId` — this is what the execution skill will reference
-4. If updating an existing plan, use `update_project_plan_body` instead
+4. If updating an existing plan:
+   ```bash
+   TOKEN=$(spoc write propose "Update plan body" --ops=plan:update-body --slug=<slug> --json | jq -r .data.token)
+   spoc plan update-body <slug> <planId> --body="<updated content>" --token=$TOKEN --json
+   ```
 
 ## Execution Handoff
 

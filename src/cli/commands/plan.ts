@@ -126,6 +126,8 @@ defineCommand({
     title: { type: "string", required: true, positional: 1, description: "Plan title" },
     summary: { type: "string", description: "Plan summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
+    body: { type: "string", description: "Inline markdown body content" },
+    "body-file": { type: "string", description: "Path to markdown file with plan body" },
     token: { type: "string", description: "Write-gate token" },
   },
   handler: handlePlanCreate,
@@ -136,6 +138,8 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
   const title = params.title as string;
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
+  const bodyInline = params.body as string | undefined;
+  const bodyFile = params["body-file"] as string | undefined;
   const token = params.token as string | undefined;
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
 
@@ -146,10 +150,14 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
     });
   }
 
+  if (bodyFile && !existsSync(bodyFile)) {
+    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Body file not found: ${bodyFile}`);
+  }
+
   const id = normalizeIdentifier(title);
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldCreate: { title, slug, id, status: "proposed", summary, keywords } });
+    return success({ dryRun: true, wouldCreate: { title, slug, id, status: "proposed", summary, keywords, hasBody: !!(bodyInline || bodyFile) } });
   }
 
   try {
@@ -161,6 +169,14 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
     throw err;
   }
 
+  // Resolve body content: inline > file > undefined
+  let content: string | undefined;
+  if (bodyInline) {
+    content = bodyInline;
+  } else if (bodyFile) {
+    content = readFileSync(bodyFile, "utf-8");
+  }
+
   try {
     const meta = await createPlan(projectDir, {
       id,
@@ -168,6 +184,7 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
       status: "proposed",
       keywords,
       summary,
+      ...(content && { content }),
     });
     return success(meta);
   } catch (err) {

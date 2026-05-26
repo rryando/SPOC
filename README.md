@@ -92,70 +92,45 @@ Token is single-use, scoped to the project + operation, and expires after **10 m
 
 ## Quick Start
 
+> SPOC is not yet published to npm — install from source.
+
+**1. Clone and install**
+
 ```bash
-# Install SPOC globally
-npm install -g spoc
+git clone https://github.com/your-org/spoc.git
+cd spoc
+npm install
+# postinstall automatically builds TypeScript and registers the `spoc` CLI
+# at ~/.local/bin/spoc
+```
 
-# Navigate into your project
+**2. Add `~/.local/bin` to your PATH** (if not already)
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+# Add the above line to ~/.zshrc or ~/.bashrc to persist across sessions
+```
+
+**3. Run the setup wizard from your project**
+
+```bash
 cd /path/to/your-project
-
-# One-time setup: deploys agents + skills to ~/.config/opencode/
-# and registers the current directory as a SPOC project
 spoc init
 ```
 
-`spoc init` runs an interactive wizard that:
+The wizard:
 1. Creates `~/.spoc/` (project data store)
 2. Registers the current directory as the workspace path
 3. Deploys bundled agents + skills into `~/.config/opencode/`
 
-From then on, any AI agent starting in that directory gets an **operating brief** automatically:
+**4. Start OpenCode**
+
+Open OpenCode in your project directory — you'll see the **SPOC Orchestrator** listed as a selectable agent. From that point, every session starts with an operating brief instead of a blank slate:
 
 ```bash
 spoc context
 # → project overview, current focus, active plans, relevant knowledge
 ```
-
----
-
-## CLI Reference
-
-> All commands support `--json` (machine-readable) and `--lean` (reduce token cost).
-
-### Workflow commands (what you actually use day-to-day)
-
-| Command | When |
-|---|---|
-| `spoc context [--path=<dir>]` | Start of every session — get operating brief |
-| `spoc search <slug> "<query>"` | Find anything across plans, knowledge, tasks |
-| `spoc validate <slug>` | Check DAG health before or after a big change |
-| `spoc sync-agents-md <slug>` | Refresh AGENTS.md after codebase changes |
-| `spoc diagram ready <slug> <planId>` | See what tasks are unblocked in a plan |
-
-### Write-Gate (required for all mutations)
-
-```bash
-# 1. Propose → get a token (10 min TTL)
-spoc write propose "summary" --ops=<op> --slug=<slug>
-
-# 2. Pass token to the mutating command
-spoc <command> --token=<token>
-
-# Or batch multiple writes in one token
-spoc batch --file=ops.json --token=<token>
-```
-
-### All commands
-
-| Namespace | Commands |
-|---|---|
-| **Setup** | `init` · `config` |
-| **Project** | `project list/get/init/delete/status` · `doc update` · `dependency add/remove` · `paths update` |
-| **Tasks** | `task list/get/create/update/transition/delete` |
-| **Plans** | `plan list/get/create/update-meta/update-body/delete` |
-| **Knowledge** | `knowledge list/get/create/update-meta/update-body/search/delete` |
-| **Diagnostics** | `validate` · `audit` · `diff` · `git-log` · `agents-md` |
-| **Bundle** | `lint-bundle` · `deploy-superpowers` |
 
 ---
 

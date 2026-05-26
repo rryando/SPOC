@@ -9,7 +9,7 @@ A self-referential development loop that automatically re-prompts you until the 
 
 ## How It Works
 
-1. You (or the user via `/loop`) start a loop by calling the `start_project_loop` MCP tool
+1. You (or the user via `/loop`) start a loop by running `spoc loop start`
 2. You work on the task
 3. When you go idle, the SPOC plugin checks if you emitted `<promise>DONE</promise>`
 4. If yes → loop ends, success toast shown
@@ -18,18 +18,19 @@ A self-referential development loop that automatically re-prompts you until the 
 
 ## Starting a Loop
 
-Call the SPOC MCP tool:
+Run the CLI command:
 
+```bash
+TOKEN=$(spoc write propose "Start loop for <task>" --ops=loop:start --slug=<slug> --json | jq -r .data.token)
+spoc loop start <slug> --prompt="Implement feature X with full test coverage" --max-iterations=50 --strategy=continue --token=$TOKEN --json
 ```
-start_project_loop({
-  slug: "project-slug",
-  sessionId: "<current session ID>",
-  prompt: "Implement feature X with full test coverage",
-  maxIterations: 50,           // optional, default 100
-  completionPromise: "DONE",   // optional, default "DONE"
-  strategy: "continue"         // optional, default "continue"
-})
-```
+
+Parameters:
+- `<slug>` — project slug (required)
+- `--prompt` — task description (required)
+- `--max-iterations` — optional, default 100
+- `--completion-promise` — optional, default "DONE"
+- `--strategy` — `continue` (same session) or `reset` (fresh per iteration), default "continue"
 
 ## Completion Protocol
 
@@ -58,25 +59,22 @@ Each iteration, you'll receive a continuation prompt reminding you of the origin
 
 1. **Completion** — you emit `<promise>DONE</promise>` → loop ends with success
 2. **Max iterations** — iteration count reaches the limit → loop stops with warning
-3. **Cancel** — user runs `/cancel-loop` or calls `cancel_project_loop` tool → loop cleared
+3. **Cancel** — user runs `/cancel-loop` or cancels via CLI → loop cleared
 
 ## Cancelling a Loop
 
-Call the MCP tool:
+Run:
 
-```
-cancel_project_loop({
-  slug: "project-slug",
-  sessionId: "<current session ID>"
-})
+```bash
+spoc loop cancel <slug> --json
 ```
 
-Or check current state:
+## Checking Loop State
 
-```
-get_project_loop_state({
-  slug: "project-slug"
-})
+Run:
+
+```bash
+spoc loop status <slug> --json
 ```
 
 ## Best Practices
@@ -92,4 +90,4 @@ get_project_loop_state({
 The loop state lives in the SPOC DAG (`~/.spoc/projects/{slug}/loop-state.json`). This means:
 - Loop state persists across session reconnects
 - Only one active loop per project at a time
-- The orchestrator and other agents can check loop status via MCP tools
+- The orchestrator and other agents can check loop status via `spoc loop status <slug> --json`

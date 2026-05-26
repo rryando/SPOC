@@ -112,6 +112,8 @@ defineCommand({
     kind: { type: "string", required: true, description: "Entry kind", enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"] },
     summary: { type: "string", description: "Entry summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
+    body: { type: "string", description: "Inline markdown body content" },
+    "body-file": { type: "string", description: "Path to markdown file with entry body" },
     token: { type: "string", description: "Write-gate token" },
   },
   handler: handleKnowledgeCreate,
@@ -123,6 +125,8 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   const kind = params.kind as KnowledgeKind;
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
+  const bodyInline = params.body as string | undefined;
+  const bodyFile = params["body-file"] as string | undefined;
   const token = params.token as string | undefined;
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -130,10 +134,13 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
+  if (bodyFile && !existsSync(bodyFile)) {
+    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Body file not found: ${bodyFile}`);
+  }
   if (flags.dryRun) {
     const id = normalizeIdentifier(title);
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
-    return success({ dryRun: true, wouldCreate: { id, title, kind, summary, keywords, slug } });
+    return success({ dryRun: true, wouldCreate: { id, title, kind, summary, keywords, slug, hasBody: !!(bodyInline || bodyFile) } });
   }
   try {
     requireWriteGate(token, slug, "tool:create_project_knowledge_entry");
@@ -145,10 +152,20 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   }
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
   const id = normalizeIdentifier(title);
+
+  // Resolve body content: inline > file > undefined
+  let content: string | undefined;
+  if (bodyInline) {
+    content = bodyInline;
+  } else if (bodyFile) {
+    content = readFileSync(bodyFile, "utf-8");
+  }
+
   try {
     const entry = await createKnowledgeEntry(projectDir, {
       id, title, kind, keywords,
       ...(summary && { summary }),
+      ...(content && { content }),
     });
     return success(entry);
   } catch (err) {

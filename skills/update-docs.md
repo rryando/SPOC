@@ -15,44 +15,42 @@ Use this skill when:
 - Task statuses change and need to be reflected in the DAG
 - Dependency relationships change
 
-## SPOC CLI — Preferred for DAG Reads
+## SPOC CLI
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
-
-**Usage:** `spoc <command> [args]`
+All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <mutating-command> --token=$TOKEN --json
+```
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `spoc context [<path>] --lean --json` — project orientation
+- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
+- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
+- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
+- `spoc project list --lean --json` — list all projects
+- `spoc search <slug> "<query>" --lean --json` — cross-type search
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Discover all commands:** `spoc --commands --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Verify SPOC is available:** `spoc --version`
 
 ## Steps
 
-1. **Read the current doc** by calling `get_project` with the project `slug` and `doc` type to understand existing content.
+1. **Read the current doc** by running `spoc project get <slug> --json` to understand existing content.
 
 2. **Prepare updated content** following the guidelines below for each doc type.
 
-3. **Call `update_project_doc`** with:
-   ```json
-   {
-     "slug": "my-project",
-     "doc": "knowledge",
-     "content": "# Knowledge — My Project\n\n..."
-   }
+3. **Write the update** using the write-gate flow:
+   ```bash
+   TOKEN=$(spoc write propose "Update <doc> for <slug>" --ops=project:update-doc --slug=<slug> --json | jq -r .data.token)
+   spoc project update-doc <slug> <doc> --content="..." --token=$TOKEN --json
    ```
 
-4. **Verify** by calling `get_project` again to confirm the update.
+4. **Verify** by running `spoc project get <slug> --json` again to confirm the update.
 
 ## Content Guidelines by Document Type
 
@@ -77,25 +75,19 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 
 For durable project memory (lessons, gotchas, patterns, detailed architecture, modules, feature notes), use structured knowledge entries instead of writing everything in the monolithic knowledge.md:
 
-1. **Create a knowledge entry** by calling `create_project_knowledge_entry`:
-   ```json
-   {
-     "slug": "my-project",
-     "title": "Authentication Module",
-      "kind": "architecture"
-   }
+1. **Create a knowledge entry:**
+   ```bash
+   TOKEN=$(spoc write propose "Create knowledge entry" --ops=knowledge:create --slug=<slug> --json | jq -r .data.token)
+   spoc knowledge create <slug> "Authentication Module" --kind=architecture --summary="..." --body="<markdown content>" --token=$TOKEN --json
    ```
 
-2. **Write the body** by calling `update_project_knowledge_body`:
-   ```json
-   {
-     "slug": "my-project",
-     "entryId": "authentication-module",
-     "body": "## Authentication Module\n\n..."
-   }
+2. **Write the body:**
+   ```bash
+   TOKEN=$(spoc write propose "Update knowledge body" --ops=knowledge:update-body --slug=<slug> --json | jq -r .data.token)
+   spoc knowledge update-body <slug> <entryId> --body="## Authentication Module\n\n..." --token=$TOKEN --json
    ```
 
-3. **List existing entries** with `list_project_knowledge_entries` to avoid duplicates.
+3. **List existing entries** with `spoc knowledge list <slug> --json` to avoid duplicates.
 
 | Section | What to include |
 |---------|----------------|
@@ -115,25 +107,19 @@ Use structured plans for feature work that spans multiple tasks or decisions. Pl
 
 Use `tasks.md` for execution queue state, not full feature planning narratives. When a feature needs design rationale, phased steps, or decision records, create a plan instead:
 
-1. **Create a plan** by calling `create_project_plan`:
-   ```json
-   {
-     "slug": "my-project",
-     "title": "API v2 Migration",
-      "status": "in_progress"
-   }
+1. **Create a plan:**
+   ```bash
+   TOKEN=$(spoc write propose "Create plan" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+   spoc plan create <slug> --title="API v2 Migration" --status=in_progress --token=$TOKEN --json
    ```
 
-2. **Write the plan body** by calling `update_project_plan_body`:
-   ```json
-   {
-     "slug": "my-project",
-     "planId": "api-v2-migration",
-     "body": "## Goal\n\nMigrate all endpoints to v2...\n\n## Phases\n\n..."
-   }
+2. **Write the plan body:**
+   ```bash
+   TOKEN=$(spoc write propose "Update plan body" --ops=plan:update-body --slug=<slug> --json | jq -r .data.token)
+   spoc plan update-body <slug> <planId> --body="## Goal\n\nMigrate all endpoints to v2...\n\n## Phases\n\n..." --token=$TOKEN --json
    ```
 
-3. **List existing plans** with `list_project_plans` to see what's in progress.
+3. **List existing plans** with `spoc plan list <slug> --json` to see what's in progress.
 
 #### Plan Keyword Conventions
 
@@ -144,9 +130,7 @@ External agent workflows (e.g. SPOC skills) store documents in SPOC as plans wit
 | `spec`, `design` | `proposed` | Design specs from brainstorming |
 | `implementation-plan` | `planned` | Step-by-step implementation plans |
 
-Use `list_project_plans` with keyword filters to discover these:
-- `list_project_plans(slug, keywords: ["spec"])` — find design specs
-- `list_project_plans(slug, keywords: ["implementation-plan"])` — find implementation plans
+Use `spoc plan list <slug> --json` with keyword filters to discover these.
 
 When creating plans through SPOC workflows, you don't need to follow these conventions — they're specific to external agent integration.
 

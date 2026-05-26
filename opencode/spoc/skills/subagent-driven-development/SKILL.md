@@ -13,25 +13,25 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+All DAG operations use the SPOC CLI. Reads are direct; writes require a write-gate token (`spoc write propose` → token → `spoc <command> --token=$TOKEN --json`).
 
 **Usage:** `spoc <command> [args]`
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `spoc context [<path>] --lean --json` — resolve project context from workspace path
+- `spoc task list <slug> [--status <s>] --lean --json` — list tasks, optionally filtered
+- `spoc search <slug> "<query>" [--limit N] --lean --json` — BM25 knowledge search
+- `spoc plan list <slug> [--status <s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind <k>] --lean --json` — list knowledge entries
+- `spoc diagram ready <slug> <planId>` — find executable diagram nodes
+- `spoc batch --file=<json> --token=$TOKEN` — batch operations in one call
+- `spoc validate <slug> --json` — validate project state
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` success / `{ok: false, code: ..., message: ...}` failure
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Rule:** CLI for reads. Writes require write-gate token: `spoc write propose "summary" --ops=<op> --slug=<slug> --json` → token → `spoc <command> --token=$TOKEN --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Prerequisite:** Verify SPOC is available: `spoc --version`
 
 ## When to Use
 
@@ -113,9 +113,9 @@ Before dispatching the first implementer sub-agent, read the plan's diagram:
 ### 1. Identify Parallelizable Tasks
 
 ```bash
-manage-diagram.mjs ready <path-to-diagram.mmd>
-# or
 spoc diagram ready <slug> <planId>
+# or (file-level fallback):
+manage-diagram.mjs ready <path-to-diagram.mmd>
 ```
 
 All returned nodes can be dispatched in parallel — their dependencies are satisfied.
@@ -150,7 +150,7 @@ Use this to construct sub-agent prompts:
   spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId> --token=$TOKEN
   ```
 - Both `diagramNodeId` and `planId` are required for the diagram to update
-- After transition, re-run `manage-diagram.mjs ready` to discover newly-unblocked nodes for the next dispatch round
+- After transition, re-run `spoc diagram ready <slug> <planId>` to discover newly-unblocked nodes for the next dispatch round
 
 ### 4. Scope Change Reporting
 
@@ -163,6 +163,14 @@ The sub-agent reports this in its final summary. The dispatcher then:
 1. Updates task records
 2. Regenerates the diagram via `manage-diagram.mjs regenerate <file> --metadata <metadata.json>`
 3. Re-evaluates ready nodes before next dispatch round
+
+### 5. Fallback: Incomplete Node Metadata
+
+If a ready node's `%%` comment block is missing `scope`, `acceptance`, or `verify` fields:
+1. Read the plan body for that specific task's section
+2. Construct the sub-agent prompt from the plan body task section
+3. Note the gap — during SYNC, the diagram should be enriched with complete per-node metadata
+4. When metadata is insufficient across multiple nodes, consider running `manage-diagram.mjs regenerate` to rebuild metadata from current task state
 
 ## Model Selection
 

@@ -190,7 +190,7 @@ This skill works in two modes:
 **Mode A — Direct SPOC MCP Access:**
 When the code-doctor sub-agent has SPOC tools available:
 1. After Phase 2, capture profiling findings as a knowledge entry (`kind: lesson` or `kind: gotcha`).
-2. After Phase 4, if optimization requires non-trivial work, propose a task via `spoc_create_project_task`.
+2. After Phase 4, if optimization requires non-trivial work, propose a task via `spoc task create <slug> --title="..." --token=$TOKEN --json`.
 3. Link knowledge entries to relevant source files via `sourceFiles`.
 
 **Mode B — Structured Artifact Return:**

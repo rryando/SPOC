@@ -20,9 +20,9 @@ When the plan has an associated `.diagram.mmd` file, read it BEFORE the plan bod
 ### 1. Identify Ready Nodes
 
 ```bash
-manage-diagram.mjs ready <path-to-diagram.mmd>
-# or
 spoc diagram ready <slug> <planId>
+# or (file-level fallback):
+manage-diagram.mjs ready <path-to-diagram.mmd>
 ```
 
 This returns nodes whose dependencies are all `:::done` — these are executable now.
@@ -54,7 +54,16 @@ spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId>
 
 **Both `diagramNodeId` AND `planId` are required** — without either, the diagram node's `:::className` is silently skipped.
 
-### 4. Sub-Agent Constraints
+**Post-transition re-scan:** After each transition, re-run `spoc diagram ready <slug> <planId>` to discover newly-unblocked nodes. If additional ready nodes appear, select the next highest-priority one for the next dispatch round.
+
+### 4. Fallback: Incomplete Node Metadata
+
+If a ready node's `%%` comment block is missing `scope`, `acceptance`, or `verify` fields:
+1. Read the plan body for that specific task's details
+2. Construct the sub-agent prompt from the plan body task section
+3. Note the gap — during SYNC, the diagram should be enriched with complete per-node metadata
+
+### 5. Sub-Agent Constraints
 
 - **Sub-agents MUST NOT edit `.mmd` files** — the orchestrator owns all diagram updates
 - If a sub-agent discovers scope changes (task added/removed/dependency changed), it reports them in its final summary — the orchestrator then handles diagram regeneration
@@ -110,6 +119,16 @@ After all tasks complete and verified:
 - Announce: "I'm using the finishing-a-development-branch skill to complete this work."
 - **REQUIRED SUB-SKILL:** Use spoc:finishing-a-development-branch
 - Follow that skill to verify tests, present options, execute choice
+
+### Step 4: Post-Execution Auto-Sync
+
+After completing development, the orchestrator automatically triggers a DAG SYNC if any of these conditions are met:
+- 3+ tasks were transitioned during this session
+- New knowledge entries were created from implementation discoveries
+- `lastSyncedAt` is > 7 days ago or absent
+- The plan reached `done` status (all tasks complete)
+
+This happens automatically — no user confirmation needed. The orchestrator announces `→ Auto-syncing DAG: [reason]` and chains directly into the SYNC workflow.
 
 ## When to Stop and Ask for Help
 

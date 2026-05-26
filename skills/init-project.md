@@ -15,27 +15,28 @@ Use this skill when the user wants to:
 - Start working on a new initiative that should be connected to existing projects
 - Bootstrap project documentation for a repository
 
-## SPOC CLI — Preferred for DAG Reads
+## SPOC CLI
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
-
-**Usage:** `spoc <command> [args]`
+All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <mutating-command> --token=$TOKEN --json
+```
 
 **Available commands:**
-- `context [<path>]` — resolve project context from workspace path
-- `task <slug> [--status <s>]` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N]` — BM25 knowledge search
-- `plan <slug> [--status <s>]` — list plans
-- `knowledge <slug> [--kind <k>]` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug>` — validate project state
+- `spoc context [<path>] --lean --json` — project orientation
+- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
+- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
+- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
+- `spoc project list --lean --json` — list all projects
+- `spoc search <slug> "<query>" --lean --json` — cross-type search
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Discover all commands:** `spoc --commands --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Verify SPOC is available:** `spoc --version`
 
 ## Steps
 
@@ -45,21 +46,17 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
    - `repoUrl` (optional) — Git repository URL
    - `dependsOn` (optional) — Array of existing project slugs this depends on
 
-2. **Check existing projects** by calling the `list_projects` tool to:
+2. **Check existing projects** by running `spoc project list --json` to:
    - Avoid duplicate names
    - Verify any `dependsOn` targets exist
 
-3. **Call the `init_project` tool** with the gathered params:
-   ```json
-   {
-     "name": "My Project",
-     "description": "A brief description",
-     "repoUrl": "https://github.com/org/repo",
-     "dependsOn": ["other-project"]
-   }
+3. **Initialize the project** using the write-gate flow:
+   ```bash
+   TOKEN=$(spoc write propose "Init project <name>" --ops=project:init --slug=<slug> --json | jq -r .data.token)
+   spoc project init --name="My Project" --description="A brief description" --repo-url="https://github.com/org/repo" --depends-on="other-project" --token=$TOKEN --json
    ```
 
-4. **Verify** by calling `get_project` with the new slug to confirm the project was created.
+4. **Verify** by running `spoc project get <slug> --json` to confirm the project was created.
 
 5. **Populate knowledge** (optional) — If the repo already exists, read the skill `spoc://skills/update-docs` to learn how to populate the knowledge doc with structured information about the codebase.
 
@@ -74,8 +71,8 @@ The init tool renders templates with placeholder content. After init, guide the 
 
 The init tool also creates empty indexes for structured subresources:
 
-- **plans/** — Structured plans for feature work that spans multiple tasks or decisions. Create plans with `create_project_plan`.
-- **knowledge/** — Durable knowledge entries for lessons, gotchas, patterns, architecture, and feature notes. Create entries with `create_project_knowledge_entry`.
+- **plans/** — Structured plans for feature work that spans multiple tasks or decisions. Create plans with `spoc plan create <slug> --title="..." --token=$TOKEN --json`.
+- **knowledge/** — Durable knowledge entries for lessons, gotchas, patterns, architecture, and feature notes. Create entries with `spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<content>" --token=$TOKEN --json`.
 
 ## Knowledge Categories for New Projects
 

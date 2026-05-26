@@ -19,7 +19,7 @@ MANDATORY EXIT GATE: Before finalizing any audit, confirm you checked all requir
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+For all DAG operations, use the SPOC CLI. Reads are direct; writes require a write-gate token.
 
 **Usage:** `spoc <command> [args]`
 
@@ -45,8 +45,8 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 
 **Write-gate flow (required for all DAG writes):**
 ```bash
-# Step 1: Propose (get token — TTL 120s, single-use)
-TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .token)
+# Step 1: Propose (get token — TTL 10min, single-use)
+TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .data.token)
 
 # Step 2: Execute write with token
 spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
@@ -54,4 +54,4 @@ spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
 # or: spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
-Re-propose if the token expires. Alternatively, use MCP tools: `propose_dag_write` → `apply_dag_write` → mutating tool.
+Re-propose if the token expires (TTL 10min, single-use). Tokens are consumed only on actual mutation — validation failures don't consume.

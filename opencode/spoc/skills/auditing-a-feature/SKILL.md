@@ -23,7 +23,7 @@ Read-only guardrail audit for a slice of the codebase (a feature, module, user f
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
+All DAG operations use the SPOC CLI. Reads are direct; writes require a write-gate token (`spoc write propose` → token → `spoc <command> --token=$TOKEN --json`).
 
 **Usage:** `spoc <command> [args]`
 
@@ -39,9 +39,9 @@ For all DAG read operations, prefer the CLI over MCP tools. It's faster (no writ
 
 **Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Rule:** All DAG operations use the CLI. Writes require a write-gate token: `spoc write propose` → token → `spoc <command> --token=$TOKEN --json`.
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Prerequisite:** Verify SPOC is available: `spoc --version`
 
 ## The Iron Law
 
@@ -61,7 +61,7 @@ The audit produces a report. The report becomes SPOC artifacts (tasks / knowledg
 
 Before reading any code, resolve what "the slice" means.
 
-**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc context --audience=implementer --lean --json` CLI (preferred) or `spoc_resolve_project_context` MCP fallback on the workspace path and look for plans/knowledge matching the slice name.
+**Prefer SPOC `sourceFiles`:** If the slice is tracked in a SPOC plan or knowledge entry with `sourceFiles`, those are the starting set. Use `spoc context --audience=implementer --lean --json` on the workspace path and look for plans/knowledge matching the slice name.
 
 **Fall back to user-specified files** if SPOC has nothing. Ask the user to name files, modules, or entry points.
 
@@ -91,7 +91,7 @@ The most common finding we miss: **we flag local duplication but not cross-modul
 
 Before finalizing any finding about "this logic is duplicated" or "this helper could be extracted," run at least one of:
 - `rg` / `grep` for key function names or distinctive string literals across the repo
-- Search SPOC knowledge entries for related patterns (`spoc knowledge list <slug> --json` CLI preferred, or `spoc_list_project_knowledge_entries` MCP fallback)
+- Search SPOC knowledge entries for related patterns (`spoc knowledge list <slug> --json`)
 - Check sibling directories for similarly-named utilities (`crypto.ts`, `http.ts`, `auth.ts`, etc.)
 
 If you skipped this, say so explicitly in the report.
@@ -165,9 +165,9 @@ Convention sources consulted: <AGENTS.md, BE_CORE_PATTERNS.md, SPOC knowledge en
 - ...
 
 ## SPOC Handoff Proposal
-- **Tasks:** <list of [task]-tagged findings, ready for `spoc_create_project_task`>
+- **Tasks:** <list of [task]-tagged findings, ready for `spoc task create`>
 - **Knowledge entries:** <list of [knowledge]-tagged findings, kind suggestion>
-- **Plans:** <list of [plan]-tagged multi-step refactors, ready for `spoc_create_project_plan`>
+- **Plans:** <list of [plan]-tagged multi-step refactors, ready for `spoc plan create`>
 
 ## Confidence & Gaps
 - What I was confident about: ...
@@ -214,9 +214,9 @@ User chooses which to persist. Do not write to SPOC during the audit itself — 
 
 - **Before audit:** resolve SPOC context. If slice isn't tracked and should be, flag that as a `[knowledge]` meta-finding.
 - **After audit:** user reviews report, approves findings, then:
-  - `[task]` items → `spoc_create_project_task`
-  - `[knowledge]` items → `spoc_create_project_knowledge_entry`
-  - `[plan]` items → `spoc_create_project_plan` (status `proposed`)
+  - `[task]` items → `spoc task create <slug> --title="..." --token=$TOKEN --json`
+  - `[knowledge]` items → `spoc knowledge create <slug> --title="..." --kind=<kind> --token=$TOKEN --json`
+  - `[plan]` items → `spoc plan create <slug> --title="..." --status=proposed --token=$TOKEN --json`
 - **For actual refactor execution:** a separate session under `quick-dev` (bounded), `code-agent` (1-2 open decisions), or `test-driven-development` (non-trivial).
 
 ## The Bottom Line

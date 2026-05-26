@@ -5,31 +5,32 @@ description: Use when auditing SPOC knowledge entries for staleness, duplication
 
 # Knowledge Curation
 
-Read-and-repair audit for a project's SPOC knowledge base. Produces a structured report and optionally executes fixes via SPOC tools. Ensures knowledge entries remain findable, accurate, and non-redundant.
+Read-and-repair audit for a project's SPOC knowledge base. Produces a structured report and optionally executes fixes via SPOC CLI. Ensures knowledge entries remain findable, accurate, and non-redundant.
 
 **Core principle:** Keep knowledge lean, accurate, and discoverable. Stale knowledge actively misleads agents. Duplicates fragment search results. Misclassified entries hide in the wrong filters.
 
-## SPOC CLI — Preferred for DAG Reads
+## SPOC CLI
 
-For all DAG read operations, prefer the CLI over MCP tools. It's faster (no write-gate overhead) and supports batch queries in a single shell call.
-
-**Usage:** `spoc <command> [args]`
+All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <mutating-command> --token=$TOKEN --json
+```
 
 **Available commands:**
-- `context [<path>] --json` — resolve project context from workspace path
-- `task <slug> [--status <s>] --json` — list tasks, optionally filtered
-- `search <slug> <query> [--limit N] --json` — BM25 knowledge search
-- `plan <slug> [--status <s>] --json` — list plans
-- `knowledge <slug> [--kind <k>] --json` — list knowledge entries
-- `diagram <slug> <planId> <action>` — inspect/ready/validate diagram
-- `batch <json>` — batch operations in one call
-- `validate <slug> --json` — validate project state
+- `spoc context [<path>] --lean --json` — project orientation
+- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
+- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
+- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
+- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
+- `spoc project list --lean --json` — list all projects
+- `spoc search <slug> "<query>" --lean --json` — cross-type search
 
-**Output:** JSON to stdout, errors to stderr. Parse with standard JSON tools.
+**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
 
-**Rule:** CLI for reads, MCP for writes (task transitions, knowledge creation, plan updates require write-gates).
+**Discover all commands:** `spoc --commands --json`
 
-**Prerequisite:** `dist/` must be current (`npm run build` if stale).
+**Verify SPOC is available:** `spoc --version`
 
 ## The Iron Law
 
@@ -46,7 +47,7 @@ An entry that references a deleted file, describes a pattern that no longer exis
 - **Periodic maintenance** — scheduled knowledge base health checks (monthly or after sprints)
 - **After major refactors** — file renames, module restructures, API changes that invalidate sourceFile refs
 - **When knowledge search returns duplicates** — signal that entries have drifted into overlap
-- **When `spoc_audit_project_knowledge` reports broken sourceFile refs** — immediate staleness signal
+- **When `spoc validate <slug> --json` reports broken sourceFile refs** — immediate staleness signal
 - **Before onboarding new contributors** — ensure knowledge base is trustworthy for newcomers
 - **When a sub-agent reports "conflicting knowledge entries"** — taxonomy or duplication issue
 
@@ -59,8 +60,8 @@ An entry that references a deleted file, describes a pattern that no longer exis
 
 This skill works in two modes:
 
-1. **Direct execution** — When the agent has SPOC MCP tool access, perform fixes immediately after reporting (with write-gate tokens).
-2. **Recommendation mode** — When producing a report for human review, output structured recommendations with exact tool calls to execute.
+1. **Direct execution** — When the agent has bash/CLI access, perform fixes immediately after reporting (with write-gate tokens).
+2. **Recommendation mode** — When producing a report for human review, output structured recommendations with exact CLI commands to execute.
 
 State which mode you're operating in at the top of every report.
 
@@ -73,22 +74,22 @@ Every audit checks all five. Each dimension reports `checked / cleared / finding
 | 1 | **Staleness** | sourceFiles referencing paths that no longer exist; summaries contradicting current code; anchors (function/class names) that were renamed or deleted; entries about removed features |
 | 2 | **Duplication** | Multiple entries covering the same concept with different wording or keywords; overlapping scope between entries; entries that should be merged into one canonical entry |
 | 3 | **Taxonomy** | Incorrect `kind` assignments (e.g., a `reference` that's actually a `gotcha`, a `pattern` that's really `architecture`); inconsistent kind usage across similar entries |
-| 4 | **Discoverability** | Missing keywords that agents would search for; vague titles; summaries that don't contain searchable terms; entries that `spoc_search_project_knowledge` would miss for obvious queries |
+| 4 | **Discoverability** | Missing keywords that agents would search for; vague titles; summaries that don't contain searchable terms; entries that `spoc knowledge search <slug> "<query>" --json` would miss for obvious queries |
 | 5 | **Completeness** | Important modules/patterns/gotchas not captured in knowledge; features with no corresponding entries; architectural decisions with no record; recurring agent mistakes that should be a `gotcha` |
 
 ## Procedure
 
 ### Step 1: Automated Staleness Check
 
-Run `spoc_audit_project_knowledge` for the project. This gives immediate signal on broken sourceFile references. Record all broken refs.
+Run `spoc validate <slug> --json` for the project. This gives immediate signal on broken sourceFile references. Record all broken refs.
 
 ### Step 2: Full Inventory
 
-Run `spoc knowledge list <slug> --json` CLI (preferred) or `spoc_list_project_knowledge_entries` MCP fallback (no filters) to get the complete list. Note total count, kind distribution, and keyword spread.
+Run `spoc knowledge list <slug> --json` to get the complete list. Note total count, kind distribution, and keyword spread.
 
 ### Step 3: Per-Entry Inspection
 
-For entries flagged by Step 1 (broken refs) and any entries with suspiciously generic titles/summaries, run `spoc knowledge get <slug> <entryId> --json` CLI (preferred) or `spoc_get_project_knowledge_entry` with `includeBody: true` MCP fallback. Assess:
+For entries flagged by Step 1 (broken refs) and any entries with suspiciously generic titles/summaries, run `spoc knowledge get <slug> <entryId> --body --json`. Assess:
 
 - Does the body match current code reality?
 - Is the kind correct?
@@ -141,15 +142,15 @@ spoc knowledge search <slug> "god-node" --lean --json
 
 For each finding, propose one of these actions:
 
-| Action | When | Tool |
-|--------|------|------|
-| **Delete** | Entry is entirely stale, references removed code, provides no value | `spoc_delete_project_knowledge_entry` |
-| **Merge** | Two+ entries cover same concept; pick canonical, archive or delete others | `spoc_update_project_knowledge_body` + `spoc_delete_project_knowledge_entry` |
-| **Update refs** | sourceFiles broken but entry content still valid | `spoc_update_project_knowledge_meta` (new sourceFiles) |
-| **Re-kind** | Entry assigned wrong kind | `spoc_update_project_knowledge_meta` (new kind) |
-| **Add keywords** | Entry is valid but unsearchable for obvious queries | `spoc_update_project_knowledge_meta` (expanded keywords) |
-| **Rewrite summary** | Summary is vague or doesn't contain searchable terms | `spoc_update_project_knowledge_meta` (new summary) |
-| **Propose new entry** | Gap identified — important concept not captured | Output spec for `spoc_create_project_knowledge_entry` |
+| Action | When | CLI Command |
+|--------|------|-------------|
+| **Delete** | Entry is entirely stale, references removed code, provides no value | `spoc knowledge delete <slug> <entryId> --token=$TOKEN --json` |
+| **Merge** | Two+ entries cover same concept; pick canonical, archive or delete others | `spoc knowledge update-body <slug> <entryId> --token=$TOKEN --json` + `spoc knowledge delete <slug> <otherId> --token=$TOKEN --json` |
+| **Update refs** | sourceFiles broken but entry content still valid | `spoc knowledge update-meta <slug> <entryId> --token=$TOKEN --json` (new sourceFiles) |
+| **Re-kind** | Entry assigned wrong kind | `spoc knowledge update-meta <slug> <entryId> --token=$TOKEN --json` (new kind) |
+| **Add keywords** | Entry is valid but unsearchable for obvious queries | `spoc knowledge update-meta <slug> <entryId> --token=$TOKEN --json` (expanded keywords) |
+| **Rewrite summary** | Summary is vague or doesn't contain searchable terms | `spoc knowledge update-meta <slug> <entryId> --token=$TOKEN --json` (new summary) |
+| **Propose new entry** | Gap identified — important concept not captured | `spoc knowledge create <slug> --title="..." --kind=<kind> --token=$TOKEN --json` |
 
 ## Taxonomy Reference
 
@@ -187,7 +188,7 @@ Use these kind assignments consistently:
 ## 1. Staleness
 
 ### Broken sourceFile References
-(from `spoc_audit_project_knowledge`)
+(from `spoc validate <slug> --json`)
 - `entry-id`: path/that/no/longer/exists.ts → **action:** update ref to new/path.ts | delete entry
 
 ### Contradicted Content
@@ -225,10 +226,10 @@ Use these kind assignments consistently:
 
 ## Execution Plan
 
-(Direct mode only — ordered list of tool calls to execute)
-1. `spoc_update_project_knowledge_meta(slug, entryId, { sourceFiles: [...] })`
-2. `spoc_delete_project_knowledge_entry(slug, entryId)`
-3. ...
+(Direct mode only — ordered list of CLI commands to execute)
+1. `TOKEN=$(spoc write propose "Curation fixes" --ops=knowledge:update-meta,knowledge:delete --slug=<slug> --json | jq -r .data.token)`
+2. `spoc knowledge update-meta <slug> <entryId> --source-files='[...]' --token=$TOKEN --json`
+3. `spoc knowledge delete <slug> <entryId> --token=$TOKEN --json`
 ```
 
 ## Red Flags — STOP and Restart
@@ -236,7 +237,7 @@ Use these kind assignments consistently:
 - Deleting entries without checking if the concept is still valid (only the ref is broken)
 - Merging entries without reading both bodies
 - Proposing new entries that duplicate existing ones (check first!)
-- Skipping the automated `spoc_audit_project_knowledge` step
+- Skipping the automated `spoc validate <slug> --json` step
 - Changing kinds without consulting the taxonomy reference above
 - Operating in direct execution mode without write-gate tokens
 - Reporting "cleared" on a dimension without stating what was checked
@@ -247,9 +248,9 @@ Use these kind assignments consistently:
 
 All mutating operations require the write-gate flow:
 
-1. `spoc_propose_dag_write` — scope: list all operations you intend to perform
-2. `spoc_apply_dag_write` — consume the token
-3. Pass `confirmationToken` to each mutating tool call
+1. `spoc write propose "summary" --ops=<operations> --slug=<slug> --json` — scope: list all operations you intend to perform
+2. Extract token from response: `jq -r .data.token`
+3. Pass `--token=$TOKEN` to each mutating CLI command
 
 Batch related operations under a single proposal when possible (e.g., "merge entries A+B" = one proposal covering the meta update + delete).
 

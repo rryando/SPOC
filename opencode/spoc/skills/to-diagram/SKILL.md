@@ -41,13 +41,16 @@ When drift is detected, metadata always wins. The `.mmd` file is regenerated fro
 
 ### Agent-Direct Mode
 
-Agent has filesystem access + SPOC MCP tools. Workflow:
+Agent has filesystem access + SPOC CLI. Workflow:
 
 1. Draft diagram in `/tmp/<plan-id>.diagram.mmd` during composition
 2. Validate with `manage-diagram.mjs validate /tmp/<plan-id>.diagram.mmd`
 3. After write-gate confirmation, write final `.mmd` to DAG path directly
-4. Use `manage-diagram.mjs` commands (`inspect`, `ready`, `status`) via bash tool
-5. Update diagram status classes directly when transitioning tasks (via `manage-diagram.mjs status`)
+4. Use `spoc diagram ready <slug> <planId>` (preferred) or `manage-diagram.mjs ready <file>` (file-level fallback) to identify executable nodes
+5. Use `manage-diagram.mjs` commands (`inspect`, `validate`) for low-level file operations
+6. Status-only updates: use `spoc task transition <slug> <taskId> <status> --planId=<planId> --diagramNodeId=<nodeId> --token=$TOKEN` — this atomically updates both task and diagram node
+
+**Ownership rule:** Only the orchestrator/coordinator agent writes to `.mmd` files. Implementation sub-agents NEVER edit diagram files — they read them for task selection context only and report status changes back to the orchestrator.
 
 ### Orchestrator Mode (Artifact Return)
 

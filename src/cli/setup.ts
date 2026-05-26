@@ -4,7 +4,9 @@ import color from "picocolors";
 import {
   configExists,
   extractModelPreFills,
+  getAvailableModels,
   type ModelTierConfig,
+  type ProviderModels,
   readConfig,
   readOpenCodeConfig,
   type SpocConfig,
@@ -31,6 +33,16 @@ import { detectGraphify } from "../utils/graphify.js";
  * @param mode "init" for first-time setup, "config" for reconfiguration.
  */
 export async function runSetup(mode: "init" | "config"): Promise<void> {
+  // ── Opencode detection gate ─────────────────────────────────────────────────
+  try {
+    execSync("which opencode", { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+  } catch {
+    p.cancel(
+      "OpenCode is not installed or not on PATH. SPOC requires OpenCode.\nInstall it from: https://opencode.ai",
+    );
+    process.exit(1);
+  }
+
   const isInit = mode === "init";
   const existing = configExists() ? readConfig() : null;
 
@@ -77,11 +89,14 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     );
   }
 
-  const heavyModel = await p.text({
-    message: "Heavy model (reasoning, synthesis)",
-    placeholder: "e.g. github-copilot/claude-opus-4.6",
-    initialValue: preFills.heavy,
-  });
+  // Fetch available models from authenticated providers
+  const availableModels = await getAvailableModels(preFills.heavy);
+
+  const heavyModel = await selectModel(
+    "Heavy model (reasoning, synthesis)",
+    availableModels,
+    preFills.heavy,
+  );
 
   if (p.isCancel(heavyModel)) {
     p.cancel("Setup cancelled.");
@@ -93,11 +108,11 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     "Heavy tier agents",
   );
 
-  const standardModel = await p.text({
-    message: "Standard model (general purpose)",
-    placeholder: "e.g. github-copilot/claude-sonnet-4.6",
-    initialValue: preFills.standard,
-  });
+  const standardModel = await selectModel(
+    "Standard model (general purpose)",
+    availableModels,
+    preFills.standard,
+  );
 
   if (p.isCancel(standardModel)) {
     p.cancel("Setup cancelled.");
@@ -106,11 +121,11 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   p.note("Used by: build, SPOC Orchestrator, SPOC Caveman", "Standard tier agents");
 
-  const lightModel = await p.text({
-    message: "Light/fast model (read-only, exploration)",
-    placeholder: "e.g. github-copilot/claude-haiku-4.5",
-    initialValue: preFills.light,
-  });
+  const lightModel = await selectModel(
+    "Light/fast model (read-only, exploration)",
+    availableModels,
+    preFills.light,
+  );
 
   if (p.isCancel(lightModel)) {
     p.cancel("Setup cancelled.");
@@ -155,7 +170,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     ];
 
     p.note(
-      "Press Enter to keep the tier default. Type a model ID to override.",
+      "Select a model for each agent, or keep the tier default.",
       "Per-Agent Customization",
     );
 
@@ -163,19 +178,19 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
     for (const agent of agentTiers) {
       const tierModel = modelConfig[agent.tier];
-      const override = await p.text({
-        message: `${agent.name} [${agent.tier}: ${tierModel}]`,
-        placeholder: "Enter to keep default",
-        initialValue: "",
-      });
+      const override = await selectModelForAgent(
+        `${agent.name} [${agent.tier}: ${tierModel}]`,
+        availableModels,
+        tierModel,
+      );
 
       if (p.isCancel(override)) {
         p.cancel("Setup cancelled.");
         process.exit(0);
       }
 
-      if (override && (override as string).trim() !== "") {
-        perAgent[agent.name] = (override as string).trim();
+      if (override && override !== tierModel) {
+        perAgent[agent.name] = override as string;
       }
     }
 
@@ -301,6 +316,155 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       " You can re-run this setup at any time with " +
       color.cyan("npm run init"),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Model Selection Helper
+// ---------------------------------------------------------------------------
+
+const CUSTOM_MODEL_SENTINEL = "__custom__";
+const KEEP_DEFAULT_SENTINEL = "__keep_default__";
+
+/**
+ * Per-agent model selection with "Keep default" as the first option.
+ */
+async function selectModelForAgent(
+  message: string,
+  availableModels: ProviderModels[],
+  defaultModel: string,
+): Promise<string | symbol> {
+  if (availableModels.length === 0) {
+    // No providers discovered — fall back to text input
+    const result = await p.text({
+      message: `${message}`,
+      placeholder: "Enter to keep default",
+      initialValue: "",
+    });
+    if (p.isCancel(result)) return result;
+    const trimmed = (result as string).trim();
+    return trimmed === "" ? defaultModel : trimmed;
+  }
+
+  const options: Array<{ value: string; label: string; hint?: string }> = [];
+
+  options.push({
+    value: KEEP_DEFAULT_SENTINEL,
+    label: `Keep default (${defaultModel})`,
+  });
+
+  for (const group of availableModels) {
+    options.push({
+      value: `__sep_${group.provider}__`,
+      label: `── ${group.provider} ──`,
+      hint: "separator",
+    });
+    for (const model of group.models) {
+      if (model === defaultModel) continue; // already shown as "keep default"
+      options.push({
+        value: model,
+        label: model,
+      });
+    }
+  }
+
+  options.push({
+    value: CUSTOM_MODEL_SENTINEL,
+    label: "Enter custom model ID",
+  });
+
+  const selected = await p.select({
+    message,
+    options,
+    initialValue: KEEP_DEFAULT_SENTINEL,
+  });
+
+  if (p.isCancel(selected)) return selected;
+
+  if (typeof selected === "string" && selected.startsWith("__sep_")) {
+    return selectModelForAgent(message, availableModels, defaultModel);
+  }
+
+  if (selected === KEEP_DEFAULT_SENTINEL) {
+    return defaultModel;
+  }
+
+  if (selected === CUSTOM_MODEL_SENTINEL) {
+    const custom = await p.text({
+      message: `${message} (custom)`,
+      placeholder: "e.g. github-copilot/claude-sonnet-4.6",
+      initialValue: "",
+    });
+    if (p.isCancel(custom)) return custom;
+    const trimmed = (custom as string).trim();
+    return trimmed === "" ? defaultModel : trimmed;
+  }
+
+  return selected as string;
+}
+
+/**
+ * Presents a select UI with available models grouped by provider.
+ * Falls back to text input if no models available or user picks custom.
+ */
+async function selectModel(
+  message: string,
+  availableModels: ProviderModels[],
+  currentValue: string,
+): Promise<string | symbol> {
+  if (availableModels.length === 0) {
+    // No providers discovered — fall back to text input
+    return p.text({
+      message,
+      placeholder: "e.g. github-copilot/claude-sonnet-4.6",
+      initialValue: currentValue,
+    });
+  }
+
+  const options: Array<{ value: string; label: string; hint?: string }> = [];
+
+  for (const group of availableModels) {
+    // Add separator-style label for provider group
+    options.push({
+      value: `__sep_${group.provider}__`,
+      label: `── ${group.provider} ──`,
+      hint: "separator",
+    });
+    for (const model of group.models) {
+      options.push({
+        value: model,
+        label: model,
+        hint: model === currentValue ? "current" : undefined,
+      });
+    }
+  }
+
+  options.push({
+    value: CUSTOM_MODEL_SENTINEL,
+    label: "Enter custom model ID",
+  });
+
+  const selected = await p.select({
+    message,
+    options,
+    initialValue: currentValue || undefined,
+  });
+
+  if (p.isCancel(selected)) return selected;
+
+  // Skip separators — shouldn't normally happen but guard
+  if (typeof selected === "string" && selected.startsWith("__sep_")) {
+    return selectModel(message, availableModels, currentValue);
+  }
+
+  if (selected === CUSTOM_MODEL_SENTINEL) {
+    return p.text({
+      message: `${message} (custom)`,
+      placeholder: "e.g. github-copilot/claude-sonnet-4.6",
+      initialValue: currentValue,
+    });
+  }
+
+  return selected as string;
 }
 
 // ---------------------------------------------------------------------------

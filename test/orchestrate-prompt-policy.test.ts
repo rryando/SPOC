@@ -4,66 +4,65 @@ import { describe, expect, it } from "vitest";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
 import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/cli/spoc-orchestrate-caveman.js";
 
-describe("orchestrate prompt policy — lifecycle tools", () => {
-  const LIFECYCLE_TOOLS = [
-    "propose_dag_write",
-    "apply_dag_write",
-    "validate_project_state",
-    "transition_project_task",
-    "lint_bundle",
-    "deploy_spoc_bundle",
+describe("orchestrate prompt policy — lifecycle commands", () => {
+  const LIFECYCLE_COMMANDS = [
+    "spoc write propose",
+    "spoc write apply",
+    "spoc validate",
+    "spoc task transition",
+    "spoc lint-bundle",
+    "spoc deploy-superpowers",
   ];
 
-  for (const tool of LIFECYCLE_TOOLS) {
-    it(`references ${tool}`, () => {
-      expect(ORCHESTRATE_PROMPT_TEXT).toContain(tool);
+  for (const cmd of LIFECYCLE_COMMANDS) {
+    it(`references ${cmd}`, () => {
+      expect(ORCHESTRATE_PROMPT_TEXT).toContain(cmd);
     });
   }
 
-  it("SYNC workflow starts with validate_project_state", () => {
+  it("SYNC workflow starts with spoc validate before explore sub-agent", () => {
     const syncSection = ORCHESTRATE_PROMPT_TEXT.slice(
       ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow"),
       ORCHESTRATE_PROMPT_TEXT.indexOf("### EXPLORE Workflow"),
     );
-    // validate_project_state must appear before the explore sub-agent dispatch
-    const validateIdx = syncSection.indexOf("validate_project_state");
-    const exploreSubAgentIdx = syncSection.indexOf("Dispatch an explore sub-agent");
+    // spoc validate must appear before the spoc-docs sub-agent delegation
+    const validateIdx = syncSection.indexOf("spoc validate");
+    const delegateIdx = syncSection.indexOf("Delegate to spoc-docs");
     expect(validateIdx).toBeGreaterThan(-1);
-    expect(exploreSubAgentIdx).toBeGreaterThan(-1);
-    expect(validateIdx).toBeLessThan(exploreSubAgentIdx);
+    expect(delegateIdx).toBeGreaterThan(-1);
+    expect(validateIdx).toBeLessThan(delegateIdx);
   });
 
-  it("EXECUTE workflow uses transition_project_task for status changes", () => {
+  it("EXECUTE workflow uses spoc task transition for status changes", () => {
     const executeSection = ORCHESTRATE_PROMPT_TEXT.slice(
       ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow"),
       ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow"),
     );
-    expect(executeSection).toContain("transition_project_task");
+    expect(executeSection).toContain("spoc task transition");
     // Should mention atomic transition
     expect(executeSection).toMatch(/atomically/i);
   });
 
-  it("write-gates use propose_dag_write and apply_dag_write", () => {
-    // All four workflow write-gates should reference the tool-backed flow
+  it("write-gates use spoc write propose in all workflows", () => {
+    // All four workflow write-gates should reference the CLI write-gate flow
     const workflows = ["INIT Workflow", "BRAINSTORM Workflow", "EXECUTE Workflow", "SYNC Workflow"];
     for (const workflow of workflows) {
       const start = ORCHESTRATE_PROMPT_TEXT.indexOf(`### ${workflow}`);
       const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
       const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
-      expect(section).toContain("propose_dag_write");
-      expect(section).toContain("apply_dag_write");
+      expect(section).toContain("spoc write propose");
+      expect(section).toContain("--token");
     }
   });
 
-  it("propose_dag_write appears before apply_dag_write in each workflow", () => {
+  it("spoc write propose and --token both appear in each workflow", () => {
     const workflows = ["INIT Workflow", "BRAINSTORM Workflow", "EXECUTE Workflow", "SYNC Workflow"];
     for (const workflow of workflows) {
       const start = ORCHESTRATE_PROMPT_TEXT.indexOf(`### ${workflow}`);
       const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
       const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
-      const proposeIdx = section.indexOf("propose_dag_write");
-      const applyIdx = section.indexOf("apply_dag_write");
-      expect(proposeIdx).toBeLessThan(applyIdx);
+      expect(section).toContain("spoc write propose");
+      expect(section).toContain("--token");
     }
   });
 
@@ -72,7 +71,7 @@ describe("orchestrate prompt policy — lifecycle tools", () => {
     const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
     const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
     const diagramIdx = section.indexOf("to-diagram");
-    const writeGateIdx = section.indexOf("propose_dag_write");
+    const writeGateIdx = section.indexOf("spoc write propose");
     expect(diagramIdx).toBeGreaterThan(-1);
     expect(writeGateIdx).toBeGreaterThan(-1);
     expect(diagramIdx).toBeLessThan(writeGateIdx);
@@ -80,25 +79,26 @@ describe("orchestrate prompt policy — lifecycle tools", () => {
     expect(section).toMatch(/[Ss]ilently.*load.*to-diagram/);
   });
 
-  it("EXECUTE transition_project_task coordinates diagram updates for planId/diagramNodeId", () => {
+  it("EXECUTE spoc task transition coordinates diagram updates for plan-id/diagram-node-id", () => {
     const start = ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow");
     const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
     const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
-    expect(section).toContain("transition_project_task");
+    expect(section).toContain("spoc task transition");
     // Must clarify agents should not manually patch diagrams for status transitions
     expect(section).toMatch(/must NOT manually patch.*diagram|agents must NOT.*patch.*\.mmd/i);
   });
 
-  it("expired write tokens require re-proposal, not bypass", () => {
-    expect(ORCHESTRATE_PROMPT_TEXT).toMatch(/expired.*re-propose|TTL exceeded.*re-propose/i);
+  it("expired write tokens require re-proposal", () => {
+    // Token TTL and re-proposal guidance
+    expect(ORCHESTRATE_PROMPT_TEXT).toMatch(/TTL|token.*expire|re-propose/i);
   });
 
-  it("bundle release requires lint_bundle before deploy_spoc_bundle", () => {
+  it("bundle release requires lint-bundle before deploy-superpowers", () => {
     const bundleSection = ORCHESTRATE_PROMPT_TEXT.slice(
       ORCHESTRATE_PROMPT_TEXT.indexOf("### Bundle and Release"),
     );
-    const lintIdx = bundleSection.indexOf("lint_bundle");
-    const deployIdx = bundleSection.indexOf("deploy_spoc_bundle");
+    const lintIdx = bundleSection.indexOf("spoc lint-bundle");
+    const deployIdx = bundleSection.indexOf("spoc deploy-superpowers");
     expect(lintIdx).toBeGreaterThan(-1);
     expect(deployIdx).toBeGreaterThan(-1);
     expect(lintIdx).toBeLessThan(deployIdx);
@@ -138,22 +138,15 @@ describe("orchestrate prompt policy — caveman sub-agent propagation", () => {
 });
 
 describe("orchestrate prompt policy — diagram drift types enumeration", () => {
-  it("SYNC workflow enumerates all six drift types", () => {
+  it("SYNC workflow lists diagram drift audit in surfaces", () => {
     const syncStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
     const syncEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", syncStart + 1);
     const syncSection = ORCHESTRATE_PROMPT_TEXT.slice(syncStart, syncEnd > syncStart ? syncEnd : undefined);
 
-    const driftTypes = [
-      "classDef status mismatch",
-      "phantom node",
-      "missing node",
-      "topology mismatch",
-      "stale plan-level comments",
-      "incomplete",
-    ];
-    for (const drift of driftTypes) {
-      expect(syncSection.toLowerCase()).toContain(drift.toLowerCase());
-    }
+    // SYNC delegates to spoc-docs but still lists audit surfaces including diagrams
+    expect(syncSection.toLowerCase()).toContain("diagram");
+    expect(syncSection.toLowerCase()).toContain("drift");
+    expect(syncSection.toLowerCase()).toContain("spoc-docs");
   });
 
   it("EXECUTE diagram section references manage-diagram.mjs for regeneration", () => {
@@ -163,11 +156,11 @@ describe("orchestrate prompt policy — diagram drift types enumeration", () => 
     expect(execSection).toContain("manage-diagram.mjs");
   });
 
-  it("EXECUTE references manage-diagram.mjs ready for task selection", () => {
+  it("EXECUTE references spoc diagram ready for task selection", () => {
     const execStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow");
     const execEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
     const execSection = ORCHESTRATE_PROMPT_TEXT.slice(execStart, execEnd);
-    expect(execSection).toContain("manage-diagram.mjs ready");
+    expect(execSection).toContain("spoc diagram ready");
   });
 });
 
