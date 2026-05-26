@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
 const buildScriptPath = resolve(root, "scripts/build-opencode-bundle.mjs");
-const bundleBuildTestPath = resolve(root, "test/opencode-bundle-build.test.ts");
 const bundlePruningTestPath = resolve(root, "test/opencode-bundle-pruning.test.ts");
 const installerTestPath = resolve(root, "test/opencode-bundle-installer.test.ts");
 
@@ -14,20 +13,6 @@ const installerTestPath = resolve(root, "test/opencode-bundle-installer.test.ts"
  */
 function extractPreservedSkillFiles(source: string): string[] {
   const matches = [...source.matchAll(/"(skills\/[^"]+\/SKILL\.md)"/g)];
-  return matches.map((m) => m[1]).sort();
-}
-
-/**
- * Extract skill names from `const SPOC_NATIVE_SKILL_NAMES = new Set([...])`.
- */
-function extractSpocNativeSkillNames(source: string): string[] {
-  const setMatch = source.match(
-    /const\s+SPOC_NATIVE_SKILL_NAMES\s*=\s*new\s+Set\(\[([^\]]*)\]\)/s,
-  );
-  if (!setMatch) {
-    throw new Error("Could not find SPOC_NATIVE_SKILL_NAMES in source");
-  }
-  const matches = [...setMatch[1].matchAll(/"([^"]+)"/g)];
   return matches.map((m) => m[1]).sort();
 }
 
@@ -45,29 +30,9 @@ function extractSpocNativeSkillFiles(source: string): string[] {
   return matches.map((m) => m[1]).sort();
 }
 
-/**
- * Derive skill names from skill file paths: "skills/foo/SKILL.md" → "foo".
- */
-function skillFileToName(skillFile: string): string {
-  return skillFile.split("/")[1];
-}
-
 describe("SPOC-native skill parity across sync points", () => {
   const buildSource = readFileSync(buildScriptPath, "utf-8");
   const preservedSkillFiles = extractPreservedSkillFiles(buildSource);
-  const preservedSkillNames = preservedSkillFiles.map(skillFileToName).sort();
-
-  it("keeps SPOC_NATIVE_SKILL_NAMES in opencode-bundle-build.test.ts aligned with preservedOutputFiles", () => {
-    const testSource = readFileSync(bundleBuildTestPath, "utf-8");
-    const names = extractSpocNativeSkillNames(testSource);
-
-    expect(names, [
-      "SPOC_NATIVE_SKILL_NAMES in test/opencode-bundle-build.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
-      `Expected: ${JSON.stringify(preservedSkillNames)}`,
-      `Got:      ${JSON.stringify(names)}`,
-    ].join("\n")).toEqual(preservedSkillNames);
-  });
 
   it("keeps spocNativeSkillFiles in opencode-bundle-pruning.test.ts aligned with preservedOutputFiles", () => {
     const testSource = readFileSync(bundlePruningTestPath, "utf-8");

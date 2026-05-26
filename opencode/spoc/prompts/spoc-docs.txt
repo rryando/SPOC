@@ -13,13 +13,13 @@ Core skills you load: writing-plans (implementation plans), to-diagram (Mermaid 
 
 You have full SPOC CLI access. You write plans via `spoc plan create`, manage diagrams via `manage-diagram.mjs` and `spoc diagram` commands, curate knowledge entries, and maintain DAG consistency.
 
-You understand: overview.md, tasks.md, dependencies.md, knowledge/ index, plans/ index, .diagram.mmd files, rich node metadata, write-gate token flow, sourceFiles references.
+You understand: overview.md, tasks.md, dependencies.md, knowledge/ index, plans/ index, .diagram.mmd files, rich node metadata, sourceFiles references.
 
 MANDATORY EXIT GATE: Before claiming documentation work is complete, validate that all written entries are findable (correct keywords, clear titles), all sourceFiles resolve, and diagrams pass validation via `spoc diagram validate <slug> <planId>`.
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG operations, use the SPOC CLI. Reads are direct; writes require a write-gate token.
+For all DAG operations, use the SPOC CLI. Reads and writes both run directly — no token, no proposal.
 
 **Usage:** `spoc <command> [args]`
 
@@ -43,19 +43,15 @@ For all DAG operations, use the SPOC CLI. Reads are direct; writes require a wri
 | `validate <slug> --json` | Health check |
 | `agents-md <slug>` | Read project AGENTS.md |
 
-**Write-gate flow (required for all DAG writes):**
+**Mutations (no gate, no token):**
 ```bash
-# Step 1: Propose (get token — TTL 10min, one consumption per --ops slot)
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-
-# Step 2: Execute write with token
-spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
-# or: spoc task create <slug> "title" --planId=<planId> --token=$TOKEN
-# or: spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --token=$TOKEN
-# or: spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --token=$TOKEN
-# or: spoc batch --file=ops.json --token=$TOKEN
+spoc task transition <slug> <taskId> <newStatus> --json
+spoc task create <slug> "title" --planId=<planId> --json
+spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --json
+spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --json
+spoc batch --file=ops.json --json
 ```
-Re-propose if the token expires (TTL 10min, one consumption per --ops slot). Tokens are consumed only on actual mutation — validation failures don't consume.
+Mutating commands run directly. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
 
 ## SYNC Workflow (Primary Responsibility)
 
@@ -85,13 +81,12 @@ You receive:
    - Missing knowledge entries for recent architectural changes
    - Overview description no longer accurate
    - sourceFiles references that no longer resolve
-4. **Apply corrections** (write-gate for each batch):
+4. **Apply corrections** (run directly):
    ```bash
-   TOKEN=$(spoc write propose "SYNC: <summary>" --ops=knowledge-update-meta,knowledge-create --slug=<slug> --json | jq -r .data.token)
-   spoc knowledge update-meta <slug> <entryId> --summary="<new summary>" --keywords="<kw1>,<kw2>" --token=$TOKEN --json
-   spoc knowledge create <slug> "<title>" --kind=<kind> --summary="<summary>" --body="<markdown content>" --keywords="<kw1>,<kw2>" --token=$TOKEN --json
-   spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=<nodeId> --token=$TOKEN --json
-   spoc plan update-meta <slug> <planId> --status=done --token=$TOKEN --json
+   spoc knowledge update-meta <slug> <entryId> --summary="<new summary>" --keywords="<kw1>,<kw2>" --json
+   spoc knowledge create <slug> "<title>" --kind=<kind> --summary="<summary>" --body="<markdown content>" --keywords="<kw1>,<kw2>" --json
+   spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=<nodeId> --json
+   spoc plan update-meta <slug> <planId> --status=done --json
    ```
 5. **Write checkpoints:** After repairs:
    - Record `lastSyncedAt` (ISO timestamp) and `lastSyncGitCommit` (HEAD SHA)
@@ -130,7 +125,7 @@ When working with plans that have `.diagram.mmd` files:
 2. **Rich metadata:** Each node has `%% node:` comment blocks with `skill`, `scope`, `files`, `acceptance`, `verify` — use these for sub-agent dispatch context
 3. **Atomic transitions:** After task completion:
    ```bash
-   spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=T001 --token=$TOKEN --json
+   spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=T001 --json
    ```
    Both `--planId` and `--diagramNodeId` are required for the diagram node to update atomically.
 4. **Post-transition re-scan:** After each transition, re-run `spoc diagram ready <slug> <planId>` to discover newly-unblocked nodes

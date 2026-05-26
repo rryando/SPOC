@@ -13,11 +13,7 @@ T0 context contains the project overview, an operating brief (current focus, rec
 
 ## CLI Primer
 
-All operations: \`spoc <group> <action> [args] --json\`. Writes require a token:
-\`\`\`bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <command> --token=$TOKEN --json
-\`\`\`
+All operations: \`spoc <group> <action> [args] --json\`. Mutating commands run directly — no token, no proposal.
 
 | Flag | Purpose |
 |------|---------|
@@ -26,9 +22,7 @@ spoc <command> --token=$TOKEN --json
 | \`--dry-run\` | Validate without mutation |
 | \`--help\` | Per-command usage |
 
-Discovery: \`spoc --commands --json\` (cache once per session).
-Token TTL: 10 min. Consumed only on actual mutation. Batch accepts legacy + CLI op names.
-\`spoc write apply --token=<token>\` consumes a token explicitly if not passed inline to a mutating command.
+Discovery: \`spoc --commands --json\` (cache once per session). Batch op names are canonical kebab-case (\`task-create\`, \`plan-update-meta\`, etc.).
 
 ### Key Commands
 
@@ -41,15 +35,13 @@ Token TTL: 10 min. Consumed only on actual mutation. Batch accepts legacy + CLI 
 | Search | \`spoc search <slug> "<query>" --json\` |
 | Diagram ready | \`spoc diagram ready <slug> <planId>\` |
 | Validate | \`spoc validate <slug> --json\` |
-| Task transition | \`spoc task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --token=$T --json\` |
-| Batch writes | \`spoc batch --file=ops.json --token=$T --json\` |
+| Task transition | \`spoc task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --json\` |
+| Batch writes | \`spoc batch --file=ops.json --json\` |
 
 ## Master Routing
 
 \`\`\`mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
-
     A[User Request] --> B[T0: spoc brief]
     B --> C{Health checks}
     C --> D[Classify Intent]
@@ -59,8 +51,7 @@ flowchart TD
     D -->|reconcile docs| SYNC
     D -->|discover/report| EXPLORE
     D -->|compound| MULTI
-    INIT & BRAINSTORM & EXECUTE & SYNC & EXPLORE & MULTI --> WG[Write-Gate Confirm]:::gate
-    WG --> DONE[Completion Report]
+    INIT & BRAINSTORM & EXECUTE & SYNC & EXPLORE & MULTI --> DONE[Completion Report]
 \`\`\`
 
 ### Intent Classification
@@ -152,7 +143,7 @@ flowchart TD
     TYPE -->|research / docs| DOCR[docs-researcher]:::sub
     TYPE -->|sync / curation| DOC[spoc-docs]:::sub
     EXP & IMP & ARCH & TECH & OPS & QA & DOCR & DOC -->|concise result| ORCH[Orchestrator integrates]:::orch
-    ORCH --> WRITE[DAG writes with token]:::orch
+    ORCH --> WRITE[DAG writes]:::orch
 
     INLINE[Orchestrator reads files/code/bodies directly]:::forbidden
     INLINE --> X[FORBIDDEN]:::forbidden
@@ -303,18 +294,17 @@ CLI:
 
 - Max 4 concurrent agents per round. Batch into rounds if more needed.
 - Shared context: fetch once, inject into all agents that need it.
-- After fan-out: collect → conflict-check → dedup → consolidate → write-gate.
+- After fan-out: collect → conflict-check → dedup → consolidate → write.
 
 ### INIT Workflow
 
 \`\`\`mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[Gather: name, description, repoUrl?, dependsOn?] --> B[spoc project list → conflict check]
-    B --> C[write propose → present summary]:::gate
-    C -->|user confirms| D[spoc project init --token]
+    B --> C[Present summary to user]
+    C -->|user confirms| D[spoc project init]
     D --> E[spoc project update-doc × 4]
     E --> F{graphify on PATH?}
     F -->|yes| G[Run graphify update --force --no-cluster]
@@ -324,13 +314,13 @@ flowchart TD
     H & G3 --> I{Need richer analysis?}
     I -->|yes| J[Fan out: system-architect + docs-researcher + tech-architect]:::sub
     I -->|no| K[Done]
-    J --> L[Collect proposals → dedup → write knowledge × N]:::gate
+    J --> L[Collect proposals → dedup → write knowledge × N]
     L --> K
 \`\`\`
 
 **Constraints:**
 - Do NOT read repo to infer name/description — gather from user or T0
-- \`spoc write propose\` → present summary → user confirms → \`spoc project init --token=$TOKEN\`
+- Present summary → user confirms → \`spoc project init\`
 - Repo analysis is **fan-out across typed agents**, not a single generic "analysis sub-agent":
   - \`system-architect\` → architecture knowledge entries (clusters, boundaries, dependency direction)
   - \`docs-researcher\` → tech-stack, third-party libraries, key files, features (kinds: \`reference\`, \`feature\`)
@@ -350,13 +340,12 @@ flowchart TD
    - \`graphify affected "<critical-symbol>"\` → reverse-impact map for high-risk modules
    - \`graphify explain "<godNodeLabel>"\` → plain-language summary to enrich a \`module\` entry's body
 6. Hand the proposals + query results to the typed analysis agents above; they merge graph evidence with code reading and return finalized knowledge entries.
-7. Write entries with one batched \`spoc write propose\` → \`--token\` cycle (\`--ops=knowledge:create\` repeated per entry, or use \`spoc batch\`).
+7. Write entries directly via \`spoc knowledge create\` (one call per entry) or batch them with \`spoc batch\`.
 
 ### BRAINSTORM Workflow
 
 \`\`\`mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[T0 Orient] --> B[Dispatch scoping sub-agent]:::sub
@@ -366,7 +355,7 @@ flowchart TD
     C -->|low| D2[Ask framing question → re-scope]
     D --> E
     D2 --> B
-    E --> F[write propose: plan + diagram + tasks]:::gate
+    E --> F[Present plan + diagram + tasks summary]
     F -->|confirmed| G[spoc plan create]
     G --> H[spoc task create × N nodes]
     H --> I[Write .diagram.mmd]
@@ -378,7 +367,7 @@ flowchart TD
 - Every diagram node gets a Task record (\`planId\` set, \`status: backlog\`, priority by depth)
 - Diagram uses \`flowchart TD\`, stable IDs (T001+), rich per-node metadata
 - Silently load the \`to-diagram\` skill before generating diagrams — never narrate conventions
-- \`spoc write propose\` with plan summary → user confirms → pass \`--token\` to all writes
+- Present plan summary → user confirms → \`spoc plan create\` and \`spoc task create\` directly
 - Never write to DAG before user confirms summary
 
 **Q&A Norms:** Explore first, ask second. One question per response. Concrete options with trade-offs. Prefer assumptions over questions.
@@ -387,7 +376,6 @@ flowchart TD
 
 \`\`\`mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[T0 Orient] --> B{Plan has .mmd?}
@@ -402,7 +390,7 @@ flowchart TD
     E -->|TDD-shaped| H[Dispatch: TDD]:::sub
     E -->|design open| I[Reclassify → BRAINSTORM]
     F & G & H --> J[Collect result + verify]
-    J --> K[spoc task transition + diagram update]:::gate
+    J --> K[spoc task transition + diagram update]
     K --> L[spoc diagram ready → next node?]
     L -->|more ready| E
     L -->|done| M{Auto-sync trigger?}
@@ -414,7 +402,6 @@ flowchart TD
 - Orchestrator NEVER loads T1+ directly — delegate reads to sub-agent
 - \`spoc task transition\` atomically updates task status + diagram node. MUST pass both \`--planId\` and \`--diagramNodeId\` (both required for diagram patch)
 - Sub-agents NEVER edit \`.mmd\` files — agents must NOT manually patch \`.mmd\` for status transitions. Scope changes reported back, orchestrator regenerates via \`manage-diagram.mjs regenerate <file> --metadata <metadata.json>\`
-- \`spoc write propose\` at session level → user confirms → pass \`--token\` to all transitions
 - \`spoc diagram ready\` after each transition to discover newly-unblocked nodes
 - If blocked → note blocker, advance to next unblocked task
 
@@ -424,13 +411,12 @@ flowchart TD
 
 \`\`\`mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[T0 Orient] --> B[Read checkpoints: lastSyncedAt, lastSyncGitCommit]
     B --> C[spoc validate → health report]
     C --> D[Dispatch spoc-docs sub-agent]:::sub
-    D --> E[Sub-agent: audit + repair + write checkpoints]:::gate
+    D --> E[Sub-agent: audit + repair + write checkpoints]
     E --> F[Receive sync report]
     F --> G[Present to user]
 \`\`\`
@@ -438,7 +424,7 @@ flowchart TD
 **spoc-docs sub-agent covers:**
 overview.md, tasks.md, dependencies.md, knowledge.md, plans/ status, knowledge/ accuracy, .diagram.mmd diagram drift (classDef mismatch, phantom nodes), AGENTS.md staleness, sourceFiles existence, and graphify re-extraction + \`graphify diagnose multigraph\` (see **Graphify Toolbelt**) when staleness > 7 days or major refactor commits landed.
 
-Delegate to spoc-docs sub-agent with: T0 context, \`spoc validate\` output, staleness info. Sub-agent uses \`spoc write propose\` → \`--token\` for all mutations. Sub-agent writes checkpoints (\`lastSyncedAt\`, \`lastSyncGitCommit\`, \`lastSyncStats\`).
+Delegate to spoc-docs sub-agent with: T0 context, \`spoc validate\` output, staleness info. Sub-agent applies mutations directly via the SPOC CLI. Sub-agent writes checkpoints (\`lastSyncedAt\`, \`lastSyncGitCommit\`, \`lastSyncStats\`).
 
 **Sub-agent owns:** reading bodies, scanning codebase, comparing, proposing/applying fixes, writing checkpoints (\`lastSyncedAt\`, \`lastSyncGitCommit\`, \`lastSyncStats\`).
 
@@ -522,7 +508,6 @@ Trust the integration: \`runExtraction()\` already auto-appends \`graphify-out/\
 
 
 - Orchestrator reads T0 only. All other reads → sub-agent. No exceptions.
-- All DAG writes require \`--token\` from prior \`spoc write propose\`.
 - Sub-agents never edit \`.mmd\` files.
 - DAG content (plan bodies, knowledge bodies, task titles) must be full prose — never compressed.
 - \`--lean --json\` on every SPOC CLI call in sub-agent prompts.
@@ -531,7 +516,7 @@ Trust the integration: \`runExtraction()\` already auto-appends \`graphify-out/\
 ## Execution Rules
 
 - Inform user at major transitions: after classification, before first write, after each MULTI phase.
-- Use \`--dry-run\` to validate params before committing write-gate token.
+- Use \`--dry-run\` to validate params before committing mutation.
 - On errors: \`spoc <command> --help --json\` for schema. \`spoc --commands --json\` for discovery.
 - \`sourceFiles\` on every knowledge/plan/task entry that relates to specific files (\`{path, anchor?}\`).
 

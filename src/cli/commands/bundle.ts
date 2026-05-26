@@ -2,11 +2,14 @@
 // Bundle commands — lint-bundle, deploy-superpowers (registry-based)
 // ---------------------------------------------------------------------------
 
-import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
-import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
+import { resolve } from "node:path";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // lint-bundle
@@ -23,7 +26,10 @@ defineCommand({
   handler: handleLintBundle,
 });
 
-async function handleLintBundle(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleLintBundle(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const bundleRoot = params["bundle-root"] as string | undefined;
   const configRoot = params["config-root"] as string | undefined;
 
@@ -59,33 +65,23 @@ async function handleLintBundle(params: Record<string, unknown>, flags: CommandF
 defineCommand({
   path: "deploy-superpowers",
   description: "Deploy opencode-bundle to ~/.config/opencode",
-  gated: true,
-  gateName: "deploy-superpowers",
   mutation: true,
   params: {
-    token: { type: "string", description: "Write-gate token" },
     "bundle-root": { type: "string", description: "Override bundle root directory" },
     "config-root": { type: "string", description: "Override config root directory" },
   },
   handler: handleDeploySuperpowers,
 });
 
-async function handleDeploySuperpowers(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
-  const token = params.token as string | undefined;
+async function handleDeploySuperpowers(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const bundleRoot = params["bundle-root"] as string | undefined;
   const configRoot = params["config-root"] as string | undefined;
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldDeploy: true });
-  }
-
-  try {
-    requireWriteGate(token, "_global", "tool:deploy_superpowers");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   try {

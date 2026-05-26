@@ -5,19 +5,23 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
 import { getProjectDir } from "../../utils/paths.js";
 import {
   createPlan,
-  readPlanIndex,
-  updatePlan,
   deletePlan,
   PLAN_STATUSES,
   type PlanStatus,
+  readPlanIndex,
+  updatePlan,
 } from "../../utils/project-memory.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
-import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // plan list
@@ -28,13 +32,20 @@ defineCommand({
   description: "List plans for a project",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    status: { type: "string", description: "Filter by status", enum: ["proposed", "planned", "in_progress", "done", "archived"] },
+    status: {
+      type: "string",
+      description: "Filter by status",
+      enum: ["proposed", "planned", "in_progress", "done", "archived"],
+    },
     keywords: { type: "string", description: "Comma-separated keywords to filter by" },
   },
   handler: handlePlanList,
 });
 
-async function handlePlanList(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanList(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const status = params.status as PlanStatus | undefined;
   const keywordsRaw = params.keywords as string | undefined;
@@ -55,9 +66,7 @@ async function handlePlanList(params: Record<string, unknown>, flags: CommandFla
 
   if (keywordsRaw) {
     const keywords = keywordsRaw.split(",").map((k) => k.trim().toLowerCase());
-    plans = plans.filter((p) =>
-      p.keywords?.some((pk) => keywords.includes(pk.toLowerCase())),
-    );
+    plans = plans.filter((p) => p.keywords?.some((pk) => keywords.includes(pk.toLowerCase())));
   }
 
   return success(plans);
@@ -78,7 +87,10 @@ defineCommand({
   handler: handlePlanGet,
 });
 
-async function handlePlanGet(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanGet(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
   const includeBody = params.body as boolean | undefined;
@@ -112,29 +124,33 @@ async function handlePlanGet(params: Record<string, unknown>, flags: CommandFlag
 }
 
 // ---------------------------------------------------------------------------
-// plan create (write-gated)
+// plan create
 // ---------------------------------------------------------------------------
 
 defineCommand({
   path: "plan create",
   description: "Create a new plan",
-  gated: true,
   mutation: true,
-  gateName: "plan-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Plan title" },
-    status: { type: "string", description: "Initial status (default: proposed)", enum: [...PLAN_STATUSES] },
+    status: {
+      type: "string",
+      description: "Initial status (default: proposed)",
+      enum: [...PLAN_STATUSES],
+    },
     summary: { type: "string", description: "Plan summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
     body: { type: "string", description: "Inline markdown body content" },
     "body-file": { type: "string", description: "Path to markdown file with plan body" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handlePlanCreate,
 });
 
-async function handlePlanCreate(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanCreate(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const title = params.title as string;
   const status = (params.status as PlanStatus | undefined) ?? "proposed";
@@ -142,7 +158,6 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
   const keywordsRaw = params.keywords as string | undefined;
   const bodyInline = params.body as string | undefined;
   const bodyFile = params["body-file"] as string | undefined;
-  const token = params.token as string | undefined;
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
 
   const projectDir = getProjectDir(slug);
@@ -159,16 +174,18 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
   const id = normalizeIdentifier(title);
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldCreate: { title, slug, id, status, summary, keywords, hasBody: !!(bodyInline || bodyFile) } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "plan-create");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldCreate: {
+        title,
+        slug,
+        id,
+        status,
+        summary,
+        keywords,
+        hasBody: !!(bodyInline || bodyFile),
+      },
+    });
   }
 
   // Resolve body content: inline > file > undefined
@@ -195,35 +212,38 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
 }
 
 // ---------------------------------------------------------------------------
-// plan update-meta (write-gated)
+// plan update-meta
 // ---------------------------------------------------------------------------
 
 defineCommand({
   path: "plan update-meta",
   description: "Update plan metadata",
-  gated: true,
   mutation: true,
-  gateName: "plan-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
     title: { type: "string", description: "New title" },
-    status: { type: "string", description: "New status", enum: ["proposed", "planned", "in_progress", "done", "archived"] },
+    status: {
+      type: "string",
+      description: "New status",
+      enum: ["proposed", "planned", "in_progress", "done", "archived"],
+    },
     summary: { type: "string", description: "New summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handlePlanUpdateMeta,
 });
 
-async function handlePlanUpdateMeta(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanUpdateMeta(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
   const title = params.title as string | undefined;
   const status = params.status as PlanStatus | undefined;
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
-  const token = params.token as string | undefined;
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : undefined;
 
   const projectDir = getProjectDir(slug);
@@ -234,16 +254,10 @@ async function handlePlanUpdateMeta(params: Record<string, unknown>, flags: Comm
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldUpdate: { planId, slug, title, status, summary, keywords } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:update_project_plan_meta");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldUpdate: { planId, slug, title, status, summary, keywords },
+    });
   }
 
   try {
@@ -261,21 +275,18 @@ async function handlePlanUpdateMeta(params: Record<string, unknown>, flags: Comm
 }
 
 // ---------------------------------------------------------------------------
-// plan update-body (write-gated)
+// plan update-body
 // ---------------------------------------------------------------------------
 
 defineCommand({
   path: "plan update-body",
   description: "Update plan body content",
-  gated: true,
   mutation: true,
-  gateName: "plan-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
     "body-file": { type: "string", description: "Path to markdown file with plan body" },
     "body-stdin": { type: "boolean", description: "Read body from stdin" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handlePlanUpdateBody,
 });
@@ -288,12 +299,14 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
-async function handlePlanUpdateBody(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanUpdateBody(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
   const bodyFile = params["body-file"] as string | undefined;
   const bodyStdin = params["body-stdin"] as boolean | undefined;
-  const token = params.token as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -304,7 +317,7 @@ async function handlePlanUpdateBody(params: Record<string, unknown>, flags: Comm
 
   if (!bodyFile && !bodyStdin) {
     return failure("missing_param", "Either --body-file or --body-stdin is required", {
-      usage: "spoc plan update-body <slug> <planId> --body-file=<path> --token=<token>",
+      usage: "spoc plan update-body <slug> <planId> --body-file=<path>",
     });
   }
 
@@ -322,16 +335,10 @@ async function handlePlanUpdateBody(params: Record<string, unknown>, flags: Comm
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldUpdate: { planId: plan.id, slug, source: bodyFile ? "file" : "stdin" } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:update_project_plan_body");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldUpdate: { planId: plan.id, slug, source: bodyFile ? "file" : "stdin" },
+    });
   }
 
   const body = bodyFile ? readFileSync(bodyFile, "utf-8") : await readStdin();
@@ -353,21 +360,20 @@ async function handlePlanUpdateBody(params: Record<string, unknown>, flags: Comm
 defineCommand({
   path: "plan delete",
   description: "Delete a plan",
-  gated: true,
   mutation: true,
-  gateName: "plan-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
-    token: { type: "string", required: true, description: "Write-gate token" },
   },
   handler: handlePlanDelete,
 });
 
-async function handlePlanDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handlePlanDelete(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
-  const token = params.token as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -386,15 +392,6 @@ async function handlePlanDelete(params: Record<string, unknown>, flags: CommandF
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldDelete: { slug, planId: plan.id } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:delete_project_plan");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   try {

@@ -5,12 +5,6 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 import { handleDagCommand } from "../src/cli/dag-commands.js";
-import {
-  clearWriteProposals,
-  createWriteProposal,
-  disableWriteGateBypass,
-  enableWriteGateBypass,
-} from "../src/utils/write-gate.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -134,26 +128,6 @@ function createTempDataDir(): string {
   return dir;
 }
 
-function getToken(slug: string, operation: string): string {
-  const proposal = createWriteProposal({
-    slug,
-    summary: "test write",
-    operations: [operation],
-    ttlMs: 60_000,
-  });
-  return proposal.token;
-}
-
-function getBatchToken(slug: string): string {
-  const proposal = createWriteProposal({
-    slug,
-    summary: "batch write",
-    operations: ["batch"],
-    ttlMs: 60_000,
-  });
-  return proposal.token;
-}
-
 let dataDir: string;
 let stdout: string[];
 let stderr: string[];
@@ -173,8 +147,6 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.SPOC_DATA_DIR;
-  clearWriteProposals();
-  enableWriteGateBypass();
   vi.restoreAllMocks();
 });
 
@@ -183,10 +155,6 @@ afterEach(() => {
 // ===========================================================================
 
 describe("CLI reads return structured JSON", () => {
-  beforeEach(() => {
-    enableWriteGateBypass();
-  });
-
   it("knowledge list returns JSON array", async () => {
     await handleDagCommand("knowledge", ["list", "--slug=workflow-proj", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -239,134 +207,11 @@ describe("CLI reads return structured JSON", () => {
 });
 
 // ===========================================================================
-// 2. Cross-process write-gate flow: propose → apply → write succeeds
+// 2. Batch operations
 // ===========================================================================
 
-describe("cross-process write-gate flow", () => {
-  beforeEach(() => {
-    disableWriteGateBypass();
-  });
-
-  it("propose in one context, use token for CLI write in another", async () => {
-    // Simulate: Agent A proposes a write
-    const token = getToken("workflow-proj", "tool:transition_project_task");
-
-    // Simulate: Agent B (CLI) consumes the token to perform the write
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress", `--token=${token}`]);
-    const parsed = JSON.parse(stdout.join("\n"));
-    expect(parsed.previousStatus).toBe("backlog");
-    expect(parsed.newStatus).toBe("in_progress");
-  });
-
-  it("token is single-use — second use fails", async () => {
-    const token = getToken("workflow-proj", "tool:transition_project_task");
-
-    // First use succeeds
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress", `--token=${token}`]);
-    expect(stdout.length).toBeGreaterThan(0);
-
-    // Reset output
-    stdout = [];
-    stderr = [];
-
-    // Second use fails
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "done", `--token=${token}`]);
-    expect(stderr.join("\n")).toMatch(/consumed/i);
-  });
-
-  it("expired token fails", async () => {
-    const proposal = createWriteProposal({
-      slug: "workflow-proj",
-      summary: "test",
-      operations: ["tool:transition_project_task"],
-      ttlMs: 1, // 1ms TTL
-    });
-
-    // Wait for expiry
-    await new Promise((r) => setTimeout(r, 10));
-
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress", `--token=${proposal.token}`]);
-    expect(stderr.join("\n")).toMatch(/expired/i);
-  });
-
-  it("wrong-scope token fails", async () => {
-    const token = getToken("other-project", "tool:transition_project_task");
-
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress", `--token=${token}`]);
-    expect(stderr.join("\n")).toMatch(/scope mismatch/i);
-  });
-});
-
-// ===========================================================================
-// 3. CLI writes WITH token succeed
-// ===========================================================================
-
-describe("CLI writes with valid token", () => {
-  beforeEach(() => {
-    disableWriteGateBypass();
-  });
-
-  it("task transition succeeds with token", async () => {
-    const token = getToken("workflow-proj", "tool:transition_project_task");
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress", `--token=${token}`]);
-    const parsed = JSON.parse(stdout.join("\n"));
-    expect(parsed.newStatus).toBe("in_progress");
-  });
-
-  it("knowledge create succeeds with token", async () => {
-    const token = getToken("workflow-proj", "tool:create_project_knowledge_entry");
-    await handleDagCommand("knowledge", [
-      "create",
-      "--slug=workflow-proj",
-      "--title=New Insight",
-      "--kind=lesson",
-      "--keywords=testing",
-      `--token=${token}`,
-      "--json",
-    ]);
-    const parsed = JSON.parse(stdout[0]);
-    expect(parsed.id).toBe("new-insight");
-    expect(parsed.kind).toBe("lesson");
-  });
-});
-
-// ===========================================================================
-// 4. CLI writes WITHOUT token fail with clear error
-// ===========================================================================
-
-describe("CLI writes without token fail", () => {
-  beforeEach(() => {
-    disableWriteGateBypass();
-  });
-
-  it("task transition fails without token", async () => {
-    await handleDagCommand("task", ["--json", "transition", "workflow-proj", "task-alpha", "in_progress"]);
-    expect(stderr.join("\n")).toMatch(/write gate required/i);
-  });
-
-  it("knowledge create fails without token", async () => {
-    await handleDagCommand("knowledge", [
-      "create",
-      "--slug=workflow-proj",
-      "--title=No Token",
-      "--kind=lesson",
-      "--json",
-    ]);
-    expect(stderr.join("\n")).toMatch(/write gate required/i);
-  });
-});
-
-// ===========================================================================
-// 5. Batch operations with single token
-// ===========================================================================
-
-describe("batch operations with token", () => {
-  beforeEach(() => {
-    disableWriteGateBypass();
-  });
-
-  it("batch succeeds with valid token", async () => {
-    const token = getBatchToken("workflow-proj");
+describe("batch operations", () => {
+  it("batch succeeds", async () => {
     const batchFile = join(dataDir, "batch-workflow.json");
     writeFileSync(
       batchFile,
@@ -376,26 +221,10 @@ describe("batch operations with token", () => {
       ]),
     );
 
-    await handleDagCommand("batch", [`--file=${batchFile}`, `--token=${token}`, "--json"]);
+    await handleDagCommand("batch", [`--file=${batchFile}`, "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed).toHaveLength(2);
     expect(parsed[0].success).toBe(true);
     expect(parsed[1].success).toBe(true);
-  });
-
-  it("batch fails without token", async () => {
-    const batchFile = join(dataDir, "batch-no-token.json");
-    writeFileSync(
-      batchFile,
-      JSON.stringify([
-        { op: "task-transition", slug: "workflow-proj", taskId: "task-alpha", status: "in_progress" },
-      ]),
-    );
-
-    await handleDagCommand("batch", [`--file=${batchFile}`, "--json"]);
-    const output = stdout[0];
-    const parsed = JSON.parse(output);
-    expect(parsed[0].success).toBe(false);
-    expect(parsed[0].error).toMatch(/write gate required/i);
   });
 });

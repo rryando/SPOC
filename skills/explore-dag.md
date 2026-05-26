@@ -27,8 +27,7 @@ flowchart TD
 ## CLI Primer
 
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <command> --token=$TOKEN --json
+spoc <command> --json
 ```
 Discovery: `spoc --commands --json`
 

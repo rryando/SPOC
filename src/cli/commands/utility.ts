@@ -240,7 +240,7 @@ async function handleAgentsMd(params: Record<string, unknown>, _flags: CommandFl
   const agentsMdPath = resolve(projectDir, "AGENTS.md");
   if (!existsSync(agentsMdPath)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `No AGENTS.md found for project '${slug}'`, {
-      hint: `Run: spoc sync-agents-md ${slug} --analysis-file=<path> --token=<token>`,
+      hint: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
     });
   }
 
@@ -322,7 +322,7 @@ async function handleValidate(params: Record<string, unknown>, _flags: CommandFl
         kind: "missing_agents_md",
         message: `No AGENTS.md found at workspace path: ${ws}`,
         file: agentsPath,
-        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path> --token=<token>`,
+        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
         safeToAutoRepair: true,
       });
     }

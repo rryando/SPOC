@@ -5,7 +5,6 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 import { handleDagCommand } from "../src/cli/dag-commands.js";
-import { enableWriteGateBypass } from "../src/utils/write-gate.js";
 
 function createTempDataDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "spoc-cli-ext-test-"));
@@ -132,7 +131,6 @@ let stderr: string[];
 beforeEach(() => {
   dataDir = createTempDataDir();
   process.env.SPOC_DATA_DIR = dataDir;
-  enableWriteGateBypass();
   stdout = [];
   stderr = [];
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {

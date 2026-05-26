@@ -2,23 +2,27 @@
 // Task commands — list, get, create, transition, update (registry-based)
 // ---------------------------------------------------------------------------
 
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
+import { resolve } from "node:path";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
-import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
 import {
-  listTasks,
-  getTask,
   createTask,
-  updateTask,
   deleteTask,
-  type TaskStatus,
+  getTask,
+  listTasks,
   type TaskPriority,
+  type TaskStatus,
+  updateTask,
 } from "../../utils/project-memory.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // task list
@@ -29,14 +33,25 @@ defineCommand({
   description: "List tasks for a project",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    status: { type: "string", description: "Filter by status", enum: ["backlog", "in_progress", "done", "cancelled"] },
-    priority: { type: "string", description: "Filter by priority", enum: ["low", "medium", "high", "critical"] },
+    status: {
+      type: "string",
+      description: "Filter by status",
+      enum: ["backlog", "in_progress", "done", "cancelled"],
+    },
+    priority: {
+      type: "string",
+      description: "Filter by priority",
+      enum: ["low", "medium", "high", "critical"],
+    },
     planId: { type: "string", description: "Filter by plan ID" },
   },
   handler: handleTaskList,
 });
 
-async function handleTaskList(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskList(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const status = params.status as TaskStatus | undefined;
   const priority = params.priority as TaskPriority | undefined;
@@ -76,7 +91,10 @@ defineCommand({
   handler: handleTaskGet,
 });
 
-async function handleTaskGet(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskGet(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.taskId as string;
 
@@ -102,27 +120,36 @@ async function handleTaskGet(params: Record<string, unknown>, _flags: CommandFla
 defineCommand({
   path: "task create",
   description: "Create a new task",
-  gated: true,
   mutation: true,
-  gateName: "task-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Task title" },
     planId: { type: "string", description: "Associated plan ID" },
-    priority: { type: "string", default: "medium", description: "Priority level", enum: ["high", "medium", "low"] },
-    status: { type: "string", default: "backlog", description: "Initial status", enum: ["backlog", "in_progress", "done", "cancelled"] },
-    token: { type: "string", description: "Write-gate token" },
+    priority: {
+      type: "string",
+      default: "medium",
+      description: "Priority level",
+      enum: ["high", "medium", "low"],
+    },
+    status: {
+      type: "string",
+      default: "backlog",
+      description: "Initial status",
+      enum: ["backlog", "in_progress", "done", "cancelled"],
+    },
   },
   handler: handleTaskCreate,
 });
 
-async function handleTaskCreate(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskCreate(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const title = params.title as string;
   const planId = params.planId as string | undefined;
   const priority = (params.priority as TaskPriority) ?? "medium";
   const status = (params.status as TaskStatus) ?? "backlog";
-  const token = params.token as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -133,15 +160,6 @@ async function handleTaskCreate(params: Record<string, unknown>, flags: CommandF
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldCreate: { title, slug, planId, priority, status } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:create_project_task");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   try {
@@ -164,16 +182,19 @@ async function handleTaskCreate(params: Record<string, unknown>, flags: CommandF
 defineCommand({
   path: "task transition",
   description: "Transition task status",
-  gated: true,
   mutation: true,
-  gateName: "task-transition",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
-    status: { type: "string", required: true, positional: 2, description: "New status", enum: ["backlog", "in_progress", "done", "cancelled"] },
+    status: {
+      type: "string",
+      required: true,
+      positional: 2,
+      description: "New status",
+      enum: ["backlog", "in_progress", "done", "cancelled"],
+    },
     planId: { type: "string", description: "Plan ID (enables atomic diagram update)" },
     diagramNodeId: { type: "string", description: "Diagram node ID to update (e.g. T001)" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleTaskTransition,
 });
@@ -186,24 +207,39 @@ defineCommand({
  */
 function taskStatusToDiagramStatus(status: TaskStatus): string {
   switch (status) {
-    case "in_progress": return "inProgress";
-    case "done": return "done";
-    case "cancelled": return "blocked";
-    case "backlog": return "backlog";
+    case "in_progress":
+      return "inProgress";
+    case "done":
+      return "done";
+    case "cancelled":
+      return "blocked";
+    case "backlog":
+      return "backlog";
   }
 }
 
 function findDiagramScript(): string | undefined {
-  const localPath = resolve(import.meta.dirname, "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs");
+  const localPath = resolve(
+    import.meta.dirname,
+    "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+  );
   if (existsSync(localPath)) return localPath;
 
-  const configPath = resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs");
+  const configPath = resolve(
+    homedir(),
+    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+  );
   if (existsSync(configPath)) return configPath;
 
   return undefined;
 }
 
-export function attemptDiagramUpdate(slug: string, planId: string, nodeId: string, status: TaskStatus): { diagramUpdated: boolean; diagramError?: string } {
+export function attemptDiagramUpdate(
+  slug: string,
+  planId: string,
+  nodeId: string,
+  status: TaskStatus,
+): { diagramUpdated: boolean; diagramError?: string } {
   const dataDir = getDataDir();
   const diagramPath = resolve(dataDir, "projects", slug, "plans", `${planId}.diagram.mmd`);
 
@@ -227,16 +263,19 @@ export function attemptDiagramUpdate(slug: string, planId: string, nodeId: strin
     });
     return { diagramUpdated: true };
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return { diagramUpdated: false, diagramError: msg };
   }
 }
 
-async function handleTaskTransition(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskTransition(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.taskId as string;
   const status = params.status as TaskStatus;
-  const token = params.token as string | undefined;
   const planId = params.planId as string | undefined;
   const diagramNodeId = params.diagramNodeId as string | undefined;
 
@@ -248,16 +287,10 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldTransition: { slug, taskId, status, planId, diagramNodeId } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:transition_project_task");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldTransition: { slug, taskId, status, planId, diagramNodeId },
+    });
   }
 
   try {
@@ -268,7 +301,13 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
     // Atomic diagram update if both planId and diagramNodeId provided
     if (planId && diagramNodeId) {
       const diagramResult = attemptDiagramUpdate(slug, planId, diagramNodeId, status);
-      return success({ taskId, previousStatus, newStatus: status, diagramNodeId, ...diagramResult });
+      return success({
+        taskId,
+        previousStatus,
+        newStatus: status,
+        diagramNodeId,
+        ...diagramResult,
+      });
     }
 
     return success({ taskId, previousStatus, newStatus: status });
@@ -284,29 +323,32 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
 defineCommand({
   path: "task update",
   description: "Update task metadata",
-  gated: true,
   mutation: true,
-  gateName: "task-update",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
     title: { type: "string", description: "New title" },
     priority: { type: "string", description: "New priority", enum: ["high", "medium", "low"] },
-    status: { type: "string", description: "New status", enum: ["backlog", "in_progress", "done", "cancelled"] },
+    status: {
+      type: "string",
+      description: "New status",
+      enum: ["backlog", "in_progress", "done", "cancelled"],
+    },
     planId: { type: "string", description: "Associated plan ID" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleTaskUpdate,
 });
 
-async function handleTaskUpdate(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskUpdate(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.taskId as string;
   const title = params.title as string | undefined;
   const priority = params.priority as TaskPriority | undefined;
   const status = params.status as TaskStatus | undefined;
   const planId = params.planId as string | undefined;
-  const token = params.token as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -316,16 +358,10 @@ async function handleTaskUpdate(params: Record<string, unknown>, flags: CommandF
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldUpdate: { slug, taskId, title, priority, status, planId } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:update_project_task");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldUpdate: { slug, taskId, title, priority, status, planId },
+    });
   }
 
   try {
@@ -349,21 +385,20 @@ async function handleTaskUpdate(params: Record<string, unknown>, flags: CommandF
 defineCommand({
   path: "task delete",
   description: "Delete a task",
-  gated: true,
   mutation: true,
-  gateName: "task-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
-    token: { type: "string", required: true, description: "Write-gate token" },
   },
   handler: handleTaskDelete,
 });
 
-async function handleTaskDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleTaskDelete(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.taskId as string;
-  const token = params.token as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -374,15 +409,6 @@ async function handleTaskDelete(params: Record<string, unknown>, flags: CommandF
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldDelete: { slug, taskId } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:delete_project_task");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   try {

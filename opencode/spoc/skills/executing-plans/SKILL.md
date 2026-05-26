@@ -9,7 +9,7 @@ description: Use when you have a written implementation plan to execute in a sep
 
 You have a written implementation plan to execute task-by-task with verification checkpoints.
 
-> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
+> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
 
 ## Flow
 
@@ -47,7 +47,7 @@ When plan has `.diagram.mmd`:
 3. After each transition, re-scan for newly-unblocked nodes
 4. If metadata incomplete → fall back to plan body for that task
 
-**Transition requires both flags:** `spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId> --token=$TOKEN`
+**Transition requires both flags:** `spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId>`
 
 ## Sub-Agent Context
 

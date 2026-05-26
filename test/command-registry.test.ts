@@ -80,6 +80,5 @@ describe("command-registry", () => {
 
   it("ERROR_CODES has expected keys", () => {
     expect(ERROR_CODES.UNKNOWN_COMMAND).toBe("unknown_command");
-    expect(ERROR_CODES.TOKEN_EXPIRED).toBe("token_expired");
   });
 });

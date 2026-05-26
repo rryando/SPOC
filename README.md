@@ -64,19 +64,9 @@ flowchart TD
     Init & Brain & Exec & Sync & Explore --> DAG
 ```
 
-### Write-Gate Protocol (All Mutations)
+### Mutations
 
-Every DAG write goes through a two-step confirmation to prevent accidents:
-
-```
-spoc write propose "summary" --ops=<op> --slug=<slug>
-           │
-           └─► returns { token }
-                           │
-           confirmed? ──── └─► spoc <mutating-command> --token=<token>
-```
-
-Token is single-use, scoped to the project + operation, and expires after **10 minutes**.
+Mutating commands run directly — no token, no proposal. Reads and writes share the same `spoc <command> [args] --json` shape.
 
 ---
 
@@ -246,7 +236,6 @@ Skills are instruction sets loaded on demand. The orchestrator auto-layers them 
 ```
 ~/.spoc/
 ├── meta.json                    # Global registry — all project slugs
-├── tokens/                      # Write-gate token files (10 min TTL)
 └── projects/
     └── {slug}/
         ├── meta.json            # name · description · status · workspacePaths · lastSyncedAt
@@ -292,29 +281,6 @@ Node status is encoded via `classDef`:
 | `:::in_progress` | Active |
 | `:::done` | Complete |
 | `:::blocked` | Waiting on dependency |
-
----
-
-## Write-Gate Token Model
-
-| Property | Value |
-|---|---|
-| Default TTL | 10 minutes |
-| Scope | Single project + operation |
-| Single-use | Yes — replays rejected |
-| Storage | `$SPOC_DATA_DIR/tokens/` |
-
-### Which commands require a token
-
-| Category | Gated Commands |
-|---|---|
-| **Project** | `doc update`, `project status`, `project delete`, `dependency add/remove` |
-| **Tasks** | `task create`, `task update`, `task delete`, `task transition` |
-| **Plans** | `plan list/get/create/update-meta/update-body/delete` |
-| **Knowledge** | `knowledge create`, `knowledge update-meta`, `knowledge update-body`, `knowledge delete` |
-| **Bundle** | `deploy-superpowers`, `sync-agents-md` |
-
-Override TTL at proposal time: `spoc write propose "..." --ttl=<ms>`
 
 ---
 
@@ -366,7 +332,6 @@ npm test && npm run typecheck && npm run lint
 |---|---|
 | Framework | Vitest |
 | DAG isolation | `withTempDataDir()` — each test gets a fresh `~/.spoc/` |
-| Write-gate | Bypassed globally via `enableWriteGateBypass()` in test setup |
 | No mocks | Core DAG I/O tests operate on real (temp) filesystem |
 | Test location | All tests in `test/` (not co-located with source) |
 
@@ -441,7 +406,6 @@ spoc/
 │   └── utils/
 │       ├── dag.ts                  # Core DAG I/O
 │       ├── project-memory.ts       # CRUD for plans, knowledge, tasks
-│       ├── write-gate.ts           # Write-gate token enforcement
 │       ├── workflow-policy.ts      # Operating brief derivation
 │       ├── graphify.ts             # Graphify integration
 │       └── schemas.ts              # Zod schemas
@@ -455,6 +419,5 @@ spoc/
 │   └── build-opencode-bundle.mjs   # Build bundle
 └── test/                           # Vitest test suite
     └── helpers/
-        ├── temp-data-dir.ts        # withTempDataDir() — isolated DAG state
-        └── setup-write-gate-bypass.ts
+        └── temp-data-dir.ts        # withTempDataDir() — isolated DAG state
 ```

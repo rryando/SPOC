@@ -1,4 +1,3 @@
-import { existsSync, readdirSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 
 export function normalizeRelativePath(filePath) {
@@ -128,46 +127,26 @@ export function listDeclaredFiles(runtimeManifest) {
 }
 
 export function listSourceSkillNames(sourceRoot) {
-  if (!existsSync(sourceRoot)) {
-    return [];
-  }
-
-  return readdirSync(sourceRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((skillName) => existsSync(resolve(sourceRoot, skillName, "SKILL.md")));
+  // DEPRECATED: source-root mirroring removed. The repo bundle directory is
+  // the source of truth. This export is retained as a no-op for any external
+  // consumer (e.g. ad-hoc scripts) and can be deleted once no callers remain.
+  void sourceRoot;
+  return [];
 }
 
 export function listSourceAgentPaths(sourceRoot) {
-  const agentsDirectory = resolve(sourceRoot, "agents");
-
-  if (!existsSync(agentsDirectory)) {
-    return [];
-  }
-
-  return readdirSync(agentsDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => `agents/${entry.name}`);
+  // DEPRECATED: see listSourceSkillNames.
+  void sourceRoot;
+  return [];
 }
 
 export function assertSourceParity(runtimeManifest, sourceRoot, spocNativeSkillNames) {
-  const declaredSkillNames = new Set(Object.keys(runtimeManifest.skills ?? {}));
-  const declaredAgentPaths = new Set(
-    (runtimeManifest.agents ?? []).map((agentPath) => normalizeRelativePath(agentPath)),
-  );
-
-  for (const skillName of listSourceSkillNames(sourceRoot)) {
-    if (spocNativeSkillNames.has(skillName)) continue;
-    if (!declaredSkillNames.has(skillName)) {
-      throw new Error(`Missing runtime manifest skill entry: ${skillName}`);
-    }
-  }
-
-  for (const agentPath of listSourceAgentPaths(sourceRoot)) {
-    if (!declaredAgentPaths.has(agentPath)) {
-      throw new Error(`Missing runtime manifest agent entry: ${agentPath}`);
-    }
-  }
+  // DEPRECATED: source-root mirroring removed. The repo bundle directory is
+  // the source of truth — there is no external mirror to assert parity with.
+  // Retained as a no-op so any external caller continues to import cleanly.
+  void runtimeManifest;
+  void sourceRoot;
+  void spocNativeSkillNames;
 }
 
 export function validateDeclaredPath(relativePath, outputRoot, validationRoot) {

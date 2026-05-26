@@ -11,18 +11,11 @@ import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-// Import helpers that will be extracted into scripts/lib/bundle-helpers.mjs
 import {
   normalizeRelativePath,
   looksWindowsAbsolute,
   assertNoReservedPathSegments,
   assertSafeOutputPath,
-  assertPathWithinCategoryRoot,
-  assertTopLevelMarkdownFile,
-  listDeclaredFiles,
-  listSourceSkillNames,
-  listSourceAgentPaths,
-  assertSourceParity,
 } from "../scripts/lib/bundle-helpers.mjs";
 
 const root = resolve(import.meta.dirname, "..");
@@ -80,63 +73,7 @@ describe("path validation helpers", () => {
   });
 });
 
-describe("skill discovery", () => {
-  let tempRoot: string;
-
-  beforeEach(() => {
-    tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-helpers-skill-"));
-  });
-
-  afterEach(() => {
-    rmSync(tempRoot, { recursive: true, force: true });
-  });
-
-  it("returns skill IDs for directories containing SKILL.md", () => {
-    writeFile(tempRoot, "alpha/SKILL.md", "skill alpha");
-    writeFile(tempRoot, "beta/SKILL.md", "skill beta");
-    // directory without SKILL.md should be ignored
-    mkdirSync(resolve(tempRoot, "gamma"));
-    // file (not directory) should be ignored
-    writeFileSync(resolve(tempRoot, "not-a-dir.md"), "nope");
-
-    const skills = listSourceSkillNames(tempRoot);
-    expect(skills.sort()).toEqual(["alpha", "beta"]);
-  });
-
-  it("returns empty array for non-existent directory", () => {
-    expect(listSourceSkillNames(resolve(tempRoot, "nonexistent"))).toEqual([]);
-  });
-});
-
-describe("agent discovery", () => {
-  let tempRoot: string;
-
-  beforeEach(() => {
-    tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-helpers-agent-"));
-  });
-
-  afterEach(() => {
-    rmSync(tempRoot, { recursive: true, force: true });
-  });
-
-  it("finds top-level .md files in agents/ directory", () => {
-    writeFile(tempRoot, "agents/helper.md", "agent");
-    writeFile(tempRoot, "agents/reviewer.md", "agent");
-    // nested .md should be ignored
-    writeFile(tempRoot, "agents/sub/nested.md", "nested");
-    // non-.md should be ignored
-    writeFile(tempRoot, "agents/readme.txt", "text");
-
-    const agents = listSourceAgentPaths(tempRoot);
-    expect(agents.sort()).toEqual(["agents/helper.md", "agents/reviewer.md"]);
-  });
-
-  it("returns empty array when agents/ directory does not exist", () => {
-    expect(listSourceAgentPaths(tempRoot)).toEqual([]);
-  });
-});
-
-describe("file-existence validation", () => {
+describe("file-existence validation (output root is source of truth)", () => {
   let tempRoot: string;
 
   beforeEach(() => {
@@ -147,87 +84,32 @@ describe("file-existence validation", () => {
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  it("build fails with clear error when manifest references missing file", () => {
-    const sourceRoot = resolve(tempRoot, "source");
+  it("build fails with clear error when manifest references file missing from output root", () => {
     const outputRoot = resolve(tempRoot, "output");
     const manifestPath = resolve(tempRoot, "manifest.json");
 
     const manifest = {
-      sourceRoot,
       skills: { planner: ["SKILL.md", "missing.md"] },
       agents: [],
       plugin: [],
     };
 
     writeFileSync(manifestPath, JSON.stringify(manifest));
-    writeFile(sourceRoot, "planner/SKILL.md", "skill");
+    // Only SKILL.md exists; missing.md is declared but absent.
+    writeFile(outputRoot, "skills/planner/SKILL.md", "skill");
 
     const result = runBundleBuild({
-      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
       SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
       SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("Missing declared runtime file");
+    expect(result.stderr).toContain("Missing declared bundle file");
     expect(result.stderr).toContain("skills/planner/missing.md");
   });
 });
 
-describe("manifest parity (assertSourceParity)", () => {
-  let tempRoot: string;
-
-  beforeEach(() => {
-    tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-helpers-parity-"));
-  });
-
-  afterEach(() => {
-    rmSync(tempRoot, { recursive: true, force: true });
-  });
-
-  it("throws when source skill is not declared in manifest", () => {
-    writeFile(tempRoot, "alpha/SKILL.md", "alpha");
-    writeFile(tempRoot, "beta/SKILL.md", "beta");
-
-    const manifest = { skills: { alpha: ["SKILL.md"] }, agents: [], plugin: [] };
-
-    expect(() => assertSourceParity(manifest, tempRoot, new Set())).toThrow(
-      "Missing runtime manifest skill entry: beta",
-    );
-  });
-
-  it("throws when source agent is not declared in manifest", () => {
-    writeFile(tempRoot, "agents/helper.md", "helper");
-    writeFile(tempRoot, "agents/reviewer.md", "reviewer");
-
-    const manifest = { skills: {}, agents: ["agents/helper.md"], plugin: [] };
-
-    expect(() => assertSourceParity(manifest, tempRoot, new Set())).toThrow(
-      "Missing runtime manifest agent entry: agents/reviewer.md",
-    );
-  });
-
-  it("passes when all source skills and agents are declared", () => {
-    writeFile(tempRoot, "alpha/SKILL.md", "alpha");
-    writeFile(tempRoot, "agents/helper.md", "helper");
-
-    const manifest = { skills: { alpha: ["SKILL.md"] }, agents: ["agents/helper.md"], plugin: [] };
-
-    expect(() => assertSourceParity(manifest, tempRoot, new Set())).not.toThrow();
-  });
-
-  it("skips SPOC-native skills", () => {
-    writeFile(tempRoot, "alpha/SKILL.md", "alpha");
-    writeFile(tempRoot, "loop/SKILL.md", "loop");
-
-    const manifest = { skills: { alpha: ["SKILL.md"] }, agents: [], plugin: [] };
-    const nativeSkills = new Set(["loop"]);
-
-    expect(() => assertSourceParity(manifest, tempRoot, nativeSkills)).not.toThrow();
-  });
-});
-
-describe("end-to-end manifest smoke test", () => {
+describe("end-to-end smoke test (no source mirroring)", () => {
   let tempRoot: string;
 
   beforeEach(() => {
@@ -238,13 +120,11 @@ describe("end-to-end manifest smoke test", () => {
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  it("builds a small fixture and produces expected output", () => {
-    const sourceRoot = resolve(tempRoot, "source");
+  it("validates declared files in the output root and prunes undeclared content", () => {
     const outputRoot = resolve(tempRoot, "output");
     const manifestPath = resolve(tempRoot, "bundle-runtime.json");
 
     const manifest = {
-      sourceRoot,
       skills: {
         planner: ["SKILL.md", "notes.md"],
         reviewer: ["SKILL.md"],
@@ -254,14 +134,16 @@ describe("end-to-end manifest smoke test", () => {
     };
 
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    writeFile(sourceRoot, "planner/SKILL.md", "planner-skill");
-    writeFile(sourceRoot, "planner/notes.md", "planner-notes");
-    writeFile(sourceRoot, "reviewer/SKILL.md", "reviewer-skill");
-    writeFile(sourceRoot, "agents/helper.md", "agent-helper");
-    writeFile(sourceRoot, ".opencode/plugins/spoc.js", "plugin-code");
+    // Output root IS the source of truth — author files directly here.
+    writeFile(outputRoot, "skills/planner/SKILL.md", "planner-skill");
+    writeFile(outputRoot, "skills/planner/notes.md", "planner-notes");
+    writeFile(outputRoot, "skills/reviewer/SKILL.md", "reviewer-skill");
+    writeFile(outputRoot, "agents/helper.md", "agent-helper");
+    writeFile(outputRoot, ".opencode/plugins/spoc.js", "plugin-code");
+    // Undeclared file that should be pruned by the build.
+    writeFile(outputRoot, "skills/planner/stale.md", "stale content");
 
     const result = runBundleBuild({
-      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
       SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
       SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
@@ -269,7 +151,7 @@ describe("end-to-end manifest smoke test", () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
 
-    // Verify all expected files exist with correct content
+    // Declared files survive with their original content.
     expect(readFileSync(resolve(outputRoot, "skills/planner/SKILL.md"), "utf-8")).toBe(
       "planner-skill",
     );
@@ -283,5 +165,8 @@ describe("end-to-end manifest smoke test", () => {
     expect(readFileSync(resolve(outputRoot, ".opencode/plugins/spoc.js"), "utf-8")).toBe(
       "plugin-code",
     );
+
+    // Undeclared file pruned.
+    expect(existsSync(resolve(outputRoot, "skills/planner/stale.md"))).toBe(false);
   });
 });

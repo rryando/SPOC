@@ -1,5 +1,4 @@
 // Import command files to register them with the registry
-import "./write.js";
 import "./project.js";
 import "./project-updates.js";
 import "./task.js";

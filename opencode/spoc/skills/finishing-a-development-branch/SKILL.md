@@ -9,7 +9,7 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 Implementation complete, ready to integrate — verify tests, present options, execute choice, clean up.
 
-> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
+> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
 
 ## Flow
 
