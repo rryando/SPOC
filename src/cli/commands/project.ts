@@ -228,8 +228,7 @@ async function handleProjectInit(
     let graphify: { proposed: number; created: number; hooksHint?: string } | null = null;
     const graphifyWorkspace = wsPath ?? process.cwd();
     const hasGit = existsSync(resolve(graphifyWorkspace, ".git"));
-    const looksLikeCodebase =
-      hasGit || existsSync(resolve(graphifyWorkspace, "package.json"));
+    const looksLikeCodebase = hasGit || existsSync(resolve(graphifyWorkspace, "package.json"));
     const skipGraphify = process.env.SPOC_SKIP_GRAPHIFY === "1";
     if (looksLikeCodebase && !skipGraphify) {
       try {

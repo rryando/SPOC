@@ -29,7 +29,7 @@ graph LR
     CTX --> M
 ```
 
-An agent calls `spoc context` at session start and receives an **operating brief** — current focus, recommended next action, relevant knowledge — without reading a single source file.
+An agent calls `spoc brief` at session start and receives an **operating brief** (~890-byte routing envelope with `currentFocus`, `recommendedSurface`, and `nextAction`) — without reading a single source file.
 
 ---
 
@@ -63,6 +63,19 @@ flowchart TD
 
     Init & Brain & Exec & Sync & Explore --> DAG
 ```
+
+### T0 Orientation
+
+```bash
+spoc brief --lean --json
+# → currentFocus, recommendedSurface, nextAction (~890-byte routing envelope)
+```
+
+The orchestrator calls `spoc brief` at the start of every session to orient without loading any source files. `--lean` strips timestamps for token efficiency.
+
+### Confidence Gate
+
+Before any irreversible action (DAG write, code edit, plan creation), the orchestrator self-scores 0–100% confidence with cited evidence. Threshold: 80% (85% for cross-cutting changes). Reads and exploration are never gated. Self-report without citations is invalid.
 
 ### Mutations
 
@@ -315,7 +328,7 @@ npm run build
 |---|---|
 | `npm run build` | Compile TypeScript → `dist/` |
 | `npm run dev` | Watch mode (rebuild on change) |
-| `npm test` | Run Vitest test suite |
+| `npm test` | Run Vitest test suite (57 test files, 653 tests) |
 | `npm run typecheck` | Type check without emit |
 | `npm run lint` | Biome lint + format check |
 | `npm run lint:fix` | Auto-fix lint and format issues |
@@ -351,10 +364,10 @@ SPOC_DATA_DIR=/path/to/custom/dir spoc context
 | Step | Command | Notes |
 |---|---|---|
 | 1. Edit | Modify `opencode/spoc/skills/` or `opencode/spoc/prompts/` | Source of truth is the repo |
-| 2. Build | `npm run build:bundle` | Produces hashes, runtime JSON |
+| 2. Build | `npm run build:opencode-bundle` | Produces hashes, runtime JSON |
 | 3. Lint | `spoc lint-bundle` | Must pass with zero errors |
-| 4. Dry-run | `spoc deploy-superpowers` | Review `filesAdded / filesChanged / filesRemoved` |
-| 5. Deploy | `spoc deploy-superpowers --no-dry-run` | Writes to `~/.config/opencode/` |
+| 4. Dry-run | `spoc deploy-superpowers --dry-run` | Review `filesAdded / filesChanged / filesRemoved` |
+| 5. Deploy | `spoc deploy-superpowers` | Writes to `~/.config/opencode/` |
 | 6. Restart | Restart OpenCode / IDE | Skills load at startup |
 
 ---
@@ -379,7 +392,7 @@ See installation instructions at **https://github.com/safishamsi/graphify**.
 |---|---|
 | `spoc init` | Full extraction → up to 20 knowledge proposals → creates DAG entries |
 | SYNC workflow | Re-extracts, compares against existing entries, surfaces stale / new / drifted |
-| Ad-hoc | `queryGraph()`, `pathBetween()` answer structural questions from cached graph |
+| Ad-hoc | `spoc graphify-sync <slug>` — re-extracts codebase graph on demand |
 
 Output: `graphify-out/graph.json` in workspace (auto-added to `.gitignore`).
 
@@ -392,32 +405,65 @@ If graphify is not installed, SPOC operates normally — all graphify features a
 ```
 spoc/
 ├── src/
-│   ├── index.ts                    # CLI entry point
+│   ├── index.ts                          # Main entry point — dispatches to CLI
 │   ├── cli/
-│   │   ├── dag-commands.ts         # All CLI command implementations (~3800 lines)
-│   │   ├── bundle-installer.ts     # OpenCode bundle installer
-│   │   ├── setup.ts                # Interactive setup wizard
-│   │   ├── lean-output.ts          # --lean flag for token-efficient output
-│   │   └── spoc-orchestrate.ts     # Orchestrator prompt content
+│   │   ├── index.ts                      # Registry-first CLI router + fallback
+│   │   ├── command-registry.ts           # Declarative command registration system
+│   │   ├── arg-parser.ts                 # Schema-driven argument parser
+│   │   ├── output-envelope.ts            # Structured JSON output ({ok, data} / {ok, code, message})
+│   │   ├── help-generator.ts             # Auto-generated help text from registry
+│   │   ├── dag-commands.ts               # LEGACY: ~157-line thin delegation shell (backward-compat)
+│   │   ├── brief-renderer.ts             # Renders brief output for spoc brief command
+│   │   ├── md-renderer.ts                # Markdown rendering utilities
+│   │   ├── bundle-installer.ts           # OpenCode bundle installer
+│   │   ├── setup.ts                      # Interactive setup wizard
+│   │   ├── lean-output.ts                # --lean flag support (strip timestamps)
+│   │   ├── spoc-orchestrate.ts           # Orchestrator prompt content
+│   │   ├── status-dashboard.ts           # TTY status overview
+│   │   └── commands/                     # 17 focused command modules (≤400 lines each)
+│   │       ├── index.ts                  # Trigger all command registrations (side-effects)
+│   │       ├── brief.ts                  # T0 operating brief
+│   │       ├── project.ts                # project list, get, init, validate
+│   │       ├── project-updates.ts        # project update-doc, update-status, update-paths
+│   │       ├── task.ts                   # task list, get, create, transition, update, delete
+│   │       ├── plan.ts                   # plan list, get, create, update-meta, update-body, delete
+│   │       ├── knowledge.ts              # knowledge CRUD
+│   │       ├── knowledge-search.ts       # Dedicated knowledge search
+│   │       ├── utility.ts                # context, search, agents-md, validate
+│   │       ├── batch.ts                  # batch operations
+│   │       ├── graph.ts                  # related, graph inspect
+│   │       ├── diagnostics.ts            # audit, diff
+│   │       ├── diagram.ts                # diagram ready/inspect/validate/status/show
+│   │       ├── dependency.ts             # dependency add/remove
+│   │       ├── maintenance.ts            # git-log, sync-agents-md
+│   │       ├── bundle.ts                 # lint-bundle, deploy-superpowers
+│   │       └── loop.ts                   # loop start, cancel, status
 │   ├── retrieval/
-│   │   ├── bm25.ts                 # BM25 full-text scoring
-│   │   ├── graph-retrieval.ts      # Graph-based related-entity retrieval
-│   │   └── graph-cache.ts          # Graph index caching + invalidation
+│   │   ├── bm25.ts                       # BM25 full-text scoring
+│   │   ├── graph-retrieval.ts            # Graph-based related-entity retrieval
+│   │   ├── knowledge-selection.ts        # Graph+BM25 knowledge selection for context
+│   │   └── graph-cache.ts                # Graph index caching + invalidation
 │   └── utils/
-│       ├── dag.ts                  # Core DAG I/O
-│       ├── project-memory.ts       # CRUD for plans, knowledge, tasks
-│       ├── workflow-policy.ts      # Operating brief derivation
-│       ├── graphify.ts             # Graphify integration
-│       └── schemas.ts              # Zod schemas
+│       ├── dag.ts                        # Core DAG I/O
+│       ├── project-memory.ts             # Knowledge, plan, task CRUD
+│       ├── paths.ts                      # Data dir and project path helpers
+│       ├── workflow-policy.ts            # deriveOperatingBrief(), WorkflowSurface
+│       ├── schemas.ts                    # Shared Zod schemas
+│       ├── graphify.ts                   # Graphify integration (detect, extract, ingest)
+│       ├── graphify-knowledge.ts         # Graphify→knowledge entry ingestion helpers
+│       ├── diagram-generator.ts          # Generate Mermaid diagrams from task metadata
+│       ├── errors.ts                     # Error factory functions
+│       └── file-lock.ts                  # Advisory file locking for concurrent writes
 ├── opencode/spoc/
-│   ├── skills/                     # Agent skill markdown guides (25 skills)
-│   ├── prompts/                    # Sub-agent prompt definitions (8 agents)
-│   ├── manifest.json               # Bundle install manifest
-│   └── bundle-runtime.json         # Curated runtime payload
+│   ├── skills/                           # Agent skill instruction sets (25+ skills)
+│   ├── prompts/                          # Sub-agent prompt definitions (8 agents)
+│   ├── manifest.json                     # Bundle install manifest
+│   └── bundle-runtime.json               # Curated runtime payload
 ├── scripts/
-│   ├── spoc-cli.mjs                # CLI entry wrapper (bin)
-│   └── build-opencode-bundle.mjs   # Build bundle
-└── test/                           # Vitest test suite
+│   ├── spoc-cli.mjs                      # CLI entry wrapper (bin)
+│   └── build-opencode-bundle.mjs         # Build bundle
+└── test/                                 # Vitest test suite (57 files, 653 tests)
     └── helpers/
-        └── temp-data-dir.ts        # withTempDataDir() — isolated DAG state
+        ├── cli-runner.ts                 # runCommand() for registry-path invocation
+        └── temp-data-dir.ts              # withTempDataDir() — isolated DAG state
 ```
