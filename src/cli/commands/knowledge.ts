@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // Knowledge commands — registry-based
 // ---------------------------------------------------------------------------
-
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -13,7 +12,6 @@ import {
   readKnowledgeIndex,
   updateKnowledgeEntry,
   deleteKnowledgeEntry,
-  KNOWLEDGE_KINDS,
   type KnowledgeKind,
 } from "../../utils/project-memory.js";
 import { knowledgeMetaSchema } from "../../utils/json-schemas.js";
@@ -22,9 +20,7 @@ import { normalizeIdentifier } from "../../utils/slug.js";
 import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 
-// ---------------------------------------------------------------------------
-// knowledge list
-// ---------------------------------------------------------------------------
+// --- knowledge list ---
 
 defineCommand({
   path: "knowledge list",
@@ -41,34 +37,27 @@ async function handleKnowledgeList(params: Record<string, unknown>, flags: Comma
   const slug = params.slug as string;
   const kind = params.kind as KnowledgeKind | undefined;
   const keywordsRaw = params.keywords as string | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   const knowledgeIndex = await readKnowledgeIndex(projectDir);
   let entries = knowledgeIndex.entries;
-
   if (kind) {
     entries = entries.filter((e) => e.kind === kind);
   }
-
   if (keywordsRaw) {
     const keywords = keywordsRaw.split(",").map((k) => k.trim().toLowerCase());
     entries = entries.filter((e) =>
       e.keywords.some((ek) => keywords.includes(ek.toLowerCase())),
     );
   }
-
   return success(entries);
 }
 
-// ---------------------------------------------------------------------------
-// knowledge get
-// ---------------------------------------------------------------------------
+// --- knowledge get ---
 
 defineCommand({
   path: "knowledge get",
@@ -85,39 +74,31 @@ async function handleKnowledgeGet(params: Record<string, unknown>, flags: Comman
   const slug = params.slug as string;
   const entryId = params.entryId as string;
   const includeBody = params.body as boolean | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   const normalizedId = normalizeIdentifier(entryId);
   const metaPath = resolve(projectDir, "knowledge", `${normalizedId}.meta.json`);
-
   if (!existsSync(metaPath)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Knowledge entry "${entryId}" not found`);
   }
-
   const raw = await readJsonSafe<unknown>(metaPath);
   if (raw === undefined) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Unable to parse meta for "${entryId}"`);
   }
   const meta = validateJson(raw, knowledgeMetaSchema, metaPath);
-
   if (includeBody) {
     const bodyPath = resolve(projectDir, meta.file);
     const body = existsSync(bodyPath) ? await readFile(bodyPath, "utf-8") : "";
     return success({ meta, body });
   }
-
   return success({ meta });
 }
 
-// ---------------------------------------------------------------------------
-// knowledge create
-// ---------------------------------------------------------------------------
+// --- knowledge create ---
 
 defineCommand({
   path: "knowledge create",
@@ -143,20 +124,17 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
   const token = params.token as string | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   if (flags.dryRun) {
     const id = normalizeIdentifier(title);
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
     return success({ dryRun: true, wouldCreate: { id, title, kind, summary, keywords, slug } });
   }
-
   try {
     requireWriteGate(token, slug, "tool:create_project_knowledge_entry");
   } catch (err) {
@@ -165,16 +143,11 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
     }
     throw err;
   }
-
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
   const id = normalizeIdentifier(title);
-
   try {
     const entry = await createKnowledgeEntry(projectDir, {
-      id,
-      title,
-      kind,
-      keywords,
+      id, title, kind, keywords,
       ...(summary && { summary }),
     });
     return success(entry);
@@ -183,9 +156,7 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   }
 }
 
-// ---------------------------------------------------------------------------
-// knowledge update-meta
-// ---------------------------------------------------------------------------
+// --- knowledge update-meta ---
 
 defineCommand({
   path: "knowledge update-meta",
@@ -213,19 +184,16 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
   const token = params.token as string | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   if (flags.dryRun) {
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : undefined;
     return success({ dryRun: true, wouldUpdate: { slug, entryId, title, kind, summary, keywords } });
   }
-
   try {
     requireWriteGate(token, slug, "tool:update_project_knowledge_meta");
   } catch (err) {
@@ -234,9 +202,7 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
     }
     throw err;
   }
-
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : undefined;
-
   try {
     const meta = await updateKnowledgeEntry(projectDir, {
       id: entryId,
@@ -251,9 +217,7 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
   }
 }
 
-// ---------------------------------------------------------------------------
-// knowledge update-body
-// ---------------------------------------------------------------------------
+// --- knowledge update-body ---
 
 defineCommand({
   path: "knowledge update-body",
@@ -277,35 +241,28 @@ async function handleKnowledgeUpdateBody(params: Record<string, unknown>, flags:
   const bodyFile = params["body-file"] as string | undefined;
   const bodyStdin = params["body-stdin"] as boolean | undefined;
   const token = params.token as string | undefined;
-
   if (!bodyFile && !bodyStdin) {
     return failure(ERROR_CODES.MISSING_PARAM, "Either --body-file or --body-stdin is required", {
       hint: "Provide --body-file=<path> or --body-stdin to read from stdin.",
     });
   }
-
   if (bodyFile && !existsSync(bodyFile)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Body file not found: ${bodyFile}`);
   }
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   const normalizedId = normalizeIdentifier(entryId);
   const metaPath = resolve(projectDir, "knowledge", `${normalizedId}.meta.json`);
-
   if (!existsSync(metaPath)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Knowledge entry "${entryId}" not found`);
   }
-
   if (flags.dryRun) {
     return success({ dryRun: true, wouldUpdate: { slug, entryId, bodyFile, bodyStdin } });
   }
-
   try {
     requireWriteGate(token, slug, "tool:update_project_knowledge_body");
   } catch (err) {
@@ -314,30 +271,24 @@ async function handleKnowledgeUpdateBody(params: Record<string, unknown>, flags:
     }
     throw err;
   }
-
   const rawMeta = await readJsonSafe<unknown>(metaPath);
   if (rawMeta === undefined) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Unable to parse meta for "${entryId}"`);
   }
   const existingMeta = validateJson(rawMeta, knowledgeMetaSchema, metaPath);
   const bodyPath = resolve(projectDir, existingMeta.file);
-
   let body: string;
   if (bodyFile) {
     body = await readFile(bodyFile, "utf-8");
   } else {
     body = await readStdin();
   }
-
   await writeFile(bodyPath, body, "utf-8");
   const meta = await updateKnowledgeEntry(projectDir, { id: entryId });
-
   return success({ meta, body });
 }
 
-// ---------------------------------------------------------------------------
-// knowledge search
-// ---------------------------------------------------------------------------
+// --- knowledge search ---
 
 defineCommand({
   path: "knowledge search",
@@ -354,17 +305,14 @@ async function handleKnowledgeSearch(params: Record<string, unknown>, flags: Com
   const slug = params.slug as string;
   const query = params.query as string;
   const kind = params.kind as KnowledgeKind | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   const index = await buildProjectRetrievalIndex(slug);
   let results = index.searchKnowledge(query, 10);
-
   if (kind) {
     const knowledgeIndex = await readKnowledgeIndex(projectDir);
     const kindSet = new Set(
@@ -372,13 +320,10 @@ async function handleKnowledgeSearch(params: Record<string, unknown>, flags: Com
     );
     results = results.filter((r) => kindSet.has(r.id));
   }
-
   return success(results);
 }
 
-// ---------------------------------------------------------------------------
-// knowledge delete
-// ---------------------------------------------------------------------------
+// --- knowledge delete ---
 
 defineCommand({
   path: "knowledge delete",
@@ -398,14 +343,12 @@ async function handleKnowledgeDelete(params: Record<string, unknown>, flags: Com
   const slug = params.slug as string;
   const entryId = params.entryId as string;
   const token = params.token as string | undefined;
-
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
       hint: "Run 'spoc project list' to see available projects.",
     });
   }
-
   const knowledgeIndex = await readKnowledgeIndex(projectDir);
   const entry = knowledgeIndex.entries.find((e) => e.id === entryId || e.normalizedId === entryId);
   if (!entry) {
@@ -413,11 +356,9 @@ async function handleKnowledgeDelete(params: Record<string, unknown>, flags: Com
       hint: `Run 'spoc knowledge list ${slug}' to see available entries.`,
     });
   }
-
   if (flags.dryRun) {
     return success({ dryRun: true, wouldDelete: { slug, entryId: entry.id } });
   }
-
   try {
     requireWriteGate(token, slug, "tool:delete_project_knowledge_entry");
   } catch (err) {
@@ -426,7 +367,6 @@ async function handleKnowledgeDelete(params: Record<string, unknown>, flags: Com
     }
     throw err;
   }
-
   try {
     await deleteKnowledgeEntry(projectDir, entry.id);
     return success({ deleted: entry.id });
@@ -435,9 +375,7 @@ async function handleKnowledgeDelete(params: Record<string, unknown>, flags: Com
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// --- Helpers ---
 
 async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {

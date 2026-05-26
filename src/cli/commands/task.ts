@@ -27,6 +27,7 @@ defineCommand({
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     status: { type: "string", description: "Filter by status", enum: ["backlog", "in_progress", "done", "cancelled"] },
+    priority: { type: "string", description: "Filter by priority", enum: ["low", "medium", "high", "critical"] },
     planId: { type: "string", description: "Filter by plan ID" },
   },
   handler: handleTaskList,
@@ -35,6 +36,7 @@ defineCommand({
 async function handleTaskList(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
   const slug = params.slug as string;
   const status = params.status as TaskStatus | undefined;
+  const priority = params.priority as TaskPriority | undefined;
   const planId = params.planId as string | undefined;
 
   const projectDir = getProjectDir(slug);
@@ -45,6 +47,10 @@ async function handleTaskList(params: Record<string, unknown>, _flags: CommandFl
   }
 
   let tasks = await listTasks(projectDir, { status });
+
+  if (priority) {
+    tasks = tasks.filter((t) => t.priority === priority);
+  }
 
   if (planId) {
     tasks = tasks.filter((t) => t.planId === planId);

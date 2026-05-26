@@ -8,7 +8,7 @@ import { execSync } from "node:child_process";
 import { homedir } from "node:os";
 import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
 import { success, failure } from "../output-envelope.js";
-import { getDataDir } from "../../utils/paths.js";
+import { getDataDir, getProjectDir } from "../../utils/paths.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -103,14 +103,25 @@ defineCommand({
   description: "Show diagram structure and metadata",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
+    planId: { type: "string", positional: 1, description: "Plan ID" },
   },
   handler: handleDiagramInspect,
 });
 
 async function handleDiagramInspect(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
   const slug = params.slug as string;
-  const planId = params.planId as string;
+  const planId = params.planId as string | undefined;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`);
+  }
+
+  if (!planId) {
+    return failure(ERROR_CODES.MISSING_PARAM, "--planId is required", {
+      hint: "usage: spoc diagram inspect <slug> <planId>",
+    });
+  }
 
   const diagramPath = requireDiagramFile(slug, planId);
   if (typeof diagramPath !== "string") return diagramPath;
