@@ -230,47 +230,9 @@ describe("bundle linter", () => {
     }
   });
 
-  it("detects config drift when config root exists", () => {
-    const tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-lint-drift-"));
-    const bundleRoot = resolve(tempRoot, "bundle");
-    const configRoot = resolve(tempRoot, "config");
-
-    try {
-      const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
-        skills: { planner: ["SKILL.md"] },
-        agents: [],
-        plugin: [],
-      };
-      writeFile(bundleRoot, "bundle-runtime.json", JSON.stringify(manifest, null, 2));
-      writeFile(bundleRoot, "manifest.json", JSON.stringify({ bundleId: "test" }));
-      writeFile(bundleRoot, "skills/planner/SKILL.md", "repo version");
-
-      // Config has different content
-      writeFile(configRoot, "planner/SKILL.md", "config version");
-
-      const proc = spawnSync("node", [linterScript], {
-        cwd: root,
-        env: {
-          ...process.env,
-          BUNDLE_LINT_BUNDLE_ROOT: bundleRoot,
-          BUNDLE_LINT_CONFIG_ROOT: configRoot,
-        },
-        encoding: "utf-8",
-      });
-
-      const result = JSON.parse(proc.stdout) as LintResult;
-      expect(result.issues).toContainEqual(
-        expect.objectContaining({
-          severity: "warning",
-          kind: "config-drift",
-          file: "skills/planner/SKILL.md",
-        }),
-      );
-    } finally {
-      rmSync(tempRoot, { recursive: true, force: true });
-    }
-  });
+  // config-drift detection removed: the repo bundle is the source of truth,
+  // and there is no "config root" mirror to compare against. Use
+  // `spoc deploy-superpowers --dry-run` to preview deployment-target diffs.
 
   it("exits 0 with no issues on clean bundle", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-lint-clean-"));

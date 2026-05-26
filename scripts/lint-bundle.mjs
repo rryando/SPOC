@@ -1,29 +1,22 @@
 #!/usr/bin/env node
-// Bundle linter — detects drift/issues in opencode SPOC bundle bundle
-// without overwriting repo or config.
+// Bundle linter — detects drift/issues in the opencode SPOC bundle without
+// overwriting anything. The repo bundle directory is the source of truth.
 //
 // Env vars:
 //   BUNDLE_LINT_BUNDLE_ROOT  — override bundle root (default: opencode/spoc)
-//   BUNDLE_LINT_CONFIG_ROOT  — override config skills root for drift detection
-//                              (default: ~/.config/opencode/skills/spoc)
 //
 // Outputs JSON to stdout: { issues: [...], summary: { errors, warnings } }
 // Exit code: 0 if no errors, 1 if errors found.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { relative, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const defaultBundleRoot = resolve(repoRoot, "opencode/spoc");
-const defaultConfigRoot = resolve(homedir(), ".config/opencode/skills/spoc");
 
 const bundleRoot = process.env.BUNDLE_LINT_BUNDLE_ROOT
   ? resolve(repoRoot, process.env.BUNDLE_LINT_BUNDLE_ROOT)
   : defaultBundleRoot;
-const configRoot = process.env.BUNDLE_LINT_CONFIG_ROOT
-  ? resolve(repoRoot, process.env.BUNDLE_LINT_CONFIG_ROOT)
-  : defaultConfigRoot;
 
 // Preserved files that are repo-authored, not sourced from manifest.
 const preservedFiles = new Set([
@@ -51,10 +44,7 @@ const preservedFiles = new Set([
   "prompts/spoc-orchestrate-caveman.txt",
 ]);
 
-const spocNativeSkillNames = new Set(["loop", "caveman-commit", "caveman-review", "init-project"]);
-
-/** @type {Array<{severity: 'error'|'warning', kind: string, message: string, file?: string, repair?: string}>} */
-const issues = [];
+/** @type {Array<{severity: 'error'|'warning', kind: string, message: string, file?: string, repair?: string}>} */const issues = [];
 
 function addIssue(severity, kind, message, file, repair) {
   const issue = { severity, kind, message };
@@ -199,33 +189,10 @@ if (existsSync(dashboardPkgPath)) {
   }
 }
 
-// --- Check 6: Config drift detection (dry-run, skip if absent) ---
-if (existsSync(configRoot)) {
-  for (const [skillName, skillFiles] of Object.entries(manifest.skills ?? {})) {
-    if (spocNativeSkillNames.has(skillName)) continue;
-    for (const skillFile of skillFiles) {
-      const bundlePath = resolve(bundleRoot, `skills/${skillName}/${skillFile}`);
-      const configPath = resolve(configRoot, `${skillName}/${skillFile}`);
-      if (existsSync(bundlePath) && existsSync(configPath)) {
-        try {
-          const bundleContent = readFileSync(bundlePath, "utf-8");
-          const configContent = readFileSync(configPath, "utf-8");
-          if (bundleContent !== configContent) {
-            addIssue(
-              "warning",
-              "config-drift",
-              `Bundle and config differ for skills/${skillName}/${skillFile}`,
-              `skills/${skillName}/${skillFile}`,
-              `Run bundle build to sync, or manually reconcile`,
-            );
-          }
-        } catch {
-          // Skip unreadable files
-        }
-      }
-    }
-  }
-}
+// --- Check 6: REMOVED. The repo bundle is the source of truth — there is no
+// external "config root" mirror to compare against. Drift detection against
+// ~/.config/opencode/ has been deleted; use `spoc deploy-superpowers --dry-run`
+// if you want to preview what would change in the deployment target.
 
 function output() {
   const errors = issues.filter((i) => i.severity === "error").length;

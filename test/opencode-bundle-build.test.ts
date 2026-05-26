@@ -3,12 +3,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -52,61 +51,14 @@ function runBundleBuild(env: NodeJS.ProcessEnv) {
   });
 }
 
-function expandHome(filePath: string) {
-  if (filePath === "~") {
-    return homedir();
-  }
-
-  if (filePath.startsWith("~/") || filePath.startsWith("~\\")) {
-    return resolve(homedir(), filePath.slice(2));
-  }
-
-  return filePath;
-}
-
-function listSourceSkillNames(sourceRoot: string) {
-  // sourceRoot IS the skills root — skill dirs live directly inside it
-  if (!existsSync(sourceRoot)) {
-    return [];
-  }
-
-  return readdirSync(sourceRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((skillName) => existsSync(resolve(sourceRoot, skillName, "SKILL.md")))
-    .filter((skillName) => !SPOC_NATIVE_SKILL_NAMES.has(skillName))
-    .sort();
-}
-
-// SPOC-native skills authored in this repo; they live in the bundle under skills/
-// but are not declared in bundle-runtime.json and are not sourced from the upstream
-// SPOC bundle install. Must stay in sync with preservedOutputFiles in
-// scripts/build-opencode-bundle.mjs.
-const SPOC_NATIVE_SKILL_NAMES = new Set(["loop", "caveman-commit", "caveman-review", "init-project"]);
-
-function listTopLevelAgentPaths(sourceRoot: string) {
-  const sourceAgentsRoot = resolve(sourceRoot, "agents");
-
-  if (!existsSync(sourceAgentsRoot)) {
-    return [];
-  }
-
-  return readdirSync(sourceAgentsRoot, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => `agents/${entry.name}`)
-    .sort();
-}
-
 describe("opencode bundle builder", () => {
-  it("copies only declared runtime files, preserves metadata, and deletes stale output files", () => {
+  it("validates declared runtime files in the output root and prunes undeclared content", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
 
     try {
       const runtimeManifest = {
-        sourceRoot,
         skills: {
           planner: ["SKILL.md", "notes.md"],
         },
@@ -115,21 +67,21 @@ describe("opencode bundle builder", () => {
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      // sourceRoot IS the skills directory — write skill dirs directly into it
-      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "skill");
-      writeRuntimeFile(sourceRoot, "planner/notes.md", "notes");
-      writeRuntimeFile(sourceRoot, "planner/ignored.md", "ignore me");
-      writeRuntimeFile(sourceRoot, "agents/helper.md", "agent");
-      writeRuntimeFile(sourceRoot, ".opencode/plugins/runtime.js", "plugin");
+      // Output root IS the source of truth — declared files are authored here.
+      writeRuntimeFile(outputRoot, "skills/planner/SKILL.md", "skill");
+      writeRuntimeFile(outputRoot, "skills/planner/notes.md", "notes");
+      writeRuntimeFile(outputRoot, "agents/helper.md", "agent");
+      writeRuntimeFile(outputRoot, ".opencode/plugins/runtime.js", "plugin");
 
+      // Manifest + bundle-runtime are preserved (preservedOutputFiles).
       writeRuntimeFile(outputRoot, "manifest.json", "keep manifest");
       writeRuntimeFile(outputRoot, "bundle-runtime.json", "keep runtime manifest");
+      // Undeclared files that should be pruned by the build.
       writeRuntimeFile(outputRoot, "skills/planner/stale.md", "remove me");
       writeRuntimeFile(outputRoot, "skills/planner/ignored.md", "remove me too");
       writeRuntimeFile(outputRoot, "extra/nested.txt", "remove nested");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
         SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
         SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
@@ -153,15 +105,13 @@ describe("opencode bundle builder", () => {
     }
   });
 
-  it("fails loudly when a declared runtime file is missing", () => {
+  it("fails loudly when a declared runtime file is missing from the output root", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-missing-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
 
     try {
       const runtimeManifest = {
-        sourceRoot,
         skills: {
           planner: ["SKILL.md", "missing.md"],
         },
@@ -170,83 +120,16 @@ describe("opencode bundle builder", () => {
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "skill");
+      writeRuntimeFile(outputRoot, "skills/planner/SKILL.md", "skill");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
         SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
         SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain("Missing declared runtime file");
+      expect(result.stderr).toContain("Missing declared bundle file");
       expect(result.stderr).toContain("skills/planner/missing.md");
-    } finally {
-      rmSync(tempRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("fails when a source skill is missing from the runtime manifest", () => {
-    const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-missing-skill-entry-"));
-    const sourceRoot = resolve(tempRoot, "source");
-    const outputRoot = resolve(tempRoot, "output");
-    const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
-
-    try {
-      const runtimeManifest = {
-        sourceRoot,
-        skills: {
-          planner: ["SKILL.md"],
-        },
-        agents: [],
-        plugin: [],
-      };
-
-      writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "planner/SKILL.md", "planner");
-      writeRuntimeFile(sourceRoot, "reviewer/SKILL.md", "reviewer");
-
-      const result = runBundleBuild({
-        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
-        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
-      });
-
-      expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain("Missing runtime manifest skill entry");
-      expect(result.stderr).toContain("reviewer");
-    } finally {
-      rmSync(tempRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("fails when a source agent is missing from the runtime manifest", () => {
-    const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-missing-agent-entry-"));
-    const sourceRoot = resolve(tempRoot, "source");
-    const outputRoot = resolve(tempRoot, "output");
-    const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
-
-    try {
-      const runtimeManifest = {
-        sourceRoot,
-        skills: {},
-        agents: ["agents/helper.md"],
-        plugin: [],
-      };
-
-      writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "agents/helper.md", "helper");
-      writeRuntimeFile(sourceRoot, "agents/reviewer.md", "reviewer");
-
-      const result = runBundleBuild({
-        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
-        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
-      });
-
-      expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain("Missing runtime manifest agent entry");
-      expect(result.stderr).toContain("agents/reviewer.md");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -254,14 +137,12 @@ describe("opencode bundle builder", () => {
 
   it("rejects declared runtime paths that are absolute or escape the output root", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-invalid-path-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
     const invalidPathCases = [
       {
         label: "posix escape",
         manifest: {
-          sourceRoot,
           skills: {
             planner: ["../escape.md"],
           },
@@ -273,7 +154,6 @@ describe("opencode bundle builder", () => {
       {
         label: "absolute agent path",
         manifest: {
-          sourceRoot,
           skills: {},
           agents: [resolve(tempRoot, "outside.md")],
           plugin: [],
@@ -287,7 +167,6 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
           SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
           SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
@@ -303,13 +182,11 @@ describe("opencode bundle builder", () => {
 
   it("rejects skill namespace traversal that can target preserved root files", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-invalid-skill-name-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
     const invalidPathCases = [
       {
         manifest: {
-          sourceRoot,
           skills: {
             "../..": ["manifest.json"],
           },
@@ -320,7 +197,6 @@ describe("opencode bundle builder", () => {
       },
       {
         manifest: {
-          sourceRoot,
           skills: {
             planner: ["../manifest.json"],
           },
@@ -336,7 +212,6 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
           SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
           SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
@@ -352,13 +227,11 @@ describe("opencode bundle builder", () => {
 
   it("rejects reserved path segments in agents and plugin entries", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-invalid-agent-plugin-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
     const invalidPathCases = [
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: ["agents/../manifest.json"],
           plugin: [],
@@ -367,7 +240,6 @@ describe("opencode bundle builder", () => {
       },
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: [],
           plugin: [".opencode/plugins/../manifest.json"],
@@ -381,7 +253,6 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
           SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
           SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
@@ -397,13 +268,11 @@ describe("opencode bundle builder", () => {
 
   it("rejects agent and plugin entries outside their category roots", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-invalid-category-root-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
     const invalidPathCases = [
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: ["manifest.json"],
           plugin: [],
@@ -412,7 +281,6 @@ describe("opencode bundle builder", () => {
       },
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: ["skills/foo/SKILL.md"],
           plugin: [],
@@ -421,7 +289,6 @@ describe("opencode bundle builder", () => {
       },
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: [],
           plugin: ["manifest.json"],
@@ -430,7 +297,6 @@ describe("opencode bundle builder", () => {
       },
       {
         manifest: {
-          sourceRoot,
           skills: {},
           agents: [],
           plugin: ["skills/foo/SKILL.md"],
@@ -444,7 +310,6 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
           SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
           SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
@@ -460,23 +325,20 @@ describe("opencode bundle builder", () => {
 
   it("rejects nested agent entries outside the agents/*.md contract", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-build-nested-agent-"));
-    const sourceRoot = resolve(tempRoot, "source");
     const outputRoot = resolve(tempRoot, "output");
     const runtimeManifestPath = resolve(tempRoot, "bundle-runtime.json");
 
     try {
       const runtimeManifest = {
-        sourceRoot,
         skills: {},
         agents: ["agents/reviews/reviewer.md"],
         plugin: [],
       };
 
       writeFileSync(runtimeManifestPath, JSON.stringify(runtimeManifest, null, 2));
-      writeRuntimeFile(sourceRoot, "agents/reviews/reviewer.md", "reviewer");
+      writeRuntimeFile(outputRoot, "agents/reviews/reviewer.md", "reviewer");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
         SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
         SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
@@ -495,7 +357,6 @@ describe("opencode bundle runtime manifest", () => {
     const runtimeManifest = JSON.parse(readFileSync(runtimeManifestPath, "utf-8"));
 
     expect(runtimeManifest).toEqual({
-      sourceRoot: "~/.config/opencode/skills/spoc",
       skills: {
         aesthetic: ["SKILL.md", "CATALOG.md"],
         "architecture-review": ["SKILL.md"],
@@ -601,17 +462,6 @@ describe("opencode bundle runtime manifest", () => {
       expectBundledPath(pluginPath, bundleRoot, pluginFile);
       expect(existsSync(pluginPath), `missing runtime plugin file: ${pluginFile}`).toBe(true);
     }
-  });
-
-  it("explicitly lists every upstream skill and top-level agent", () => {
-    const runtimeManifest = JSON.parse(readFileSync(runtimeManifestPath, "utf-8"));
-    const sourceRoot = resolve(
-      dirname(runtimeManifestPath),
-      expandHome(runtimeManifest.sourceRoot),
-    );
-
-    expect(Object.keys(runtimeManifest.skills).sort()).toEqual(listSourceSkillNames(skillsRoot));
-    expect([...runtimeManifest.agents].sort()).toEqual(listTopLevelAgentPaths(sourceRoot));
   });
 
   it("rejects cross-platform path escapes before existence checks", () => {

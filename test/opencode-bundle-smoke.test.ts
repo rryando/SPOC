@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,8 +17,6 @@ const bundleRoot = resolve(root, "opencode/spoc");
 const manifestPath = resolve(bundleRoot, "manifest.json");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 const skillsDir = resolve(bundleRoot, "skills");
-// sourceRoot IS the skills directory — point at the skills/ subdir within the bundle
-const repoLocalSourceRoot = resolve(bundleRoot, "skills");
 
 type InstallerManifest = {
   bundleId: string;
@@ -38,7 +43,6 @@ type InstallerManifest = {
 };
 
 type RuntimeManifest = {
-  sourceRoot: string;
   skills: Record<string, string[]>;
   agents: string[];
   plugin: string[];
@@ -67,13 +71,12 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
   });
 }
 
-function runBundleBuild(outputRoot: string, sourceRoot: string) {
+function runBundleBuild(outputRoot: string) {
   return spawnSync("node", [resolve(root, "scripts/build-opencode-bundle.mjs")], {
     cwd: root,
     env: {
       ...process.env,
       SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-      SPOC_BUNDLE_SOURCE_ROOT: sourceRoot,
     },
     encoding: "utf-8",
   });
@@ -158,9 +161,7 @@ describe("opencode SPOC bundle bundle", () => {
       "excludePatterns",
       "plugin",
       "skills",
-      "sourceRoot",
     ]);
-    expect(runtimeManifest.sourceRoot).toBe("~/.config/opencode/skills/spoc");
     expect(runtimeManifest.excludePatterns).toEqual([
       "**/references/**",
       "**/examples/**",
@@ -185,18 +186,27 @@ describe("opencode SPOC bundle bundle", () => {
     expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 
     try {
-      const result = runBundleBuild(outputRoot, repoLocalSourceRoot);
+      // Output root IS the source of truth — copy the real bundle into the
+      // temp output root, then exercise the build to confirm it validates
+      // declared files, preserves preservedOutputFiles, and prunes nothing
+      // that should survive.
+      cpSync(bundleRoot, outputRoot, { recursive: true });
+
+      const result = runBundleBuild(outputRoot);
 
       expect(result.status).toBe(0);
+      // Skills dir contains the manifest-declared skills plus the SPOC-native
+      // skills (preservedOutputFiles) — the build prunes nothing in this set.
+      const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review", "init-project"];
+      const expectedSkillsAfterBuild = [
+        ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
+      ].sort();
       expect(
-        readdirSync(resolve(outputRoot, "skills"), { withFileTypes: true }).map((entry) => ({
-          name: entry.name,
-          isDirectory: entry.isDirectory(),
-        })),
+        readdirSync(resolve(outputRoot, "skills"), { withFileTypes: true })
+          .map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
       ).toEqual(
-        Object.keys(runtimeManifest.skills)
-          .sort()
-          .map((skillName) => ({ name: skillName, isDirectory: true })),
+        expectedSkillsAfterBuild.map((skillName) => ({ name: skillName, isDirectory: true })),
       );
 
       for (const [skillName, files] of Object.entries(runtimeManifest.skills)) {
@@ -221,11 +231,15 @@ describe("opencode SPOC bundle bundle", () => {
 
       const pluginsDir = resolve(outputRoot, ".opencode", "plugins");
       const actualPluginFiles = existsSync(pluginsDir) ? listRelativeFiles(pluginsDir).sort() : [];
-      expect(actualPluginFiles).toEqual(
-        runtimeManifest.plugin
-          .map((pluginPath) => pluginPath.replace(/^\.opencode\/plugins\//, ""))
-          .sort(),
-      );
+      // plugins/ contains spoc.js as a preservedOutputFiles entry plus any
+      // additional plugins declared in runtimeManifest.plugin.
+      const expectedPluginFiles = [
+        ...new Set([
+          "spoc.js",
+          ...runtimeManifest.plugin.map((p) => p.replace(/^\.opencode\/plugins\//, "")),
+        ]),
+      ].sort();
+      expect(actualPluginFiles).toEqual(expectedPluginFiles);
 
       for (const pluginPath of runtimeManifest.plugin) {
         expect(existsSync(resolve(outputRoot, pluginPath))).toBe(true);
