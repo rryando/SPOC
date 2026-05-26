@@ -244,17 +244,14 @@ flowchart TD
 | `finishing-a-development-branch` | Implementation complete, decide merge/PR/cleanup |
 | `knowledge-curation` | Audit knowledge for staleness, duplication, taxonomy drift |
 | `to-diagram` | Creating or updating a SPOC plan `.diagram.mmd` |
-| `writing-skills` | Creating, editing, verifying skills (TDD applied to process docs) |
 | `aesthetic` | Any frontend/UI work — components, pages, styles, layouts, motion |
-| `loop` | Self-referential development loop until task completion |
 | `task-triage` | Choosing what to work on next — backlog prioritization |
 | `onboarding-session` | Session start on existing project — quick orientation |
 | `spoc-sync` | DAG reconciliation when stale or after major work |
-| `spoc-dashboard` | Starting/managing the SPOC Plan Dashboard for multi-plan view |
 | `customize-opencode` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
 | `using-superpowers` | Always — establishes how to find and use skills |
-| `caveman-commit` | Writing git commit messages (especially in Caveman mode) |
-| `caveman-review` | Writing PR review comments (especially in Caveman mode) |
+
+> **Agent-internal skills** (auto-loaded by context, not orchestrator-selected): `writing-skills`, `caveman-commit`, `caveman-review`, `spoc-dashboard`, `loop`
 
 ### Auto-Layer Signals
 
@@ -348,17 +345,7 @@ flowchart TD
 
 #### INIT Graphify Sub-Flow (DEFAULT: ON when binary present)
 
-1. Detect: `spoc` already exposes `detectGraphify()` and `runExtraction()` via `src/utils/graphify.ts`. If unavailable, skip cleanly and log "graphify not on PATH; skipping graph ingestion."
-2. Trust the code: `runExtraction()` automatically appends `graphify-out/` to `.gitignore` (see `ensureGitignoreEntry` in `src/utils/graphify.ts`). Do **not** redundantly check or modify `.gitignore` from the orchestrator.
-3. Run AST-only extraction (no LLM key required): `graphify update <workspacePath> --force --no-cluster` — produces `graphify-out/graph.json`.
-4. Ingest: call the internal `ingestGraph(graphJsonPath, slug)` to get up to 20 `KnowledgeProposal` records (8 god nodes `kind=module`, 8 clusters `kind=architecture`, 5 cross-module couplings `kind=gotcha`, test files filtered).
-5. Optional enrichment via `graphify query` (BFS traversal, capped budget):
-   - `graphify query "entry points and main commands"` → seeds for "key files" reference entries
-   - `graphify query "core data flow"` → seeds for "core modules" entries
-   - `graphify affected "<critical-symbol>"` → reverse-impact map for high-risk modules
-   - `graphify explain "<godNodeLabel>"` → plain-language summary to enrich a `module` entry's body
-6. Hand the proposals + query results to the typed analysis agents above; they merge graph evidence with code reading and return finalized knowledge entries.
-7. Write entries directly via `spoc knowledge create` (one call per entry) or batch them with `spoc batch`.
+**INIT sequence:** detect graphify → `graphify update <path> --force --no-cluster` → `ingestGraph()` (≤20 proposals) → enrich via `graphify query`/`explain`/`affected` → fan-out to typed analysis agents → collect proposals → write via `spoc knowledge create` or `spoc batch`. See Graphify Toolbelt table for full command surface.
 
 ### BRAINSTORM Workflow
 
