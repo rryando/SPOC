@@ -4,10 +4,15 @@
 // Usage: node scripts/spoc-init.mjs [-g] [--uninstall]
 // Creates symlink ~/.local/bin/spoc → scripts/spoc-cli.mjs
 
-import { existsSync, mkdirSync, symlinkSync, unlinkSync, readlinkSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, symlinkSync, unlinkSync, readlinkSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
+
+// lstatSync-based check: works even for dangling symlinks (existsSync follows the target)
+function linkExists(p) {
+  try { lstatSync(p); return true; } catch { return false; }
+}
 
 function isCommandAvailable(cmd) {
   try {
@@ -25,7 +30,7 @@ const linkPath = resolve(binDir, "spoc");
 const uninstall = process.argv.includes("--uninstall");
 
 if (uninstall) {
-  if (existsSync(linkPath)) {
+  if (linkExists(linkPath)) {
     unlinkSync(linkPath);
     console.log(`Removed: ${linkPath}`);
   } else {
@@ -40,7 +45,7 @@ if (!existsSync(binDir)) {
 }
 
 // Remove stale symlink if exists
-if (existsSync(linkPath)) {
+if (linkExists(linkPath)) {
   const current = readlinkSync(linkPath);
   if (current === cliPath) {
     console.log(`Already registered: ${linkPath} → ${cliPath}`);
