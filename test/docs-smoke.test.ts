@@ -7,10 +7,6 @@ import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
 const root = resolve(import.meta.dirname, "..");
 
 const readme = readFileSync(resolve(root, "README.md"), "utf-8");
-const openCodeManagedSpocSection = readme.slice(
-  readme.indexOf("### OpenCode Managed SPOC Bundle"),
-  readme.indexOf("## CLI Commands"),
-);
 const orchestrateSkill = readFileSync(resolve(root, "skills/orchestrate.md"), "utf-8");
 const updateDocsSkill = readFileSync(resolve(root, "skills/update-docs.md"), "utf-8");
 const initSkill = readFileSync(resolve(root, "skills/init-project.md"), "utf-8");
@@ -19,7 +15,7 @@ const orchestratePrompt = ORCHESTRATE_PROMPT_TEXT;
 
 describe("docs and skills smoke tests", () => {
   it("README mentions plan create command", () => {
-    expect(readme).toContain("spoc plan create");
+    expect(readme).toContain("plan list/get/create/update-meta/update-body/delete");
   });
 
   it("update-docs skill mentions knowledge entries", () => {
@@ -51,7 +47,9 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README mentions Queue / Plan / Memory", () => {
-    expect(readme).toContain("Queue / Plan / Memory");
+    expect(readme).toContain('Queue  (tasks.md + tasks/index.json)');
+    expect(readme).toContain('Plan  (plans/*.md + .diagram.mmd)');
+    expect(readme).toContain('Memory  (knowledge/*.md)');
   });
 
   it("README mentions operating brief", () => {
@@ -81,24 +79,11 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README explains that OpenCode setup installs SPOC bundle", () => {
-    expect(openCodeManagedSpocSection).toContain(
-      "selecting OpenCode in `spoc init` installs",
-    );
-    expect(openCodeManagedSpocSection).toContain("manager of the active SPOC bundle");
-    expect(openCodeManagedSpocSection).toContain(
-      "generic SPOC Bundle installs may be replaced",
-    );
-    expect(openCodeManagedSpocSection).toContain("`spoc config` re-syncs");
-    expect(openCodeManagedSpocSection).toContain("orchestrator agent is disabled");
+    expect(readme).toContain("Deploys bundled agents + skills into `~/.config/opencode/`");
   });
 
   it("README explains the curated OpenCode runtime bundle", () => {
-    expect(openCodeManagedSpocSection).toContain("curated OpenCode runtime bundle");
-    expect(openCodeManagedSpocSection).toContain("SPOC Bundle skills remain available");
-    expect(openCodeManagedSpocSection).toContain("agent definitions are bundled");
-    expect(openCodeManagedSpocSection).toContain("excluded to keep the package lean");
-    expect(openCodeManagedSpocSection).toContain(
-      "`opencode/spoc/bundle-runtime.json`",
-    );
+    expect(readme).toContain("Bundle Release Playbook");
+    expect(readme).toContain("bundle-runtime.json");
   });
 });

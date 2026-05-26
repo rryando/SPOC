@@ -18,6 +18,7 @@ vi.mock("@clack/prompts", () => ({
   spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
   log: { info: vi.fn(), warn: vi.fn() },
   isCancel: vi.fn(() => false),
+  note: vi.fn(),
 }));
 
 // Mock setup.ts dependencies that aren't relevant to graphify tests
@@ -328,7 +329,7 @@ describe("promptGraphifyInstall", () => {
 
     await promptGraphifyInstall();
 
-    expect(prompts.log.info).toHaveBeenCalled();
+    expect(prompts.note).toHaveBeenCalled();
     expect(prompts.confirm).not.toHaveBeenCalled();
   });
 });
