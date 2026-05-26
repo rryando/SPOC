@@ -249,6 +249,7 @@ flowchart TD
 | `onboarding-session` | Session start on existing project — quick orientation |
 | `spoc-sync` | DAG reconciliation when stale or after major work |
 | `customize-opencode` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
+| `graphify-aware` | Auto-layered when `graphify-out/graph.json` detected — provides structural code intelligence |
 | `using-superpowers` | Always — establishes how to find and use skills |
 
 > **Agent-internal skills** (auto-loaded by context, not orchestrator-selected): `writing-skills`, `caveman-commit`, `caveman-review`, `spoc-dashboard`, `loop`
@@ -268,6 +269,7 @@ flowchart TD
 | Knowledge entries > 30 days untouched OR SYNC reveals taxonomy drift | `knowledge-curation` | `spoc-docs` |
 | UI/visual work mentioned | `aesthetic` | `software-engineer` |
 | Editing opencode config / agents / skills | `customize-opencode` | orchestrator or `software-engineer` |
+| `graphify-out/graph.json` exists in workspace | `graphify-aware` | any sub-agent doing codebase reads |
 
 Announce: `→ Auto-layering `<skill>` on `<agent>` (<reason>).` — don't ask.
 
@@ -484,31 +486,24 @@ flowchart TD
 
 ## Graphify Toolbelt
 
-Graphify is an **optional but heavily-leveraged** static-graph CLI. SPOC integrates it via `src/utils/graphify.ts`. **The orchestrator runs graphify directly; sub-agents may call `graphify query` / `affected` / `explain` for read-only graph traversal.**
+Graphify is an **optional but heavily-leveraged** static-graph CLI. SPOC integrates it via `src/utils/graphify.ts` and `src/utils/graphify-knowledge.ts`.
 
-Trust the integration: `runExtraction()` already auto-appends `graphify-out/` to `.gitignore`. Don't re-check from the orchestrator — running extraction is sufficient.
+**Lifecycle integration:**
+- **INIT:** `spoc project init` auto-runs extraction + knowledge seeding when graphify is on PATH and workspace looks like a codebase (has `.git` or `package.json`). Response includes `graphify.hooksHint` when applicable.
+- **SYNC:** `spoc graphify-sync <slug>` re-extracts and ingests new structural knowledge. Use when `lastSyncedAt` > 7 days or major refactor commits landed.
+
+**Sub-agent usage:** Load `graphify-aware` skill on any sub-agent doing codebase reads when `graphify-out/graph.json` exists. The skill covers `graphify query`, `affected`, `explain`, `path` commands.
 
 | Command | When to use | Owner |
 |---------|------------|-------|
-| `graphify update <path> --force --no-cluster` | INIT (always when binary present) and SYNC (when `lastSyncedAt` > 7 days OR major refactor commits since last extract) | orchestrator |
-| `graphify query "<question>" --graph <path> --budget 2000` | INIT enrichment, BRAINSTORM scoping ("what touches X"), architecture-review evidence gathering | sub-agent (read-only) |
-| `graphify affected "<symbol>" --graph <path> --depth 2` | EXECUTE pre-flight ("what does this change ripple into"), oncall-ops blast-radius, code-reviewer impact assessment | sub-agent (read-only) |
-| `graphify explain "<node>" --graph <path>` | INIT god-node knowledge body enrichment, BRAINSTORM scoping summaries | sub-agent (read-only) |
-| `graphify path "<A>" "<B>" --graph <path>` | Architecture-review: shortest dependency path between two modules | sub-agent (read-only) |
-| `graphify diagnose multigraph --graph <path>` | Periodic health (SYNC): detect same-endpoint edge collapse risk | `spoc-docs` |
-| `graphify cluster-only <path>` | After major refactor when god-node/community signal needs refresh | orchestrator |
-| `graphify export callflow-html` | One-off: produce architecture call-flow HTML for human review | orchestrator on request |
+| `graphify update <path> --force --no-cluster` | INIT (auto) and SYNC (`spoc graphify-sync`) | orchestrator / CLI |
+| `graphify query "<question>" --graph <path> --budget 2000` | BRAINSTORM scoping, architecture-review evidence | sub-agent (read-only) |
+| `graphify affected "<symbol>" --graph <path> --depth 2` | EXECUTE pre-flight, blast-radius analysis | sub-agent (read-only) |
+| `graphify explain "<node>" --graph <path>` | BRAINSTORM scoping summaries | sub-agent (read-only) |
+| `graphify path "<A>" "<B>" --graph <path>` | Architecture-review: shortest dependency path | sub-agent (read-only) |
+| `graphify diagnose multigraph --graph <path>` | Periodic SYNC health checks | `spoc-docs` |
 
-**SPOC programmatic helpers** (preferred over raw shelling out from sub-agents): `detectGraphify()`, `runExtraction()`, `ingestGraph()`, `queryGraph()`, `pathBetween()` in `src/utils/graphify.ts`. Use these from any orchestrator-internal code path; sub-agents that shell out should pass `--graph graphify-out/graph.json` and `--budget 2000` to keep token cost bounded.
-
-**Cross-workflow reuse:**
-- **INIT:** mandatory step (default ON when binary present) — see INIT Graphify Sub-Flow above.
-- **SYNC:** re-extract if stale; `spoc-docs` may run `graphify diagnose multigraph` and `graphify update --force --no-cluster` to refresh the snapshot before knowledge-curation.
-- **BRAINSTORM:** `system-architect` uses `graphify query` to ground design proposals in actual coupling reality.
-- **EXECUTE:** `software-engineer` may run `graphify affected "<symbol>"` before a risky change to map ripple radius.
-- **architecture-review / tech-architect:** `graphify path` and `graphify explain` provide structural evidence for findings.
-
-**Fallback:** if `graphify` is not on PATH, every workflow degrades gracefully — log "graphify unavailable; proceeding without graph signal" and continue. Never block on graphify.
+**Fallback:** if `graphify` is not on PATH, every workflow degrades gracefully — no error, just skipped. Never block on graphify.
 
 
 
