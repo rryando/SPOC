@@ -128,6 +128,20 @@ function formatExpiryMessage(proposal: WriteProposal, nowMs: number, expiresAtMs
 }
 
 // ---------------------------------------------------------------------------
+// Operation name normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize an operation name for comparison:
+ * - Strip `tool:` or `cli:` prefixes
+ * - Replace underscores with hyphens
+ * - Lowercase
+ */
+export function normalizeOpName(op: string): string {
+  return op.toLowerCase().replace(/^(tool|cli):/, "").replace(/_/g, "-");
+}
+
+// ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
 
@@ -286,11 +300,10 @@ export function requireWriteGate(
     throw new WriteGateError(`Project scope mismatch: proposal for "${proposal.slug}", target "${slug}"`);
   }
 
-  // Normalize: strip "tool:" prefix for comparison so both "tool:create_project_plan"
-  // and "create_project_plan" match against proposals using either format.
-  const normalize = (op: string) => op.replace(/^tool:/, "");
-  const normalizedOp = normalize(operation);
-  const matches = proposal.operations.some((op) => normalize(op) === normalizedOp);
+  // Normalize: strip prefixes and unify separators for comparison so both
+  // "tool:create_project_plan" and "create-project-plan" match.
+  const normalizedOp = normalizeOpName(operation);
+  const matches = proposal.operations.some((op) => normalizeOpName(op) === normalizedOp);
   if (!matches) {
     throw new WriteGateError(
       `Operation mismatch: proposal authorizes [${proposal.operations.join(", ")}], requested "${operation}"`,

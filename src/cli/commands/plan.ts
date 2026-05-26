@@ -119,6 +119,7 @@ defineCommand({
   path: "plan create",
   description: "Create a new plan",
   gated: true,
+  mutation: true,
   gateName: "plan-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -182,6 +183,7 @@ defineCommand({
   path: "plan update-meta",
   description: "Update plan metadata",
   gated: true,
+  mutation: true,
   gateName: "plan-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -247,6 +249,7 @@ defineCommand({
   path: "plan update-body",
   description: "Update plan body content",
   gated: true,
+  mutation: true,
   gateName: "plan-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -332,6 +335,7 @@ defineCommand({
   path: "plan delete",
   description: "Delete a plan",
   gated: true,
+  mutation: true,
   gateName: "plan-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },

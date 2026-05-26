@@ -94,6 +94,7 @@ defineCommand({
   path: "task create",
   description: "Create a new task",
   gated: true,
+  mutation: true,
   gateName: "task-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -155,6 +156,7 @@ defineCommand({
   path: "task transition",
   description: "Transition task status",
   gated: true,
+  mutation: true,
   gateName: "task-transition",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -209,6 +211,7 @@ defineCommand({
   path: "task update",
   description: "Update task metadata",
   gated: true,
+  mutation: true,
   gateName: "task-update",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -273,6 +276,7 @@ defineCommand({
   path: "task delete",
   description: "Delete a task",
   gated: true,
+  mutation: true,
   gateName: "task-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },

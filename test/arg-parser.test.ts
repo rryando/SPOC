@@ -30,11 +30,10 @@ describe("parseArgs", () => {
     expect(result).toEqual({ ok: true, parsed: { params: { summary: "hello world" }, flags: { json: false, lean: false, dryRun: false, help: false } } });
   });
 
-  it("flag wins over positional for same param", () => {
+  it("returns ambiguous_arg error when both positional and flag provided for same param", () => {
     const def = makeDef({ summary: { type: "string", required: true, positional: 0, description: "summary" } });
     const result = parseArgs(def, ["positional-val", "--summary=flag-val"]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.parsed.params.summary).toBe("flag-val");
+    expect(result).toMatchObject({ ok: false, error: { code: "ambiguous_arg", param: "summary" } });
   });
 
   it("extracts global flags from anywhere", () => {
@@ -161,5 +160,27 @@ describe("conditional required", () => {
   it("no error when condition is false and param missing", () => {
     const result = parseArgs(def, ["--list-ops"]);
     expect(result).toMatchObject({ ok: true, parsed: { params: { "list-ops": true } } });
+  });
+});
+
+describe("parseArgs — ambiguous arg detection", () => {
+  const def = makeDef({
+    slug: { type: "string", required: true, positional: 0, description: "project slug" },
+    taskId: { type: "string", required: true, positional: 1, description: "task id" },
+  });
+
+  it("returns ambiguous_arg when param provided as both positional and flag", () => {
+    const result = parseArgs(def, ["myslug", "--slug=other"]);
+    expect(result).toMatchObject({ ok: false, error: { code: "ambiguous_arg", param: "slug" } });
+  });
+
+  it("works with positional only", () => {
+    const result = parseArgs(def, ["myslug", "task1"]);
+    expect(result).toMatchObject({ ok: true, parsed: { params: { slug: "myslug", taskId: "task1" } } });
+  });
+
+  it("works with flag only", () => {
+    const result = parseArgs(def, ["--slug=myslug", "--taskId=task1"]);
+    expect(result).toMatchObject({ ok: true, parsed: { params: { slug: "myslug", taskId: "task1" } } });
   });
 });

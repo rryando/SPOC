@@ -19,6 +19,7 @@ import { getProjectDir } from "../../utils/paths.js";
 defineCommand({
   path: "write propose",
   description: "Create a write-gate proposal token",
+  mutation: false,
   params: {
     summary: { type: "string", required: true, positional: 0, description: "Human-readable summary of planned changes" },
     ops: { type: "string", required: true, description: "Comma-separated operation names" },
@@ -72,6 +73,7 @@ defineCommand({
   description: "Consume a write-gate proposal token",
   gated: true,
   gateName: "write-apply",
+  mutation: true,
   params: {
     token: { type: "string", required: true, positional: 0, description: "The proposal token to consume" },
     slug: { type: "string", required: true, description: "Target project slug" },

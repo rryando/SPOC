@@ -21,6 +21,7 @@ export interface CommandDiscovery {
     >;
     gated?: boolean;
     gateName?: string;
+    mutation?: boolean;
   }>;
   errorCodes: string[];
 }
@@ -109,6 +110,7 @@ export function generateCommandsDiscovery(): CommandDiscovery {
       ),
       ...(def.gated ? { gated: true } : {}),
       ...(def.gateName ? { gateName: def.gateName } : {}),
+      ...(def.mutation != null ? { mutation: def.mutation } : {}),
     })),
     errorCodes: Object.values(ERROR_CODES),
   };

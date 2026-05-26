@@ -4,6 +4,7 @@ import {
   consumeWriteProposal,
   getWriteProposal,
   clearWriteProposals,
+  normalizeOpName,
   type WriteProposal,
   type WriteProposalInput,
   WriteGateError,
@@ -119,6 +120,28 @@ describe("write-gate token model", () => {
 
     it("returns undefined for unknown token", () => {
       expect(getWriteProposal("wp_nonexistent")).toBeUndefined();
+    });
+  });
+
+  describe("normalizeOpName", () => {
+    it("strips tool: prefix and normalizes underscores", () => {
+      expect(normalizeOpName("tool:sync_agents_md")).toBe("sync-agents-md");
+    });
+
+    it("strips cli: prefix and normalizes underscores", () => {
+      expect(normalizeOpName("cli:task_create")).toBe("task-create");
+    });
+
+    it("normalizes underscores to hyphens without prefix", () => {
+      expect(normalizeOpName("create_project_task")).toBe("create-project-task");
+    });
+
+    it("lowercases the result", () => {
+      expect(normalizeOpName("Tool:Sync_Agents")).toBe("sync-agents");
+    });
+
+    it("passes through already-normalized names", () => {
+      expect(normalizeOpName("task-create")).toBe("task-create");
     });
   });
 });

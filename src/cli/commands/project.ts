@@ -118,6 +118,7 @@ defineCommand({
   path: "project init",
   description: "Initialize a new project",
   gated: true,
+  mutation: true,
   gateName: "project-init",
   params: {
     name: { type: "string", required: true, positional: 0, description: "Project name" },
@@ -220,6 +221,7 @@ defineCommand({
   path: "project update-doc",
   description: "Update a project document",
   gated: true,
+  mutation: true,
   gateName: "project-update-doc",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -301,6 +303,7 @@ defineCommand({
   path: "project update-status",
   description: "Update a project's status",
   gated: true,
+  mutation: true,
   gateName: "project-update-status",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -354,6 +357,7 @@ defineCommand({
   path: "project update-paths",
   description: "Add or remove workspace paths for a project",
   gated: true,
+  mutation: true,
   gateName: "project-update-paths",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },

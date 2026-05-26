@@ -300,6 +300,7 @@ defineCommand({
   path: "batch",
   description: "Run batch operations from a JSON file",
   gated: true,
+  mutation: true,
   gateName: "batch",
   params: {
     file: { type: "string", required: (params) => !params["list-ops"], description: "Path to JSON file with operations" },

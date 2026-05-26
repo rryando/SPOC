@@ -29,6 +29,7 @@ export interface CommandDef {
   params: Record<string, ParamDef>;
   gated?: boolean;
   gateName?: string;
+  mutation?: boolean;
   handler: (params: Record<string, unknown>, flags: CommandFlags) => Promise<CLIResult>;
 }
 
@@ -43,6 +44,7 @@ export const ERROR_CODES = {
   TOKEN_MISMATCH: "token_mismatch",
   PROJECT_NOT_FOUND: "project_not_found",
   ENTITY_NOT_FOUND: "entity_not_found",
+  AMBIGUOUS_ARG: "ambiguous_arg",
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -71,12 +71,30 @@ export function parseArgs(def: CommandDef, rawArgs: string[]): ParseResult {
     i++;
   }
 
-  // Assign positionals to params (flag values take precedence)
+  // Assign positionals to params and detect ambiguity
+  const flagParams = new Set(Object.keys(params));
+  const positionalParams = new Set<string>();
   for (const [name, paramDef] of Object.entries(def.params)) {
-    if (paramDef.positional !== undefined && !(name in params)) {
-      if (positionals[paramDef.positional] !== undefined) {
+    if (paramDef.positional !== undefined && positionals[paramDef.positional] !== undefined) {
+      positionalParams.add(name);
+      if (!(name in params)) {
         params[name] = positionals[paramDef.positional];
       }
+    }
+  }
+
+  // Conflict detection: param set by both positional and flag
+  for (const name of positionalParams) {
+    if (flagParams.has(name)) {
+      return {
+        ok: false,
+        error: {
+          ok: false,
+          code: ERROR_CODES.AMBIGUOUS_ARG,
+          message: `Ambiguous: '${name}' provided as both positional arg and --${name} flag. Use one style.`,
+          param: name,
+        },
+      };
     }
   }
 

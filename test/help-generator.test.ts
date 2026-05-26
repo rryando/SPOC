@@ -15,6 +15,7 @@ beforeAll(() => {
   defineCommand({
     path: "help-test propose",
     description: "Create a write-gate proposal token",
+    mutation: false,
     params: {
       summary: { type: "string", required: true, positional: 0, description: "Human-readable summary" },
       ops: { type: "string", required: true, description: "Comma-separated operation names" },
@@ -38,6 +39,7 @@ beforeAll(() => {
     description: "A gated command",
     gated: true,
     gateName: "help-test-gated",
+    mutation: true,
     params: {
       slug: { type: "string", required: true, positional: 0, description: "Project slug" },
       token: { type: "string", description: "Write-gate token" },
@@ -149,6 +151,7 @@ describe("generateCommandsDiscovery", () => {
     expect(gatedCmd).toBeDefined();
     expect(gatedCmd!.gated).toBe(true);
     expect(gatedCmd!.gateName).toBe("help-test-gated");
+    expect(gatedCmd!.mutation).toBe(true);
   });
 
   it("omits gated and gateName for non-gated commands", () => {
@@ -157,6 +160,14 @@ describe("generateCommandsDiscovery", () => {
     expect(helpList).toBeDefined();
     expect(helpList!.gated).toBeUndefined();
     expect(helpList!.gateName).toBeUndefined();
+    expect(helpList!.mutation).toBeUndefined();
+  });
+
+  it("includes mutation: false for read-only commands that declare it", () => {
+    const discovery = generateCommandsDiscovery();
+    const proposeCmd = discovery.commands.find((c) => c.path === "help-test propose");
+    expect(proposeCmd).toBeDefined();
+    expect(proposeCmd!.mutation).toBe(false);
   });
 });
 

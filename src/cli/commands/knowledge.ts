@@ -123,6 +123,7 @@ defineCommand({
   path: "knowledge create",
   description: "Create a new knowledge entry",
   gated: true,
+  mutation: true,
   gateName: "knowledge-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -190,6 +191,7 @@ defineCommand({
   path: "knowledge update-meta",
   description: "Update metadata of a knowledge entry",
   gated: true,
+  mutation: true,
   gateName: "knowledge-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -257,6 +259,7 @@ defineCommand({
   path: "knowledge update-body",
   description: "Update the body content of a knowledge entry",
   gated: true,
+  mutation: true,
   gateName: "knowledge-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
@@ -381,6 +384,7 @@ defineCommand({
   path: "knowledge delete",
   description: "Delete a knowledge entry",
   gated: true,
+  mutation: true,
   gateName: "knowledge-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
