@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "build:opencode-bundle": "node scripts/build-opencode-bundle.mjs",
+    "build:opencode-bundle": "npm run build && node scripts/build-opencode-bundle.mjs",
     "prepack": "npm run build:opencode-bundle",
     "start": "node dist/index.js",
     "dev": "tsc --watch",

@@ -9,7 +9,7 @@ description: Use when auditing SPOC knowledge entries for staleness, duplication
 
 Periodic audit of a project's knowledge base, after major refactors, or when agents report duplicates/conflicts.
 
-> CLI Primer: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI Primer: `spoc --commands --json` for discovery. All writes: `spoc write propose` → token → command with `--token`.
 
 ## Flow
 
@@ -106,6 +106,6 @@ flowchart TD
 - Never merge without reading both bodies
 - Never report "cleared" without stating what was checked
 - Delete confidently: empty + trusted > full + unreliable
-- Group related mutations into a single `spoc batch` invocation
-- Two modes: direct execution (run mutating commands) or recommendation-only (CLI commands in report)
+- Batch related mutations under a single write-gate proposal
+- Two modes: direct execution (with tokens) or recommendation-only (CLI commands in report)
 - Taxonomy disputes → escalate to human, document decision as `lesson`

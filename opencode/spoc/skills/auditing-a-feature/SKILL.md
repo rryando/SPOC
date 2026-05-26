@@ -9,7 +9,7 @@ description: Use when a feature, module, or user/data flow is about to be refact
 
 Read-only guardrail audit for a feature/module/flow — produces structured findings with SPOC handoff tags.
 
-> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
 
 ## Flow
 

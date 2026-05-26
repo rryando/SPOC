@@ -1,6 +1,7 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   normalizeRelativePath,
@@ -39,6 +40,14 @@ const preservedOutputFiles = new Set([
   "prompts/system-architect.txt",
   "prompts/code-reviewer.txt",
   "prompts/docs-researcher.txt",
+  // Orchestrator prompt files — generated from src/cli/spoc-orchestrate*.ts during
+  // bundle build (see generateOrchestratorPrompts() below). TS modules remain the
+  // canonical source; these .txt files are committed mirrors so the bundle is
+  // self-describing and all prompts live in one directory. writeOpencodeAgent()
+  // in src/cli/instructions.ts also writes these files at runtime to
+  // ~/.config/opencode/prompts/, but the bundle copy provides install-time parity.
+  "prompts/spoc-orchestrate.txt",
+  "prompts/spoc-orchestrate-caveman.txt",
 ]);
 
 function expandHome(filePath) {
@@ -91,7 +100,72 @@ function pruneUndeclaredFiles(rootPath, allowedFiles) {
 
 let defaultOutputRootCurrent = defaultOutputRoot;
 
-function main() {
+/**
+ * Generates the SPOC Orchestrator and SPOC Caveman prompt .txt files into
+ * <outputRoot>/prompts/. The TypeScript modules src/cli/spoc-orchestrate.ts
+ * and src/cli/spoc-orchestrate-caveman.ts remain the canonical source; these
+ * .txt files are committed mirrors so the bundle is self-describing alongside
+ * the static sub-agent prompts.
+ *
+ * Requires `tsc` to have run first (dist/cli/spoc-orchestrate.js must exist).
+ * package.json's build:opencode-bundle chains `tsc` before this script.
+ */
+async function generateOrchestratorPrompts(outputRoot) {
+  const orchestrateModulePath = resolve(repoRoot, "dist/cli/spoc-orchestrate.js");
+  const cavemanModulePath = resolve(repoRoot, "dist/cli/spoc-orchestrate-caveman.js");
+
+  if (!existsSync(orchestrateModulePath) || !existsSync(cavemanModulePath)) {
+    throw new Error(
+      `Compiled orchestrator modules missing. Run \`npm run build\` before bundle build.\n` +
+        `  Expected: ${orchestrateModulePath}\n` +
+        `  Expected: ${cavemanModulePath}`,
+    );
+  }
+
+  const orchestrateModule = await import(pathToFileURL(orchestrateModulePath).href);
+  const cavemanModule = await import(pathToFileURL(cavemanModulePath).href);
+
+  const orchestrateText = orchestrateModule.ORCHESTRATE_PROMPT_TEXT;
+  const cavemanText = cavemanModule.ORCHESTRATE_CAVEMAN_PROMPT_TEXT;
+
+  if (typeof orchestrateText !== "string" || orchestrateText.length === 0) {
+    throw new Error("ORCHESTRATE_PROMPT_TEXT not exported as non-empty string");
+  }
+  if (typeof cavemanText !== "string" || cavemanText.length === 0) {
+    throw new Error("ORCHESTRATE_CAVEMAN_PROMPT_TEXT not exported as non-empty string");
+  }
+
+  const promptsDir = resolve(outputRoot, "prompts");
+  mkdirSync(promptsDir, { recursive: true });
+
+  const orchestratePath = resolve(promptsDir, "spoc-orchestrate.txt");
+  const cavemanPath = resolve(promptsDir, "spoc-orchestrate-caveman.txt");
+
+  // Banner prepended to every generated prompt file. Uses HTML comment syntax
+  // so it's invisible when rendered as markdown but obvious to anyone opening
+  // the .txt directly. LLMs treat HTML comments as out-of-band metadata, so
+  // the banner does not pollute the prompt's actionable instructions.
+  const banner = (sourceFile) =>
+    `<!--\n` +
+    `  AUTO-GENERATED — DO NOT EDIT.\n` +
+    `  Source of truth: ${sourceFile}\n` +
+    `  Regenerate: npm run build:opencode-bundle\n` +
+    `  Edits to this file will be overwritten on the next build.\n` +
+    `-->\n\n`;
+
+  writeFileSync(
+    orchestratePath,
+    `${banner("src/cli/spoc-orchestrate.ts")}${orchestrateText}\n`,
+    "utf-8",
+  );
+  writeFileSync(
+    cavemanPath,
+    `${banner("src/cli/spoc-orchestrate-caveman.ts")}${cavemanText}\n`,
+    "utf-8",
+  );
+}
+
+async function main() {
   const manifestPath = process.env.SPOC_BUNDLE_RUNTIME_MANIFEST
     ? resolve(repoRoot, process.env.SPOC_BUNDLE_RUNTIME_MANIFEST)
     : defaultManifestPath;
@@ -131,10 +205,14 @@ function main() {
 
   mkdirSync(outputRoot, { recursive: true });
   pruneUndeclaredFiles(outputRoot, allowedOutputFiles);
+
+  // Generate orchestrator prompt mirrors after prune so they always end up
+  // on disk fresh from the canonical TS sources.
+  await generateOrchestratorPrompts(outputRoot);
 }
 
 try {
-  main();
+  await main();
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`${message}\n`);

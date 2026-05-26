@@ -34,6 +34,21 @@ const preservedFiles = new Set([
   "skills/caveman-commit/SKILL.md",
   "skills/caveman-review/SKILL.md",
   "skills/init-project/SKILL.md",
+  // Sub-agent prompt files (repo-authored, referenced from manifest.json
+  // requiredMerges, not from bundle-runtime.json's `agents` array).
+  "prompts/software-engineer.txt",
+  "prompts/tech-architect.txt",
+  "prompts/qa-analyst.txt",
+  "prompts/oncall-ops.txt",
+  "prompts/spoc-docs.txt",
+  "prompts/system-architect.txt",
+  "prompts/code-reviewer.txt",
+  "prompts/docs-researcher.txt",
+  // Orchestrator prompt files — generated from src/cli/spoc-orchestrate*.ts
+  // by build-opencode-bundle.mjs. Committed mirrors so the bundle is
+  // self-describing alongside the static sub-agent prompts.
+  "prompts/spoc-orchestrate.txt",
+  "prompts/spoc-orchestrate-caveman.txt",
 ]);
 
 const spocNativeSkillNames = new Set(["loop", "caveman-commit", "caveman-review", "init-project"]);

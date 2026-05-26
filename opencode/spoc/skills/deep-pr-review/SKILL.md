@@ -9,12 +9,13 @@ description: Use when the user provides a GitHub PR link with a "deep review" tr
 
 User gives a GitHub PR URL plus a "deep review" trigger inside the locally cloned repo of that PR. Reviewer-side workflow: read-only by default, posts to GitHub only after explicit user gate.
 
-> CLI: `spoc --commands --json` for discovery. Posting is user-gated. SPOC writes (optional knowledge harvest) run directly via the CLI.
+> CLI: `spoc --commands --json`. Posting is user-gated. SPOC writes (optional knowledge harvest): `spoc write propose` → token → `--token`.
 
 ## Flow
 
 ```mermaid
 flowchart TD
+    classDef gate fill:#f59e0b,color:#fff
     classDef bail fill:#ef4444,color:#fff
 
     A[User: 'deep review' + PR URL] --> B[gh repo view + gh pr view]
@@ -38,12 +39,12 @@ flowchart TD
     M --> Q[Aggregate findings + cite each]
     O --> Q
     P --> Q
-    Q --> R[Present report + 5 posting modes]
+    Q --> R[Present report + 5 posting modes]:::gate
     R --> S{User choice}
     S -->|don't post| END1[Show report only]
     S -->|post| T[gh api: review + inline comments]
     T --> U{Recurring pattern surfaced?}
-    U -->|yes + opt-in| V[Propose knowledge:create]
+    U -->|yes + opt-in| V[Propose knowledge:create]:::gate
     U -->|no| END2[Done]
     V --> END2
 ```

@@ -9,7 +9,7 @@ description: Use when facing 2+ independent tasks that can be worked on without 
 
 2+ independent tasks with no shared state that can run concurrently.
 
-> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
 
 ## Flow
 

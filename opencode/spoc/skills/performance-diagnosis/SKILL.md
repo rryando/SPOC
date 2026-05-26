@@ -9,7 +9,7 @@ description: Use when diagnosing performance issues, interpreting profiling data
 
 Any performance concern — slow responses, high memory, CPU blocking, query latency, rendering jank, throughput degradation.
 
-> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
 
 ## Flow
 

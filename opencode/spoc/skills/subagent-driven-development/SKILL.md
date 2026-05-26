@@ -9,7 +9,7 @@ description: Use when executing implementation plans with independent tasks in t
 
 You have an implementation plan with mostly-independent tasks and want to execute them in-session via fresh subagents with two-stage review.
 
-> CLI Primer: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI Primer: `spoc --commands --json` for discovery. All writes: `spoc write propose` → token → command with `--token`.
 
 ## Flow
 
@@ -64,7 +64,7 @@ When the plan has a `.mmd` file:
 
 1. `spoc diagram ready <slug> <planId>` → all returned nodes are dispatch-safe in parallel
 2. Use per-node `%%` metadata (`skill`, `scope`, `files`, `acceptance`, `verify`) to construct prompts
-3. After completion: `spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId>`
+3. After completion: `spoc task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId> --token=$TOKEN`
 4. Re-run `diagram ready` to discover newly-unblocked nodes
 5. If node metadata is incomplete, fall back to reading the plan body for that task
 

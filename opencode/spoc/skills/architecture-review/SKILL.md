@@ -9,7 +9,7 @@ description: Use when evaluating module boundaries, coupling, dependency directi
 
 Evaluating structural fitness of a system/subsystem — module boundaries, coupling, dependency direction, API cohesion, layering.
 
-> CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
+> CLI: `spoc --commands --json`. Writes: `spoc write propose` → token → `--token`.
 
 ## Flow
 

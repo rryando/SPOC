@@ -63,6 +63,10 @@ describe("checked-in opencode bundle pruning", () => {
       "prompts/spoc-docs.txt",
       "prompts/system-architect.txt",
       "prompts/tech-architect.txt",
+      // Orchestrator prompt files generated from src/cli/spoc-orchestrate*.ts
+      // by build-opencode-bundle.mjs and committed to the repo bundle.
+      "prompts/spoc-orchestrate.txt",
+      "prompts/spoc-orchestrate-caveman.txt",
     ].sort();
 
     expect(listRelativeFiles(bundleRoot).sort()).toEqual(expectedBundleFiles);
