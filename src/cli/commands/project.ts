@@ -224,12 +224,14 @@ async function handleProjectInit(
 
     // Graphify: extract code graph and seed structural knowledge (non-fatal)
     // Only attempt if workspace looks like a real codebase (has .git or package.json)
+    // Skip when SPOC_SKIP_GRAPHIFY=1 (used in tests to avoid spawning real binaries)
     let graphify: { proposed: number; created: number; hooksHint?: string } | null = null;
     const graphifyWorkspace = wsPath ?? process.cwd();
     const hasGit = existsSync(resolve(graphifyWorkspace, ".git"));
     const looksLikeCodebase =
       hasGit || existsSync(resolve(graphifyWorkspace, "package.json"));
-    if (looksLikeCodebase) {
+    const skipGraphify = process.env.SPOC_SKIP_GRAPHIFY === "1";
+    if (looksLikeCodebase && !skipGraphify) {
       try {
         const { detectGraphify, runExtraction, ingestGraph } = await import("../../utils/graphify.js");
         const { persistProposals } = await import("../../utils/graphify-knowledge.js");

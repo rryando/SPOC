@@ -242,6 +242,7 @@ flowchart TD
 | `deep-pr-review` | GitHub PR link with "deep review" trigger inside cloned repo |
 | `verification-before-completion` | Before claiming done/fixed/passing — evidence before assertion |
 | `finishing-a-development-branch` | Implementation complete, decide merge/PR/cleanup |
+| `using-git-worktrees` | Starting feature work or executing plan that needs an isolated workspace |
 | `knowledge-curation` | Audit knowledge for staleness, duplication, taxonomy drift |
 | `to-diagram` | Creating or updating a SPOC plan `.diagram.mmd` |
 | `aesthetic` | Any frontend/UI work — components, pages, styles, layouts, motion |
@@ -270,6 +271,7 @@ flowchart TD
 | UI/visual work mentioned | `aesthetic` | `software-engineer` |
 | Editing opencode config / agents / skills | `customize-opencode` | orchestrator or `software-engineer` |
 | `graphify-out/graph.json` exists in workspace | `graphify-aware` | any sub-agent doing codebase reads |
+| Feature work needs isolation / execution plan starting | `using-git-worktrees` | `software-engineer` |
 
 Announce: `→ Auto-layering `<skill>` on `<agent>` (<reason>).` — don't ask.
 
