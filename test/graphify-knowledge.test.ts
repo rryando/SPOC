@@ -1,12 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { withTempDataDir } from "./helpers/temp-data-dir.js";
-import { persistProposals } from "../src/utils/graphify-knowledge.js";
+import { describe, expect, it } from "vitest";
 import type { KnowledgeProposal } from "../src/utils/graphify.js";
+import { persistProposals } from "../src/utils/graphify-knowledge.js";
+import { withTempDataDir } from "./helpers/temp-data-dir.js";
 
-function makeProposal(title: string, kind: KnowledgeProposal["kind"] = "architecture"): KnowledgeProposal {
+function makeProposal(
+  title: string,
+  kind: KnowledgeProposal["kind"] = "architecture",
+): KnowledgeProposal {
   return {
     title,
     kind,
@@ -51,7 +54,9 @@ describe("persistProposals", () => {
       expect(index.entries[0].summary).toBe("Summary for God Node Analysis");
       expect(index.entries[0].sourceFiles).toEqual([{ path: "src/foo.ts" }]);
 
-      const meta = JSON.parse(await readFile(resolve(knowledgeDir, "god-node-analysis.meta.json"), "utf-8"));
+      const meta = JSON.parse(
+        await readFile(resolve(knowledgeDir, "god-node-analysis.meta.json"), "utf-8"),
+      );
       expect(meta.id).toBe("god-node-analysis");
       expect(meta.title).toBe("God Node Analysis");
 

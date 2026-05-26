@@ -26,10 +26,7 @@ describe("prompt parity — .txt mirrors TypeScript source", () => {
   });
 
   it("spoc-orchestrate-caveman.txt matches ORCHESTRATE_CAVEMAN_PROMPT_TEXT", () => {
-    const txtContent = readFileSync(
-      resolve(promptsDir, "spoc-orchestrate-caveman.txt"),
-      "utf-8",
-    );
+    const txtContent = readFileSync(resolve(promptsDir, "spoc-orchestrate-caveman.txt"), "utf-8");
     const body = stripBanner(txtContent);
     expect(body, STALE_MSG).toBe(`${ORCHESTRATE_CAVEMAN_PROMPT_TEXT}\n`);
   });

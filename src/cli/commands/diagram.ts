@@ -4,9 +4,12 @@
 
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { access, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { generateDiagramFromTasks } from "../../utils/diagram-generator.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
+import { listTasks } from "../../utils/project-memory.js";
 import {
   type CLIResult,
   type CommandFlags,
@@ -325,3 +328,58 @@ async function handleDiagramShow(
     return failure("diagram_error", err instanceof Error ? err.message : String(err));
   }
 }
+
+// ---------------------------------------------------------------------------
+// diagram init
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "diagram init",
+  description: "Generate skeleton .diagram.mmd for a plan from its existing tasks",
+  params: {
+    slug: { type: "string", positional: 0, required: true, description: "Project slug" },
+    planId: { type: "string", positional: 1, required: true, description: "Plan ID" },
+    force: { type: "boolean", description: "Overwrite existing .mmd file" },
+  },
+  mutation: true,
+  errorCodes: ["project_not_found", "entity_not_found", "conflict"],
+  handler: async (params, _flags) => {
+    const { slug, planId, force } = params as { slug: string; planId: string; force?: boolean };
+    const projectDir = getProjectDir(slug as string);
+
+    try {
+      await access(projectDir);
+    } catch {
+      return { ok: false, code: "project_not_found", message: `Project not found: ${slug}` };
+    }
+
+    const allTasks = await listTasks(projectDir);
+    const planTasks = allTasks.filter((t) => t.planId === planId);
+    if (planTasks.length === 0) {
+      return {
+        ok: false,
+        code: "entity_not_found",
+        message: `No tasks found for plan '${planId}' in project '${slug}'. Create tasks with --planId first.`,
+      };
+    }
+
+    const diagramPath = resolveDiagramPath(slug as string, planId);
+    if (!force) {
+      try {
+        await access(diagramPath);
+        return {
+          ok: false,
+          code: "conflict",
+          message: `Diagram already exists: ${diagramPath}. Use --force to overwrite.`,
+        };
+      } catch {
+        // file does not exist — proceed
+      }
+    }
+
+    const { mmd, nodes } = generateDiagramFromTasks(planId, planTasks);
+    await writeFile(diagramPath, mmd, "utf-8");
+
+    return { ok: true, data: { path: diagramPath, planId, nodeCount: nodes.length, nodes } };
+  },
+});
