@@ -53,7 +53,7 @@ When plan has `.diagram.mmd`:
 
 Include in sub-agent prompts:
 ```bash
-spoc context <slug> --audience=implementer --lean --json
+spoc context --audience=implementer --lean --json
 spoc search <slug> "<task-keywords>" --lean --json
 ```
 

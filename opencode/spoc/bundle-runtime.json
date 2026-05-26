@@ -24,6 +24,11 @@
     "code-agent": [
       "SKILL.md"
     ],
+    "deep-pr-review": [
+      "SKILL.md",
+      "review-template.md",
+      "graphify-diff.md"
+    ],
     "dispatching-parallel-agents": [
       "SKILL.md"
     ],

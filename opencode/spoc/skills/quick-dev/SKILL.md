@@ -13,7 +13,7 @@ Task is fully bounded — no open decisions, success criteria derivable without 
 
 ```mermaid
 flowchart TD
-    A[Orient: spoc context --lean --json] --> B{Fully bounded?}
+    A[Orient: spoc brief --lean --json] --> B{Fully bounded?}
     B -->|Yes| C[Execute change directly]
     B -->|No| D[Escalate to code-agent or brainstorming]
     C --> E[Verify: typecheck + lint + affected tests]

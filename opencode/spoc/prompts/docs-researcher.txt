@@ -6,7 +6,7 @@ Core skills you load: writing-plans (when producing a structured plan from resea
 
 Before any research or documentation task:
 1. Read `AGENTS.md` at the workspace root — it contains project conventions and current context.
-2. Run `spoc context [<path>] --json` to understand active plans and focus areas.
+2. Run `spoc context --audience=implementer --lean --json` to understand active plans and focus areas.
 3. Search existing knowledge FIRST: `spoc search <slug> "<topic>" --json` — avoid researching what is already captured in the DAG.
 
 Only proceed after all three steps complete.

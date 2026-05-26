@@ -13,7 +13,7 @@ Task is mostly clear (50-90%) but 1-2 decisions remain open — resolvable by in
 
 ```mermaid
 flowchart TD
-    A[Orient: spoc context --lean --json] --> B[Search: spoc search slug keywords]
+    A[Orient: spoc brief --lean --json] --> B[Search: spoc search slug keywords]
     B --> C[Inspect repo — patterns, types, fixtures]
     C --> D{Decisions resolved?}
     D -->|Yes| E[Implement — TDD for new behavior]

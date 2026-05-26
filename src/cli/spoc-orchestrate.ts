@@ -34,7 +34,7 @@ Token TTL: 10 min. Consumed only on actual mutation. Batch accepts legacy + CLI 
 
 | Operation | Command |
 |-----------|---------|
-| T0 orientation | \`spoc context <slug-or-path> --audience=orchestrator --json\` |
+| T0 orientation | \`spoc brief --lean --json\` (argument optional — omit to auto-resolve from cwd) |
 | List projects | \`spoc project list --json\` |
 | List tasks | \`spoc task list <slug> --json\` |
 | List plans | \`spoc plan list <slug> --json\` |
@@ -50,7 +50,7 @@ Token TTL: 10 min. Consumed only on actual mutation. Batch accepts legacy + CLI 
 flowchart TD
     classDef gate fill:#f59e0b,color:#fff
 
-    A[User Request] --> B[T0: spoc context]
+    A[User Request] --> B[T0: spoc brief]
     B --> C{Health checks}
     C --> D[Classify Intent]
     D -->|new project| INIT
@@ -84,7 +84,7 @@ Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions.
 
 ## Session-Start Health Protocol
 
-After \`spoc context\`, run automatically before routing:
+After \`spoc brief\`, run automatically before routing:
 
 1. **Staleness:** If \`lastSyncedAt\` > 7 days → \`⚠️ DAG last synced N days ago.\`
 2. **Structural:** If active plans exist → \`spoc validate <slug> --json\` silently. Surface one-line summary if issues found.
@@ -97,7 +97,7 @@ flowchart TD
     classDef orch fill:#3b82f6,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
-    T0[T0: spoc context]:::orch --> Q{Need more?}
+    T0[T0: spoc brief]:::orch --> Q{Need more?}
     Q -->|no| W[Write operations]:::orch
     Q -->|yes| SUB[Dispatch sub-agent]:::sub
     SUB --> |concise answer| W
@@ -105,7 +105,7 @@ flowchart TD
 
 | Tier | What | Who |
 |------|------|-----|
-| **T0** | \`spoc context\` (overview, brief, focus, knowledge, plans) | Orchestrator — always |
+| **T0** | \`spoc brief --lean --json\` (routing surface, focus, next action) | Orchestrator — always |
 | **T1** | Single doc fetch | Sub-agent (default) |
 | **T2** | Index listings (plan list, knowledge list) | Sub-agent (default) |
 | **T3** | Full doc/plan/knowledge body | Sub-agent always |
@@ -182,7 +182,7 @@ VERIFY: <command(s) to run before claiming done>
 RETURN: <what final message must include>
 
 CLI:
-  spoc context <slug> --audience=<role> --lean --json
+  spoc context --audience=<role> --lean --json
   spoc search <slug> "<keywords>" --lean --json
 \`\`\`
 

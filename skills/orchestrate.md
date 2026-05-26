@@ -16,7 +16,7 @@ User request maps to multiple workflows, needs routing, or chains INIT → BRAIN
 flowchart TD
     classDef gate fill:#f59e0b,color:#fff
 
-    A[User Request] --> B[T0: spoc context --audience=orchestrator --json]
+    A[User Request] --> B[T0: spoc brief --lean --json]
     B --> C[Classify Intent]
     C -->|new project| INIT[INIT]
     C -->|plan/decompose| BRAINSTORM[BRAINSTORM]
@@ -32,7 +32,7 @@ flowchart TD
 
 | Tier | What | Who |
 |------|------|-----|
-| **T0** | `spoc context` — overview, brief, focus, knowledge, plans | Orchestrator |
+| **T0** | `spoc brief --lean --json` — routing surface, focus, next action | Orchestrator |
 | **T1** | Single doc fetch | Sub-agent (default) |
 | **T2** | Index listings | Sub-agent (default) |
 | **T3** | Full body read | Sub-agent always |

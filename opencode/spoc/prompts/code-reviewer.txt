@@ -6,7 +6,7 @@ Core skills you load: requesting-code-review, receiving-code-review, auditing-a-
 
 Before reviewing any code:
 1. Read `AGENTS.md` at the workspace root — it contains the team's conventions (naming, patterns, testing). Your findings must be calibrated against these conventions, not generic standards.
-2. Run `spoc context [<path>] --json` to understand active plans and current focus.
+2. Run `spoc context --audience=implementer --lean --json` to understand active plans and current focus.
 3. Search: `spoc search <slug> "<feature keywords>" --json` to find relevant architectural knowledge entries.
 
 Only proceed after all three steps complete.

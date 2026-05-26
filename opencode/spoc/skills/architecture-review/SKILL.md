@@ -39,7 +39,7 @@ The review produces a report. Execution happens in a separate session under `cod
 
 ## Scope Resolution (First Step)
 
-1. `spoc context --lean --json` — get project overview, knowledge (kind `architecture`/`module`), plans
+1. `spoc context --audience=designer --lean --json` — get project overview, knowledge (kind `architecture`/`module`), plans
 2. `spoc project list --json` — identify cross-project dependency edges
 3. Fall back to user-specified boundaries if SPOC has nothing
 4. State final scope: modules audited, depth (full vs focused), exclusions
