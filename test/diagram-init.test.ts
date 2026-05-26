@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { runCommand } from "./helpers/cli-runner.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
@@ -23,7 +24,6 @@ describe("diagram init", () => {
       expect(result.ok).toBe(true);
       expect((result.data as { nodeCount: number }).nodeCount).toBe(2);
 
-      const { readFile } = await import("node:fs/promises");
       const mmd = await readFile((result.data as { path: string }).path, "utf-8");
       expect(mmd).toContain("flowchart TD");
       expect(mmd).toContain("classDef backlog");
