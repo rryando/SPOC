@@ -4,21 +4,25 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
+import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
+import { readJsonSafe, validateJson } from "../../utils/json.js";
+import { knowledgeMetaSchema } from "../../utils/json-schemas.js";
 import { getProjectDir } from "../../utils/paths.js";
 import {
   createKnowledgeEntry,
-  readKnowledgeIndex,
-  updateKnowledgeEntry,
   deleteKnowledgeEntry,
   type KnowledgeKind,
+  readKnowledgeIndex,
+  updateKnowledgeEntry,
 } from "../../utils/project-memory.js";
-import { knowledgeMetaSchema } from "../../utils/json-schemas.js";
-import { readJsonSafe, validateJson } from "../../utils/json.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
-import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
-import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // --- knowledge list ---
 
@@ -27,13 +31,20 @@ defineCommand({
   description: "List knowledge entries for a project",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    kind: { type: "string", description: "Filter by kind", enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"] },
+    kind: {
+      type: "string",
+      description: "Filter by kind",
+      enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"],
+    },
     keywords: { type: "string", description: "Comma-separated keywords to filter by" },
   },
   handler: handleKnowledgeList,
 });
 
-async function handleKnowledgeList(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeList(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const kind = params.kind as KnowledgeKind | undefined;
   const keywordsRaw = params.keywords as string | undefined;
@@ -50,9 +61,7 @@ async function handleKnowledgeList(params: Record<string, unknown>, flags: Comma
   }
   if (keywordsRaw) {
     const keywords = keywordsRaw.split(",").map((k) => k.trim().toLowerCase());
-    entries = entries.filter((e) =>
-      e.keywords.some((ek) => keywords.includes(ek.toLowerCase())),
-    );
+    entries = entries.filter((e) => e.keywords.some((ek) => keywords.includes(ek.toLowerCase())));
   }
   return success(entries);
 }
@@ -70,7 +79,10 @@ defineCommand({
   handler: handleKnowledgeGet,
 });
 
-async function handleKnowledgeGet(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeGet(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const entryId = params.entryId as string;
   const includeBody = params.body as boolean | undefined;
@@ -103,23 +115,28 @@ async function handleKnowledgeGet(params: Record<string, unknown>, flags: Comman
 defineCommand({
   path: "knowledge create",
   description: "Create a new knowledge entry",
-  gated: true,
   mutation: true,
-  gateName: "knowledge-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Entry title" },
-    kind: { type: "string", required: true, description: "Entry kind", enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"] },
+    kind: {
+      type: "string",
+      required: true,
+      description: "Entry kind",
+      enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"],
+    },
     summary: { type: "string", description: "Entry summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
     body: { type: "string", description: "Inline markdown body content" },
     "body-file": { type: "string", description: "Path to markdown file with entry body" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleKnowledgeCreate,
 });
 
-async function handleKnowledgeCreate(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeCreate(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const title = params.title as string;
   const kind = params.kind as KnowledgeKind;
@@ -127,7 +144,6 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   const keywordsRaw = params.keywords as string | undefined;
   const bodyInline = params.body as string | undefined;
   const bodyFile = params["body-file"] as string | undefined;
-  const token = params.token as string | undefined;
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
@@ -140,15 +156,18 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
   if (flags.dryRun) {
     const id = normalizeIdentifier(title);
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
-    return success({ dryRun: true, wouldCreate: { id, title, kind, summary, keywords, slug, hasBody: !!(bodyInline || bodyFile) } });
-  }
-  try {
-    requireWriteGate(token, slug, "tool:create_project_knowledge_entry");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldCreate: {
+        id,
+        title,
+        kind,
+        summary,
+        keywords,
+        slug,
+        hasBody: !!(bodyInline || bodyFile),
+      },
+    });
   }
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
   const id = normalizeIdentifier(title);
@@ -163,7 +182,10 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
 
   try {
     const entry = await createKnowledgeEntry(projectDir, {
-      id, title, kind, keywords,
+      id,
+      title,
+      kind,
+      keywords,
       ...(summary && { summary }),
       ...(content && { content }),
     });
@@ -178,29 +200,32 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
 defineCommand({
   path: "knowledge update-meta",
   description: "Update metadata of a knowledge entry",
-  gated: true,
   mutation: true,
-  gateName: "knowledge-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
     title: { type: "string", description: "New title" },
-    kind: { type: "string", description: "New kind", enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"] },
+    kind: {
+      type: "string",
+      description: "New kind",
+      enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"],
+    },
     summary: { type: "string", description: "New summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleKnowledgeUpdateMeta,
 });
 
-async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeUpdateMeta(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const entryId = params.entryId as string;
   const title = params.title as string | undefined;
   const kind = params.kind as KnowledgeKind | undefined;
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
-  const token = params.token as string | undefined;
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
@@ -209,15 +234,10 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
   }
   if (flags.dryRun) {
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : undefined;
-    return success({ dryRun: true, wouldUpdate: { slug, entryId, title, kind, summary, keywords } });
-  }
-  try {
-    requireWriteGate(token, slug, "tool:update_project_knowledge_meta");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldUpdate: { slug, entryId, title, kind, summary, keywords },
+    });
   }
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : undefined;
   try {
@@ -239,25 +259,24 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
 defineCommand({
   path: "knowledge update-body",
   description: "Update the body content of a knowledge entry",
-  gated: true,
   mutation: true,
-  gateName: "knowledge-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
     "body-file": { type: "string", description: "Path to markdown file with entry body" },
     "body-stdin": { type: "boolean", description: "Read body from stdin" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleKnowledgeUpdateBody,
 });
 
-async function handleKnowledgeUpdateBody(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeUpdateBody(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const entryId = params.entryId as string;
   const bodyFile = params["body-file"] as string | undefined;
   const bodyStdin = params["body-stdin"] as boolean | undefined;
-  const token = params.token as string | undefined;
   if (!bodyFile && !bodyStdin) {
     return failure(ERROR_CODES.MISSING_PARAM, "Either --body-file or --body-stdin is required", {
       hint: "Provide --body-file=<path> or --body-stdin to read from stdin.",
@@ -279,14 +298,6 @@ async function handleKnowledgeUpdateBody(params: Record<string, unknown>, flags:
   }
   if (flags.dryRun) {
     return success({ dryRun: true, wouldUpdate: { slug, entryId, bodyFile, bodyStdin } });
-  }
-  try {
-    requireWriteGate(token, slug, "tool:update_project_knowledge_body");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
   const rawMeta = await readJsonSafe<unknown>(metaPath);
   if (rawMeta === undefined) {
@@ -313,12 +324,19 @@ defineCommand({
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     query: { type: "string", required: true, positional: 1, description: "Search query" },
-    kind: { type: "string", description: "Filter by kind", enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"] },
+    kind: {
+      type: "string",
+      description: "Filter by kind",
+      enum: ["lesson", "gotcha", "pattern", "feature", "decision", "reference"],
+    },
   },
   handler: handleKnowledgeSearch,
 });
 
-async function handleKnowledgeSearch(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeSearch(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const query = params.query as string;
   const kind = params.kind as KnowledgeKind | undefined;
@@ -332,9 +350,7 @@ async function handleKnowledgeSearch(params: Record<string, unknown>, flags: Com
   let results = index.searchKnowledge(query, 10);
   if (kind) {
     const knowledgeIndex = await readKnowledgeIndex(projectDir);
-    const kindSet = new Set(
-      knowledgeIndex.entries.filter((e) => e.kind === kind).map((e) => e.id),
-    );
+    const kindSet = new Set(knowledgeIndex.entries.filter((e) => e.kind === kind).map((e) => e.id));
     results = results.filter((r) => kindSet.has(r.id));
   }
   return success(results);
@@ -345,21 +361,20 @@ async function handleKnowledgeSearch(params: Record<string, unknown>, flags: Com
 defineCommand({
   path: "knowledge delete",
   description: "Delete a knowledge entry",
-  gated: true,
   mutation: true,
-  gateName: "knowledge-delete",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
-    token: { type: "string", required: true, description: "Write-gate token" },
   },
   handler: handleKnowledgeDelete,
 });
 
-async function handleKnowledgeDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleKnowledgeDelete(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const entryId = params.entryId as string;
-  const token = params.token as string | undefined;
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
@@ -375,14 +390,6 @@ async function handleKnowledgeDelete(params: Record<string, unknown>, flags: Com
   }
   if (flags.dryRun) {
     return success({ dryRun: true, wouldDelete: { slug, entryId: entry.id } });
-  }
-  try {
-    requireWriteGate(token, slug, "tool:delete_project_knowledge_entry");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
   try {
     await deleteKnowledgeEntry(projectDir, entry.id);

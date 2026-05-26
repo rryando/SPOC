@@ -2,23 +2,34 @@
 // Diagram commands — registry-based
 // ---------------------------------------------------------------------------
 
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
+import { resolve } from "node:path";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function findDiagramScript(): string | undefined {
-  const localPath = resolve(import.meta.dirname, "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs");
+  const localPath = resolve(
+    import.meta.dirname,
+    "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+  );
   if (existsSync(localPath)) return localPath;
 
-  const configPath = resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs");
+  const configPath = resolve(
+    homedir(),
+    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+  );
   if (existsSync(configPath)) return configPath;
 
   return undefined;
@@ -29,18 +40,29 @@ function resolveDiagramPath(slug: string, planId: string): string {
   return resolve(dataDir, "projects", slug, "plans", `${planId}.diagram.mmd`);
 }
 
-function runDiagramScript(scriptPath: string, subcommand: string, diagramPath: string, extraArgs: string[] = []): string {
+function runDiagramScript(
+  scriptPath: string,
+  subcommand: string,
+  diagramPath: string,
+  extraArgs: string[] = [],
+): string {
   const argsStr = extraArgs.map((a) => `"${a}"`).join(" ");
-  return execSync(`node "${scriptPath}" ${subcommand} "${diagramPath}"${argsStr ? ` ${argsStr}` : ""}`, {
-    encoding: "utf-8",
-    timeout: 10000,
-  }).trim();
+  return execSync(
+    `node "${scriptPath}" ${subcommand} "${diagramPath}"${argsStr ? ` ${argsStr}` : ""}`,
+    {
+      encoding: "utf-8",
+      timeout: 10000,
+    },
+  ).trim();
 }
 
 function requireScript(): CLIResult | string {
   const scriptPath = findDiagramScript();
   if (!scriptPath) {
-    return failure("script_not_found", "manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup");
+    return failure(
+      "script_not_found",
+      "manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup",
+    );
   }
   return scriptPath;
 }
@@ -48,7 +70,10 @@ function requireScript(): CLIResult | string {
 function requireDiagramFile(slug: string, planId: string): CLIResult | string {
   const diagramPath = resolveDiagramPath(slug, planId);
   if (!existsSync(diagramPath)) {
-    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `No diagram found for plan "${planId}" in project "${slug}". Create one via brainstorm workflow.`);
+    return failure(
+      ERROR_CODES.ENTITY_NOT_FOUND,
+      `No diagram found for plan "${planId}" in project "${slug}". Create one via brainstorm workflow.`,
+    );
   }
   return diagramPath;
 }
@@ -75,7 +100,10 @@ defineCommand({
   handler: handleDiagramReady,
 });
 
-async function handleDiagramReady(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramReady(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
 
@@ -89,7 +117,8 @@ async function handleDiagramReady(params: Record<string, unknown>, _flags: Comma
     const output = runDiagramScript(scriptPath, "ready", diagramPath);
     return success(parseScriptOutput(output));
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return failure("diagram_error", `diagram ready failed: ${msg}`);
   }
 }
@@ -108,7 +137,10 @@ defineCommand({
   handler: handleDiagramInspect,
 });
 
-async function handleDiagramInspect(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramInspect(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string | undefined;
 
@@ -133,7 +165,8 @@ async function handleDiagramInspect(params: Record<string, unknown>, _flags: Com
     const output = runDiagramScript(scriptPath, "inspect", diagramPath);
     return success(parseScriptOutput(output));
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return failure("diagram_error", `diagram inspect failed: ${msg}`);
   }
 }
@@ -152,7 +185,10 @@ defineCommand({
   handler: handleDiagramValidate,
 });
 
-async function handleDiagramValidate(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramValidate(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
 
@@ -166,7 +202,8 @@ async function handleDiagramValidate(params: Record<string, unknown>, _flags: Co
     const output = runDiagramScript(scriptPath, "validate", diagramPath);
     return success(parseScriptOutput(output));
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return failure("diagram_error", `diagram validate failed: ${msg}`);
   }
 }
@@ -178,20 +215,26 @@ async function handleDiagramValidate(params: Record<string, unknown>, _flags: Co
 defineCommand({
   path: "diagram status",
   description: "Update a diagram node's status",
-  gated: true,
-  gateName: "diagram-status",
   mutation: true,
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
     nodeId: { type: "string", required: true, positional: 2, description: "Node ID to update" },
-    status: { type: "string", required: true, positional: 3, description: "New status", enum: ["backlog", "in_progress", "done", "blocked"] },
-    token: { type: "string", required: true, description: "Write-gate token" },
+    status: {
+      type: "string",
+      required: true,
+      positional: 3,
+      description: "New status",
+      enum: ["backlog", "in_progress", "done", "blocked"],
+    },
   },
   handler: handleDiagramStatus,
 });
 
-async function handleDiagramStatus(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramStatus(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
   const nodeId = params.nodeId as string;
@@ -207,7 +250,8 @@ async function handleDiagramStatus(params: Record<string, unknown>, _flags: Comm
     const output = runDiagramScript(scriptPath, "status", diagramPath, [nodeId, status]);
     return success(parseScriptOutput(output));
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return failure("diagram_error", `diagram status failed: ${msg}`);
   }
 }
@@ -219,18 +263,18 @@ async function handleDiagramStatus(params: Record<string, unknown>, _flags: Comm
 defineCommand({
   path: "diagram sort-metadata",
   description: "Sort metadata blocks in diagram file",
-  gated: true,
-  gateName: "diagram-sort-metadata",
   mutation: true,
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
-    token: { type: "string", required: true, description: "Write-gate token" },
   },
   handler: handleDiagramSortMetadata,
 });
 
-async function handleDiagramSortMetadata(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramSortMetadata(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;
 
@@ -244,7 +288,8 @@ async function handleDiagramSortMetadata(params: Record<string, unknown>, _flags
     const output = runDiagramScript(scriptPath, "sort-metadata", diagramPath);
     return success(parseScriptOutput(output));
   } catch (err) {
-    const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+    const msg =
+      err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
     return failure("diagram_error", `diagram sort-metadata failed: ${msg}`);
   }
 }
@@ -262,7 +307,10 @@ defineCommand({
   handler: handleDiagramShow,
 });
 
-async function handleDiagramShow(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleDiagramShow(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const path = params.path as string;
 
   if (!existsSync(path)) {

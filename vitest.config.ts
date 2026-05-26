@@ -5,6 +5,5 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.ts"],
     maxWorkers: 1,
-    setupFiles: ["test/helpers/setup-write-gate-bypass.ts"],
   },
 });

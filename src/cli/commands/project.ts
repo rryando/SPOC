@@ -5,24 +5,21 @@
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
 import { readRootMeta, writeRootMeta } from "../../utils/dag.js";
 import { readJsonSafe } from "../../utils/json.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
-import { slugify } from "../../utils/slug.js";
-import { normalizeWorkspacePath } from "../../utils/workspace-match.js";
-import { getTemplatePath, renderTemplate } from "../../utils/template.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { slugify } from "../../utils/slug.js";
+import { getTemplatePath, renderTemplate } from "../../utils/template.js";
+import { normalizeWorkspacePath } from "../../utils/workspace-match.js";
 import {
-  readKnowledgeIndex,
-  readPlanIndex,
-  listTasks,
-} from "../../utils/project-memory.js";
-import {
-  requireWriteGate,
-  WriteGateError,
-} from "../../utils/write-gate.js";
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // project list
@@ -35,7 +32,10 @@ defineCommand({
   handler: handleProjectList,
 });
 
-async function handleProjectList(_params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectList(
+  _params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const dataDir = getDataDir();
   let rootMeta;
   try {
@@ -75,12 +75,19 @@ defineCommand({
   description: "Get project metadata or a specific document",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    doc: { type: "string", description: "Specific doc to retrieve", enum: ["overview", "tasks", "dependencies", "knowledge"] },
+    doc: {
+      type: "string",
+      description: "Specific doc to retrieve",
+      enum: ["overview", "tasks", "dependencies", "knowledge"],
+    },
   },
   handler: handleProjectGet,
 });
 
-async function handleProjectGet(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectGet(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const doc = params.doc as ProjectDocType | undefined;
 
@@ -94,7 +101,10 @@ async function handleProjectGet(params: Record<string, unknown>, _flags: Command
   if (doc) {
     const fileName = PROJECT_DOC_FILES[doc];
     if (!fileName) {
-      return failure(ERROR_CODES.INVALID_ENUM, `Invalid doc type "${doc}". Valid: overview, tasks, dependencies, knowledge`);
+      return failure(
+        ERROR_CODES.INVALID_ENUM,
+        `Invalid doc type "${doc}". Valid: overview, tasks, dependencies, knowledge`,
+      );
     }
     const filePath = resolve(projectDir, fileName);
     if (!existsSync(filePath)) {
@@ -117,37 +127,30 @@ async function handleProjectGet(params: Record<string, unknown>, _flags: Command
 defineCommand({
   path: "project init",
   description: "Initialize a new project",
-  gated: true,
   mutation: true,
-  gateName: "project-init",
   params: {
     name: { type: "string", required: true, positional: 0, description: "Project name" },
     description: { type: "string", required: true, description: "Project description" },
     path: { type: "string", description: "Workspace path to associate" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleProjectInit,
 });
 
-async function handleProjectInit(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectInit(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const name = params.name as string;
   const description = params.description as string;
   const wsPath = params.path as string | undefined;
-  const token = params.token as string | undefined;
 
   const slug = slugify(name);
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldCreate: { slug, name, description, path: wsPath ?? process.cwd() } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:init_project");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
+    return success({
+      dryRun: true,
+      wouldCreate: { slug, name, description, path: wsPath ?? process.cwd() },
+    });
   }
 
   const dataDir = getDataDir();
@@ -199,9 +202,21 @@ async function handleProjectInit(params: Record<string, unknown>, flags: Command
     await mkdir(resolve(projectDir, "plans"), { recursive: true });
     await mkdir(resolve(projectDir, "knowledge"), { recursive: true });
     await mkdir(resolve(projectDir, "tasks"), { recursive: true });
-    await writeFile(resolve(projectDir, "plans", "index.json"), JSON.stringify({ plans: [] }, null, 2), "utf-8");
-    await writeFile(resolve(projectDir, "knowledge", "index.json"), JSON.stringify({ entries: [] }, null, 2), "utf-8");
-    await writeFile(resolve(projectDir, "tasks", "index.json"), JSON.stringify({ tasks: [] }, null, 2), "utf-8");
+    await writeFile(
+      resolve(projectDir, "plans", "index.json"),
+      JSON.stringify({ plans: [] }, null, 2),
+      "utf-8",
+    );
+    await writeFile(
+      resolve(projectDir, "knowledge", "index.json"),
+      JSON.stringify({ entries: [] }, null, 2),
+      "utf-8",
+    );
+    await writeFile(
+      resolve(projectDir, "tasks", "index.json"),
+      JSON.stringify({ tasks: [] }, null, 2),
+      "utf-8",
+    );
 
     // Update root meta
     rootMeta.projects.push({ id: slug, name, status: "draft", dependsOn: [] });
@@ -235,7 +250,10 @@ interface ValidationIssue {
   safeToAutoRepair: boolean;
 }
 
-async function handleProjectValidate(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectValidate(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
 
   const projectDir = getProjectDir(slug);

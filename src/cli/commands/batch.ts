@@ -4,26 +4,28 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
 import { getProjectDir } from "../../utils/paths.js";
+import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
 import {
   createKnowledgeEntry,
-  createTask,
-  updateTask,
-  updateKnowledgeEntry,
-  updatePlan,
   createPlan,
+  createTask,
   type FileRef,
   type KnowledgeKind,
-  type TaskStatus,
-  type TaskPriority,
   type PlanStatus,
+  type TaskPriority,
+  type TaskStatus,
+  updateKnowledgeEntry,
+  updatePlan,
+  updateTask,
 } from "../../utils/project-memory.js";
-import { resolveOpName } from "../../utils/op-names.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
-import { requireWriteGate } from "../../utils/write-gate.js";
-import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 import { attemptDiagramUpdate } from "./task.js";
 
 // ---------------------------------------------------------------------------
@@ -46,52 +48,49 @@ interface BatchResult {
 
 interface BatchOpInfo {
   canonical: string;
-  aliases: string[];
   description: string;
 }
 
 const BATCH_OPS: BatchOpInfo[] = [
-  { canonical: "task-create", aliases: ["create_project_task"], description: "Create a new task" },
-  { canonical: "task-transition", aliases: ["transition_project_task"], description: "Transition task status" },
-  { canonical: "task-update", aliases: ["update_project_task"], description: "Update task metadata" },
-  { canonical: "knowledge-create", aliases: ["create_knowledge_entry"], description: "Create a knowledge entry" },
-  { canonical: "knowledge-update-meta", aliases: ["update_knowledge_entry"], description: "Update knowledge entry metadata" },
-  { canonical: "knowledge-update-body", aliases: ["update_knowledge_body"], description: "Update knowledge entry body" },
-  { canonical: "plan-create", aliases: ["create_project_plan"], description: "Create a plan" },
-  { canonical: "plan-update-meta", aliases: ["update_project_plan"], description: "Update plan metadata" },
-  { canonical: "doc-update", aliases: ["update_project_doc"], description: "Update a project document" },
+  { canonical: "task-create", description: "Create a new task" },
+  { canonical: "task-transition", description: "Transition task status" },
+  { canonical: "task-update", description: "Update task metadata" },
+  { canonical: "knowledge-create", description: "Create a knowledge entry" },
+  { canonical: "knowledge-update-meta", description: "Update knowledge entry metadata" },
+  { canonical: "knowledge-update-body", description: "Update knowledge entry body" },
+  { canonical: "plan-create", description: "Create a plan" },
+  { canonical: "plan-update-meta", description: "Update plan metadata" },
+  { canonical: "doc-update", description: "Update a project document" },
 ];
 
-const VALID_OPS = BATCH_OPS.map((o) => o.canonical);
-
 /**
- * Resolve a batch op name to the canonical form that this handler implements.
- * Uses the shared op-names registry for alias resolution, then validates the
- * result is a batch-supported op (a subset of all gated ops). Returns the
- * input unchanged if not a recognized batch op so the handler reports a clear
- * "unsupported op" error downstream.
+ * Validate that a batch op name is one of the canonical kebab-case
+ * operations. No alias resolution — legacy `tool:` / `cli:` / snake_case
+ * names are rejected with a clear error downstream.
  */
 function normalizeBatchOp(op: string): string {
-  const canonical = resolveOpName(op);
-  if (VALID_OPS.includes(canonical)) return canonical;
   return op;
 }
 
 defineCommand({
   path: "batch",
   description: "Run batch operations from a JSON file",
-  gated: true,
   mutation: true,
-  gateName: "batch",
   params: {
-    file: { type: "string", required: (params) => !params["list-ops"], description: "Path to JSON file with operations" },
-    token: { type: "string", description: "Write-gate token" },
+    file: {
+      type: "string",
+      required: (params) => !params["list-ops"],
+      description: "Path to JSON file with operations",
+    },
     "list-ops": { type: "boolean", description: "List valid batch operations" },
   },
   handler: handleBatch,
 });
 
-async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleBatch(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const listOps = params["list-ops"] as boolean | undefined;
   if (listOps) {
     return success({ ops: BATCH_OPS });
@@ -102,8 +101,6 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
     return failure("file_not_found", `Batch file not found: ${filePath}`);
   }
 
-  const token = params.token as string | undefined;
-
   let ops: BatchOp[];
   try {
     const raw = readFileSync(filePath, "utf-8");
@@ -112,18 +109,10 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
       return failure("invalid_format", "Batch file must contain a JSON array");
     }
   } catch (err) {
-    return failure("parse_error", `Failed to parse batch file: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  // Validate write gate once for the entire batch
-  if (ops.length > 0) {
-    try {
-      requireWriteGate(token, ops[0].slug, "batch");
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const results = ops.map((op, i) => ({ index: i, op: op.op, success: false, error: errMsg }));
-      return success(results);
-    }
+    return failure(
+      "parse_error",
+      `Failed to parse batch file: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   const results: BatchResult[] = [];
@@ -145,7 +134,12 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
           const diagramNodeId = op.diagramNodeId as string | undefined;
           if (planId && diagramNodeId) {
             const diagramResult = attemptDiagramUpdate(op.slug, planId, diagramNodeId, status);
-            results.push({ index: i, op: op.op, success: true, result: { taskId, status, diagramNodeId, ...diagramResult } });
+            results.push({
+              index: i,
+              op: op.op,
+              success: true,
+              result: { taskId, status, diagramNodeId, ...diagramResult },
+            });
           } else {
             results.push({ index: i, op: op.op, success: true, result: { taskId, status } });
           }
@@ -177,7 +171,12 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
             planId: op.planId as string | null | undefined,
             sourceFiles: op.sourceFiles as FileRef[] | undefined,
           });
-          results.push({ index: i, op: op.op, success: true, result: { taskId: task.id, status: task.status } });
+          results.push({
+            index: i,
+            op: op.op,
+            success: true,
+            result: { taskId: task.id, status: task.status },
+          });
           break;
         }
         case "knowledge-create": {
@@ -255,7 +254,12 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
             keywords: op.keywords as string[] | undefined,
             sourceFiles: op.sourceFiles as FileRef[] | undefined,
           });
-          results.push({ index: i, op: op.op, success: true, result: { planId: plan.id, status: plan.status } });
+          results.push({
+            index: i,
+            op: op.op,
+            success: true,
+            result: { planId: plan.id, status: plan.status },
+          });
           break;
         }
         case "doc-update": {
@@ -275,7 +279,12 @@ async function handleBatch(params: Record<string, unknown>, _flags: CommandFlags
           results.push({ index: i, op: op.op, success: false, error: `Unknown op: ${op.op}` });
       }
     } catch (err) {
-      results.push({ index: i, op: op.op, success: false, error: err instanceof Error ? err.message : String(err) });
+      results.push({
+        index: i,
+        op: op.op,
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

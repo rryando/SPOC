@@ -5,13 +5,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
 import { readRootMeta, writeRootMeta } from "../../utils/dag.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
-import { normalizeWorkspacePath } from "../../utils/workspace-match.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
-import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
+import { normalizeWorkspacePath } from "../../utils/workspace-match.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // project update-doc
@@ -20,29 +24,37 @@ import { requireWriteGate, WriteGateError } from "../../utils/write-gate.js";
 defineCommand({
   path: "project update-doc",
   description: "Update a project document",
-  gated: true,
   mutation: true,
-  gateName: "project-update-doc",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    doc: { type: "string", required: true, positional: 1, description: "Document to update", enum: ["overview", "tasks", "dependencies", "knowledge"] },
+    doc: {
+      type: "string",
+      required: true,
+      positional: 1,
+      description: "Document to update",
+      enum: ["overview", "tasks", "dependencies", "knowledge"],
+    },
     "body-file": { type: "string", description: "Path to file with new doc content" },
     "body-stdin": { type: "boolean", description: "Read content from stdin" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleProjectUpdateDoc,
 });
 
-async function handleProjectUpdateDoc(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectUpdateDoc(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const doc = params.doc as ProjectDocType;
   const bodyFile = params["body-file"] as string | undefined;
   const bodyStdin = params["body-stdin"] as boolean | undefined;
-  const token = params.token as string | undefined;
 
   const validDocs = Object.keys(PROJECT_DOC_FILES);
   if (!validDocs.includes(doc)) {
-    return failure(ERROR_CODES.INVALID_ENUM, `Invalid doc type "${doc}". Valid: ${validDocs.join(", ")}`);
+    return failure(
+      ERROR_CODES.INVALID_ENUM,
+      `Invalid doc type "${doc}". Valid: ${validDocs.join(", ")}`,
+    );
   }
 
   const projectDir = getProjectDir(slug);
@@ -58,15 +70,6 @@ async function handleProjectUpdateDoc(params: Record<string, unknown>, flags: Co
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldUpdate: { slug, doc, bodyFile } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "cli:doc_update");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   let content: string;
@@ -102,33 +105,29 @@ async function handleProjectUpdateDoc(params: Record<string, unknown>, flags: Co
 defineCommand({
   path: "project update-status",
   description: "Update a project's status",
-  gated: true,
   mutation: true,
-  gateName: "project-update-status",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    status: { type: "string", required: true, positional: 1, description: "New status", enum: ["active", "paused", "completed", "archived"] },
-    token: { type: "string", description: "Write-gate token" },
+    status: {
+      type: "string",
+      required: true,
+      positional: 1,
+      description: "New status",
+      enum: ["active", "paused", "completed", "archived"],
+    },
   },
   handler: handleProjectUpdateStatus,
 });
 
-async function handleProjectUpdateStatus(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectUpdateStatus(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const status = params.status as string;
-  const token = params.token as string | undefined;
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldUpdate: { slug, status } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:update_project_status");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   const dataDir = getDataDir();
@@ -156,23 +155,22 @@ async function handleProjectUpdateStatus(params: Record<string, unknown>, flags:
 defineCommand({
   path: "project update-paths",
   description: "Add or remove workspace paths for a project",
-  gated: true,
   mutation: true,
-  gateName: "project-update-paths",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     add: { type: "string", description: "Path to add to workspace paths" },
     remove: { type: "string", description: "Path to remove from workspace paths" },
-    token: { type: "string", description: "Write-gate token" },
   },
   handler: handleProjectUpdatePaths,
 });
 
-async function handleProjectUpdatePaths(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleProjectUpdatePaths(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const addPath = params.add as string | undefined;
   const removePath = params.remove as string | undefined;
-  const token = params.token as string | undefined;
 
   if (!addPath && !removePath) {
     return failure(ERROR_CODES.MISSING_PARAM, "Either --add or --remove is required", {
@@ -187,15 +185,6 @@ async function handleProjectUpdatePaths(params: Record<string, unknown>, flags: 
 
   if (flags.dryRun) {
     return success({ dryRun: true, wouldUpdate: { slug, add: addPath, remove: removePath } });
-  }
-
-  try {
-    requireWriteGate(token, slug, "tool:update_project_paths");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      return failure(err.code, err.message, { hint: err.hint });
-    }
-    throw err;
   }
 
   const metaPath = resolve(projectDir, "meta.json");

@@ -27,8 +27,6 @@ export interface CommandDef {
   path: string;
   description: string;
   params: Record<string, ParamDef>;
-  gated?: boolean;
-  gateName?: string;
   mutation?: boolean;
   handler: (params: Record<string, unknown>, flags: CommandFlags) => Promise<CLIResult>;
 }
@@ -39,9 +37,6 @@ export const ERROR_CODES = {
   INVALID_ENUM: "invalid_enum",
   UNKNOWN_FLAG: "unknown_flag",
   UNKNOWN_COMMAND: "unknown_command",
-  TOKEN_EXPIRED: "token_expired",
-  TOKEN_CONSUMED: "token_consumed",
-  TOKEN_MISMATCH: "token_mismatch",
   PROJECT_NOT_FOUND: "project_not_found",
   ENTITY_NOT_FOUND: "entity_not_found",
   AMBIGUOUS_ARG: "ambiguous_arg",
