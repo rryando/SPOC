@@ -28,8 +28,8 @@ flowchart TD
     Create --> Validate[Validate .mmd syntax]
     StatusUpdate --> Validate
     Regen --> Validate
-    Validate --> WriteGate[Write under gate]
-    WriteGate --> Done
+    Validate --> Write[Write .mmd]
+    Write --> Done
 
     class HasDiagram,DriftType decision
 ```
@@ -76,7 +76,7 @@ flowchart TD
     BuildGraph --> GenNodeMeta[Generate per-node %% blocks]
     GenNodeMeta --> GenHeader[Generate plan-level %% comments]
     GenHeader --> Preview[Preview diff summary]
-    Preview --> WriteGate[Write under gate]
+    Preview --> Write[Write .mmd]
 ```
 
 ## Canonical Source of Truth (Priority Order)
@@ -180,7 +180,7 @@ Plans with 15+ nodes: cluster into `subgraph` blocks by phase. If unreadable, sp
 - **Ownership:** Only orchestrator/coordinator writes .mmd files. Sub-agents read only and report status back
 - **Presentation:** Internal skill — never narrate conventions to user. Show rendered diagram or URL only
 - **Determinism:** Same metadata must produce byte-identical .mmd output (nodes ordered by ID, edges by source→target, fields in fixed order)
-- **Write-gate required** for any .mmd write to DAG path
+- **Confidence gate:** Self-score ≥80% via confidence-gate skill before writing .mmd files
 - **Validation before write:** unique IDs, valid edges, all 4 classDef present, valid :::class suffixes
 - **Backward compat:** Plans without .mmd remain valid; diagrams without rich metadata upgraded during SYNC
 

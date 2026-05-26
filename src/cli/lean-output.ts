@@ -2,12 +2,12 @@
 // Lean Output — strips noise from JSON output for LLM token savings
 // ---------------------------------------------------------------------------
 
-const STRIP_FIELDS = new Set(["createdAt", "updatedAt", "consumedAt", "confirmationToken"]);
+const STRIP_FIELDS = new Set(["createdAt", "updatedAt"]);
 
 /**
  * Recursively strips noise from an object for leaner JSON output.
  * Removes: null/undefined values, empty arrays/objects/strings,
- * timestamp fields, confirmationToken, and redundant normalizedId.
+ * timestamp fields, and redundant normalizedId.
  */
 export function leanify(obj: unknown): unknown {
   if (obj === null || obj === undefined) return undefined;

@@ -34,7 +34,7 @@ MANDATORY EXIT GATE: Before claiming an issue is resolved, you MUST: (1) have a 
 | `spoc knowledge create <slug> "<title>" --kind=lesson --summary="..." --json` | Capture resolution technique |
 | `spoc search <slug> "<keywords>" --lean --json` | Find related system knowledge during investigation |
 
-All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 
 ## Incident Investigation Workflow
 

@@ -48,7 +48,7 @@ export async function handleCli(args: string[]): Promise<boolean> {
     const json = args.includes("--json");
     const discovery = generateCommandsDiscovery();
     if (json) {
-      console.log(JSON.stringify(discovery));
+      console.log(JSON.stringify({ ok: true, data: discovery }));
     } else {
       console.log(formatCommandsDiscovery(discovery, false));
     }

@@ -31,7 +31,7 @@ MANDATORY EXIT GATE: Before claiming any work is complete, you MUST run verifica
 | `spoc task update <slug> <taskId> --title="..." --json` | Update task details discovered during work |
 | `spoc knowledge create <slug> "<title>" --kind=pattern --summary="..." --json` | Capture reusable pattern discovered during implementation |
 
-All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 
 ## Diagram-First Execution
 

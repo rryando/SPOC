@@ -190,4 +190,16 @@ describe("CLI envelope format — batch", () => {
       }
     });
   });
+
+  it("--commands --json is wrapped in {ok,data} envelope", async () => {
+    const { execSync } = await import("node:child_process");
+    const raw = execSync("node scripts/spoc-cli.mjs --commands --json", {
+      encoding: "utf8",
+      cwd: `${import.meta.dirname}/..`,
+    });
+    const parsed = JSON.parse(raw);
+    expect(parsed.ok).toBe(true);
+    expect(Array.isArray(parsed.data.commands)).toBe(true);
+    expect(Array.isArray(parsed.data.errorCodes)).toBe(true);
+  });
 });
