@@ -60,6 +60,23 @@ flowchart TD
 - **Scope check early**: if request describes multiple independent subsystems, flag immediately — decompose before refining details
 - Each sub-project gets its own spec → plan → implementation cycle
 
+## YAGNI Challenge
+
+Before proposing any approach, apply the YAGNI filter to the request. Challenge back explicitly:
+
+> *"The simplest version that solves this right now is X. Do you need Y now, or can it wait?"*
+
+| Question | If "no" → |
+|----------|-----------|
+| Will this be used immediately (this sprint / this task)? | Remove or defer it |
+| Does the problem exist now, or is it hypothetical? | Defer — solve it when it's real |
+| Can the minimal version cover 80% of the stated need? | Propose minimal first |
+| Are there 2+ concrete consumers for this abstraction today? | Otherwise, skip the abstraction |
+
+- Always propose the **minimum viable design** first. Add complexity only when the user explicitly confirms they need it now.
+- Flag speculative features: generic interfaces, pluggable architectures, "we might need this later" configs.
+- If the user pushes back with a future scenario, ask: *"What's the concrete trigger that would make this needed?"* If the trigger is vague, defer.
+
 ## Design Presentation
 
 - Scale each section to its complexity (few sentences → 300 words max)
@@ -102,5 +119,5 @@ Browser-based companion for mockups/diagrams. Offer once when visual questions a
 - The ONLY next skill after brainstorming is `writing-plans` — never implementation skills
 - Every project needs a design, no matter how "simple"
 - One question per message, multiple choice when possible
-- YAGNI ruthlessly — remove unnecessary features from all designs
+- YAGNI ruthlessly — apply the YAGNI Challenge section before every design; propose minimal version first, challenge any feature not immediately needed
 - Existing codebases: explore first, follow patterns, don't propose unrelated refactoring
