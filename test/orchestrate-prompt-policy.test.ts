@@ -166,6 +166,7 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "task-triage",
     "onboarding-session",
     "spoc-sync",
+    "using-git-worktrees",
   ];
 
   // Skills that are host-specific, formatting-only, or special-purpose (not routed by orchestrator)

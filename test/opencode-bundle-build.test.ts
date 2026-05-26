@@ -408,6 +408,7 @@ describe("opencode bundle runtime manifest", () => {
           "testing-anti-patterns.md",
         ],
         "to-diagram": ["SKILL.md", "scripts/manage-diagram.mjs"],
+        "using-git-worktrees": ["SKILL.md"],
         "using-superpowers": ["SKILL.md"],
         "verification-before-completion": ["SKILL.md"],
         "writing-plans": ["SKILL.md", "plan-document-reviewer-prompt.md"],

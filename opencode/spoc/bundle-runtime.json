@@ -110,6 +110,9 @@
     "spoc-sync": [
       "SKILL.md"
     ],
+    "using-git-worktrees": [
+      "SKILL.md"
+    ],
     "writing-skills": [
       "SKILL.md",
       "anthropic-best-practices.md",
