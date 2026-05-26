@@ -36,6 +36,7 @@ const spocNativeSkillFiles = [
   "skills/loop/SKILL.md",
   "skills/caveman-commit/SKILL.md",
   "skills/caveman-review/SKILL.md",
+  "skills/init-project/SKILL.md",
 ];
 
 describe("checked-in opencode bundle pruning", () => {

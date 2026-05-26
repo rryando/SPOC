@@ -21,6 +21,10 @@ const preservedOutputFiles = new Set([
   ".opencode/plugins/spoc.js",
   // SPOC-native skills (not sourced from upstream, authored in this repo)
   "skills/loop/SKILL.md",
+  // init-project skill — SPOC-native (not in upstream superpowers).
+  // Mirrors the orchestrator's INIT workflow with full operational detail
+  // (graphify sub-flow, typed-agent dispatch, knowledge categories).
+  "skills/init-project/SKILL.md",
   // Caveman skills — adapted from https://github.com/JuliusBrussee/caveman (MIT).
   // Shipped alongside SPOC Caveman orchestrator so sub-agents can produce
   // terse commits and PR review comments when caveman mode is active.
@@ -33,6 +37,8 @@ const preservedOutputFiles = new Set([
   "prompts/oncall-ops.txt",
   "prompts/spoc-docs.txt",
   "prompts/system-architect.txt",
+  "prompts/code-reviewer.txt",
+  "prompts/docs-researcher.txt",
 ]);
 
 function expandHome(filePath) {

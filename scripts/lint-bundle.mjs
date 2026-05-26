@@ -33,9 +33,10 @@ const preservedFiles = new Set([
   "skills/loop/SKILL.md",
   "skills/caveman-commit/SKILL.md",
   "skills/caveman-review/SKILL.md",
+  "skills/init-project/SKILL.md",
 ]);
 
-const spocNativeSkillNames = new Set(["loop", "caveman-commit", "caveman-review"]);
+const spocNativeSkillNames = new Set(["loop", "caveman-commit", "caveman-review", "init-project"]);
 
 /** @type {Array<{severity: 'error'|'warning', kind: string, message: string, file?: string, repair?: string}>} */
 const issues = [];

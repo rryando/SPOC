@@ -82,7 +82,7 @@ function listSourceSkillNames(sourceRoot: string) {
 // but are not declared in bundle-runtime.json and are not sourced from the upstream
 // SPOC bundle install. Must stay in sync with preservedOutputFiles in
 // scripts/build-opencode-bundle.mjs.
-const SPOC_NATIVE_SKILL_NAMES = new Set(["loop", "caveman-commit", "caveman-review"]);
+const SPOC_NATIVE_SKILL_NAMES = new Set(["loop", "caveman-commit", "caveman-review", "init-project"]);
 
 function listTopLevelAgentPaths(sourceRoot: string) {
   const sourceAgentsRoot = resolve(sourceRoot, "agents");

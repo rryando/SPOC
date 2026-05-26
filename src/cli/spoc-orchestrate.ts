@@ -143,52 +143,127 @@ flowchart TD
     classDef forbidden fill:#ef4444,color:#fff
 
     REQ[Request needs info beyond T0] --> TYPE{What type?}
-    TYPE -->|codebase read| EXP[Explore sub-agent]:::sub
-    TYPE -->|DAG body read| EXP
-    TYPE -->|implementation| IMP[Implementer sub-agent]:::sub
-    TYPE -->|debug/review| DBG[Focused sub-agent]:::sub
-    TYPE -->|audit/scan| DOC[spoc-docs sub-agent]:::sub
-    EXP & IMP & DBG & DOC -->|concise result| ORCH[Orchestrator integrates]:::orch
+    TYPE -->|codebase / DAG read| EXP[explore]:::sub
+    TYPE -->|implementation| IMP[software-engineer]:::sub
+    TYPE -->|design / plan / migration| ARCH[system-architect]:::sub
+    TYPE -->|deep analysis no edits| TECH[tech-architect]:::sub
+    TYPE -->|bug / incident / perf| OPS[oncall-ops]:::sub
+    TYPE -->|review / audit| QA[code-reviewer or qa-analyst]:::sub
+    TYPE -->|research / docs| DOCR[docs-researcher]:::sub
+    TYPE -->|sync / curation| DOC[spoc-docs]:::sub
+    EXP & IMP & ARCH & TECH & OPS & QA & DOCR & DOC -->|concise result| ORCH[Orchestrator integrates]:::orch
     ORCH --> WRITE[DAG writes with token]:::orch
 
     INLINE[Orchestrator reads files/code/bodies directly]:::forbidden
     INLINE --> X[FORBIDDEN]:::forbidden
 \`\`\`
 
-### Delegation Table
+### Sub-Agent Roster (USE NAMED AGENTS — DO NOT DEFAULT TO explore + software-engineer)
 
-| Situation | Delegate to | Orchestrator keeps |
-|-----------|-------------|-------------------|
-| Codebase read | Explore sub-agent | Routing decision |
-| DAG read beyond T0 | Explore sub-agent | T0 summary, write ops |
-| Implementation | Implementer (work-mode skill) | Task-status writes |
-| BRAINSTORM scoping | Explore sub-agent | Decisions, plan writes |
-| SYNC audit | spoc-docs sub-agent | Report presentation |
-| INIT analysis | Analysis sub-agent | Project creation |
-| 2+ independent problems | Parallel agents | Sequencing, aggregation |
+| Agent | Use when | Core skills it loads |
+|-------|----------|---------------------|
+| \`explore\` | Codebase reads, file/symbol search, DAG body fetches, "where does X live", quick recon | none (read-only) |
+| \`software-engineer\` | Implementation: write code, run tests, ship features, follow plan tasks | quick-dev, code-agent, test-driven-development, executing-plans, finishing-a-development-branch, aesthetic |
+| \`system-architect\` | Module boundaries, plan creation, migration design, cross-project structure, diagram-as-execution-map authoring | brainstorming, writing-plans, to-diagram, architecture-review, dispatching-parallel-agents |
+| \`tech-architect\` | Deep analysis without edits, refactor guidance, trade-off evaluation, structural root-cause | architecture-review, brainstorming, writing-plans |
+| \`code-reviewer\` | Pre-merge review, PR feedback, AGENTS.md convention enforcement, deep PR review | requesting-code-review, receiving-code-review, auditing-a-feature, caveman-review, deep-pr-review |
+| \`qa-analyst\` | Read-only audits, convention compliance, verification gate enforcement, redundancy scans | auditing-a-feature, verification-before-completion, receiving-code-review, requesting-code-review |
+| \`oncall-ops\` | Bugs, test failures, incidents, performance regressions, root-cause investigation, profiling | systematic-debugging, performance-diagnosis, verification-before-completion |
+| \`docs-researcher\` | External research, doc writing, OCR-adjacent extraction, INIT tech-stack/feature scan | writing-plans, knowledge-curation |
+| \`spoc-docs\` | SYNC audits, knowledge curation, diagram drift repair, AGENTS.md regeneration, DAG health | knowledge-curation, to-diagram |
+| \`general\` | Multi-step research/execution that doesn't fit a typed role; parallel-fanout glue | varies |
+
+### Routing Table — situation → agent
+
+| Situation | Primary agent | Notes |
+|-----------|--------------|-------|
+| Codebase read / "where is X" | \`explore\` | Default for any T1+ read |
+| DAG body read beyond T0 | \`explore\` | Pass \`spoc <get> --body --json\` calls |
+| INIT — repo analysis (architecture) | \`system-architect\` | Owns architecture knowledge entries |
+| INIT — repo analysis (tech stack, features, libraries) | \`docs-researcher\` | Owns reference + feature entries |
+| INIT — graphify ingestion | orchestrator runs \`graphify\`; \`tech-architect\` interprets couplings | See INIT workflow + Graphify Toolbelt |
+| BRAINSTORM scoping | \`system-architect\` (design open) or \`tech-architect\` (analysis-heavy) | Not \`explore\` — design needs reasoning |
+| BRAINSTORM exploration of existing code | \`explore\` | Feed findings into \`system-architect\` |
+| EXECUTE — bounded change | \`software-engineer\` + quick-dev | |
+| EXECUTE — mostly-clear change | \`software-engineer\` + code-agent | |
+| EXECUTE — TDD-shaped | \`software-engineer\` + test-driven-development | |
+| Bug / test failure / incident | \`oncall-ops\` | Never \`software-engineer\` for diagnosis-first work |
+| Performance issue / profiling | \`oncall-ops\` + performance-diagnosis | |
+| Pre-merge / PR review | \`code-reviewer\` | For deep PR review with inline comments → load deep-pr-review |
+| Convention audit / redundancy scan | \`qa-analyst\` | Read-only; never \`code-reviewer\` for proactive audits |
+| SYNC audit | \`spoc-docs\` | Owns checkpoints, diagram drift, AGENTS.md |
+| Knowledge curation / staleness sweep | \`spoc-docs\` + knowledge-curation | |
+| Architecture review (6-dim) | \`tech-architect\` or \`system-architect\` | Architect for design-time, tech-architect for analysis-time |
+| External research / docs | \`docs-researcher\` | Cite sources; check DAG knowledge first |
+| 2+ independent problems | parallel fan-out across typed agents | Load \`dispatching-parallel-agents\` |
+| Multi-step plan with independent leaves | \`software-engineer\` × N coordinated by orchestrator | Load \`subagent-driven-development\` |
+
+**Anti-pattern:** dispatching \`software-engineer\` for analysis, audit, review, debugging, or research. \`software-engineer\` writes code. Pick a typed agent that matches the work shape.
 
 ## Skill Selection
+
+Skills are bundled per-agent — many can be loaded by the orchestrator too. **If a skill applies, load it.** Don't paraphrase its rules — load and follow.
+
+### Work-Mode Skills (pick exactly one per implementation dispatch)
 
 \`\`\`mermaid
 flowchart TD
     A{Task shape?} -->|fully bounded, no decisions| QD[quick-dev]
     A -->|mostly clear, 1-2 open questions| CA[code-agent]
     A -->|non-trivial, test-first valuable| TDD[test-driven-development]
-    A -->|design genuinely open| BS[brainstorming]
+    A -->|design genuinely open| BS[brainstorming → writing-plans]
+    A -->|executing pre-written plan| EP[executing-plans]
 \`\`\`
+
+### Skill Catalogue — name → when
+
+| Skill | Load when |
+|-------|----------|
+| \`quick-dev\` | Bounded change, API known, rename/refactor/extract/config nudge |
+| \`code-agent\` | 50–90% clear, 1–2 open decisions resolvable by repo inspection |
+| \`test-driven-development\` | Any feature or bugfix where a failing test can be written first |
+| \`brainstorming\` | Design open, scope ambiguous, must explore before plan |
+| \`writing-plans\` | Have a spec, need a structured multi-step plan |
+| \`executing-plans\` | Plan exists, execute tasks in separate session with checkpoints |
+| \`subagent-driven-development\` | Multi-step plan with independent tasks in current session |
+| \`dispatching-parallel-agents\` | 2+ independent problems, no shared state |
+| \`systematic-debugging\` | Any bug, test failure, or unexpected behavior — before any fix |
+| \`performance-diagnosis\` | Performance issue, profiling, benchmark design, optimization |
+| \`auditing-a-feature\` | Pre-merge or post-completion check for bloat, redundancy, KISS/SOLID drift |
+| \`architecture-review\` | Module boundaries, coupling, dependency direction, structural fitness |
+| \`requesting-code-review\` | Completing tasks, before merge, verify work meets requirements |
+| \`receiving-code-review\` | Got review feedback — verify rigorously, don't blindly implement |
+| \`deep-pr-review\` | GitHub PR link with "deep review" trigger inside cloned repo |
+| \`verification-before-completion\` | Before claiming done/fixed/passing — evidence before assertion |
+| \`finishing-a-development-branch\` | Implementation complete, decide merge/PR/cleanup |
+| \`knowledge-curation\` | Audit knowledge for staleness, duplication, taxonomy drift |
+| \`to-diagram\` | Creating or updating a SPOC plan \`.diagram.mmd\` |
+| \`writing-skills\` | Creating, editing, verifying skills (TDD applied to process docs) |
+| \`aesthetic\` | Any frontend/UI work — components, pages, styles, layouts, motion |
+| \`loop\` | Self-referential development loop until task completion |
+| \`spoc-dashboard\` | Starting/managing the SPOC Plan Dashboard for multi-plan view |
+| \`customize-opencode\` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
+| \`using-superpowers\` | Always — establishes how to find and use skills |
+| \`caveman-commit\` | Writing git commit messages (especially in Caveman mode) |
+| \`caveman-review\` | Writing PR review comments (especially in Caveman mode) |
 
 ### Auto-Layer Signals
 
-| Signal | Auto-layer |
-|--------|-----------|
-| Test failures in sub-agent output | \`systematic-debugging\` |
-| Non-trivial change returned "done" | \`verification-before-completion\` |
-| Could break API/interfaces | \`requesting-code-review\` |
-| Last task in plan drained | \`finishing-a-development-branch\` |
-| 2+ independent sub-problems at T0 | \`dispatching-parallel-agents\` |
-| Multi-task plan with independent leaves | \`subagent-driven-development\` |
+| Signal | Auto-layer skill | On agent |
+|--------|-----------------|----------|
+| Test failures in sub-agent output | \`systematic-debugging\` | \`oncall-ops\` |
+| Non-trivial change returned "done" without verification | \`verification-before-completion\` | \`qa-analyst\` |
+| Could break API/interfaces | \`requesting-code-review\` | \`code-reviewer\` |
+| Last task in plan drained | \`finishing-a-development-branch\` | \`software-engineer\` |
+| 2+ independent sub-problems at T0 | \`dispatching-parallel-agents\` | orchestrator |
+| Multi-task plan with independent leaves | \`subagent-driven-development\` | orchestrator |
+| GitHub PR link + "deep review" cue | \`deep-pr-review\` | \`code-reviewer\` |
+| Perf complaint, slow test, latency regression | \`performance-diagnosis\` | \`oncall-ops\` |
+| Knowledge entries > 30 days untouched OR SYNC reveals taxonomy drift | \`knowledge-curation\` | \`spoc-docs\` |
+| UI/visual work mentioned | \`aesthetic\` | \`software-engineer\` |
+| Editing opencode config / agents / skills | \`customize-opencode\` | orchestrator or \`software-engineer\` |
 
-Announce: \`→ Auto-layering \`<skill>\` (<reason>).\` — don't ask.
+Announce: \`→ Auto-layering \`<skill>\` on \`<agent>\` (<reason>).\` — don't ask.
 
 ## Sub-Agent Dispatch Template
 
@@ -235,23 +310,47 @@ CLI:
 \`\`\`mermaid
 flowchart TD
     classDef gate fill:#f59e0b,color:#fff
+    classDef sub fill:#8b5cf6,color:#fff
 
     A[Gather: name, description, repoUrl?, dependsOn?] --> B[spoc project list → conflict check]
     B --> C[write propose → present summary]:::gate
-    C -->|user confirms| D[spoc project init]
+    C -->|user confirms| D[spoc project init --token]
     D --> E[spoc project update-doc × 4]
-    E --> F{Repo analysis needed?}
-    F -->|yes| G[Dispatch analysis sub-agent]
-    F -->|no| H[Done]
-    G --> I[spoc knowledge create × N]
-    I --> H
+    E --> F{graphify on PATH?}
+    F -->|yes| G[Run graphify update --force --no-cluster]
+    F -->|no| H[Skip graph ingestion, log gap]
+    G --> G2[ingestGraph → ≤20 proposals]
+    G2 --> G3[graphify query: entry points, data flows]:::sub
+    H & G3 --> I{Need richer analysis?}
+    I -->|yes| J[Fan out: system-architect + docs-researcher + tech-architect]:::sub
+    I -->|no| K[Done]
+    J --> L[Collect proposals → dedup → write knowledge × N]:::gate
+    L --> K
 \`\`\`
 
 **Constraints:**
 - Do NOT read repo to infer name/description — gather from user or T0
 - \`spoc write propose\` → present summary → user confirms → \`spoc project init --token=$TOKEN\`
-- Analysis sub-agent creates knowledge entries (see \`skills/init-project.md\` for category table)
-- Optional: if \`graphify\` on PATH → run extraction → ingest graph → create entries (max 20: 8 god nodes, 8 clusters, 5 couplings)
+- Repo analysis is **fan-out across typed agents**, not a single generic "analysis sub-agent":
+  - \`system-architect\` → architecture knowledge entries (clusters, boundaries, dependency direction)
+  - \`docs-researcher\` → tech-stack, third-party libraries, key files, features (kinds: \`reference\`, \`feature\`)
+  - \`tech-architect\` → cross-module couplings, gotchas surfaced by graphify (kind: \`gotcha\`, \`lesson\`)
+  - See the \`init-project\` skill (bundle: \`opencode/spoc/skills/init-project/SKILL.md\`; repo mirror: \`skills/init-project.md\`) for the full category table and worked example
+- See **Graphify Toolbelt** section below for the full graphify command surface
+
+#### INIT Graphify Sub-Flow (DEFAULT: ON when binary present)
+
+1. Detect: \`spoc\` already exposes \`detectGraphify()\` and \`runExtraction()\` via \`src/utils/graphify.ts\`. If unavailable, skip cleanly and log "graphify not on PATH; skipping graph ingestion."
+2. Trust the code: \`runExtraction()\` automatically appends \`graphify-out/\` to \`.gitignore\` (see \`ensureGitignoreEntry\` in \`src/utils/graphify.ts\`). Do **not** redundantly check or modify \`.gitignore\` from the orchestrator.
+3. Run AST-only extraction (no LLM key required): \`graphify update <workspacePath> --force --no-cluster\` — produces \`graphify-out/graph.json\`.
+4. Ingest: call the internal \`ingestGraph(graphJsonPath, slug)\` to get up to 20 \`KnowledgeProposal\` records (8 god nodes \`kind=module\`, 8 clusters \`kind=architecture\`, 5 cross-module couplings \`kind=gotcha\`, test files filtered).
+5. Optional enrichment via \`graphify query\` (BFS traversal, capped budget):
+   - \`graphify query "entry points and main commands"\` → seeds for "key files" reference entries
+   - \`graphify query "core data flow"\` → seeds for "core modules" entries
+   - \`graphify affected "<critical-symbol>"\` → reverse-impact map for high-risk modules
+   - \`graphify explain "<godNodeLabel>"\` → plain-language summary to enrich a \`module\` entry's body
+6. Hand the proposals + query results to the typed analysis agents above; they merge graph evidence with code reading and return finalized knowledge entries.
+7. Write entries with one batched \`spoc write propose\` → \`--token\` cycle (\`--ops=knowledge:create\` repeated per entry, or use \`spoc batch\`).
 
 ### BRAINSTORM Workflow
 
@@ -337,7 +436,7 @@ flowchart TD
 \`\`\`
 
 **spoc-docs sub-agent covers:**
-overview.md, tasks.md, dependencies.md, knowledge.md, plans/ status, knowledge/ accuracy, .diagram.mmd diagram drift (classDef mismatch, phantom nodes), AGENTS.md staleness, sourceFiles existence, optional graphify re-analysis.
+overview.md, tasks.md, dependencies.md, knowledge.md, plans/ status, knowledge/ accuracy, .diagram.mmd diagram drift (classDef mismatch, phantom nodes), AGENTS.md staleness, sourceFiles existence, and graphify re-extraction + \`graphify diagnose multigraph\` (see **Graphify Toolbelt**) when staleness > 7 days or major refactor commits landed.
 
 Delegate to spoc-docs sub-agent with: T0 context, \`spoc validate\` output, staleness info. Sub-agent uses \`spoc write propose\` → \`--token\` for all mutations. Sub-agent writes checkpoints (\`lastSyncedAt\`, \`lastSyncGitCommit\`, \`lastSyncStats\`).
 
@@ -392,7 +491,35 @@ flowchart TD
 **Load \`to-diagram\` silently** for plan creation, diagram updates, or SYNC repair.
 **Never compress** \`.mmd\` files — they are full-fidelity structured documents.
 
-## Invariants (Non-Negotiable)
+## Graphify Toolbelt
+
+Graphify is an **optional but heavily-leveraged** static-graph CLI. SPOC integrates it via \`src/utils/graphify.ts\`. **The orchestrator runs graphify directly; sub-agents may call \`graphify query\` / \`affected\` / \`explain\` for read-only graph traversal.**
+
+Trust the integration: \`runExtraction()\` already auto-appends \`graphify-out/\` to \`.gitignore\`. Don't re-check from the orchestrator — running extraction is sufficient.
+
+| Command | When to use | Owner |
+|---------|------------|-------|
+| \`graphify update <path> --force --no-cluster\` | INIT (always when binary present) and SYNC (when \`lastSyncedAt\` > 7 days OR major refactor commits since last extract) | orchestrator |
+| \`graphify query "<question>" --graph <path> --budget 2000\` | INIT enrichment, BRAINSTORM scoping ("what touches X"), architecture-review evidence gathering | sub-agent (read-only) |
+| \`graphify affected "<symbol>" --graph <path> --depth 2\` | EXECUTE pre-flight ("what does this change ripple into"), oncall-ops blast-radius, code-reviewer impact assessment | sub-agent (read-only) |
+| \`graphify explain "<node>" --graph <path>\` | INIT god-node knowledge body enrichment, BRAINSTORM scoping summaries | sub-agent (read-only) |
+| \`graphify path "<A>" "<B>" --graph <path>\` | Architecture-review: shortest dependency path between two modules | sub-agent (read-only) |
+| \`graphify diagnose multigraph --graph <path>\` | Periodic health (SYNC): detect same-endpoint edge collapse risk | \`spoc-docs\` |
+| \`graphify cluster-only <path>\` | After major refactor when god-node/community signal needs refresh | orchestrator |
+| \`graphify export callflow-html\` | One-off: produce architecture call-flow HTML for human review | orchestrator on request |
+
+**SPOC programmatic helpers** (preferred over raw shelling out from sub-agents): \`detectGraphify()\`, \`runExtraction()\`, \`ingestGraph()\`, \`queryGraph()\`, \`pathBetween()\` in \`src/utils/graphify.ts\`. Use these from any orchestrator-internal code path; sub-agents that shell out should pass \`--graph graphify-out/graph.json\` and \`--budget 2000\` to keep token cost bounded.
+
+**Cross-workflow reuse:**
+- **INIT:** mandatory step (default ON when binary present) — see INIT Graphify Sub-Flow above.
+- **SYNC:** re-extract if stale; \`spoc-docs\` may run \`graphify diagnose multigraph\` and \`graphify update --force --no-cluster\` to refresh the snapshot before knowledge-curation.
+- **BRAINSTORM:** \`system-architect\` uses \`graphify query\` to ground design proposals in actual coupling reality.
+- **EXECUTE:** \`software-engineer\` may run \`graphify affected "<symbol>"\` before a risky change to map ripple radius.
+- **architecture-review / tech-architect:** \`graphify path\` and \`graphify explain\` provide structural evidence for findings.
+
+**Fallback:** if \`graphify\` is not on PATH, every workflow degrades gracefully — log "graphify unavailable; proceeding without graph signal" and continue. Never block on graphify.
+
+
 
 - Orchestrator reads T0 only. All other reads → sub-agent. No exceptions.
 - All DAG writes require \`--token\` from prior \`spoc write propose\`.
@@ -412,10 +539,7 @@ flowchart TD
 When deploying SPOC bundles: \`spoc lint-bundle\` → pass → \`spoc deploy-superpowers\` → re-lint. Never skip lint — bundle integrity is binary.
 
 ### Support Skills (layer on work-mode)
-\`systematic-debugging\`, \`requesting-code-review\`, \`receiving-code-review\`,
-\`auditing-a-feature\`, \`writing-plans\`, \`verification-before-completion\`,
-\`finishing-a-development-branch\`, \`dispatching-parallel-agents\`, \`subagent-driven-development\`, \`loop\`.
-If there is even a 1% chance a support skill applies, load it.
+See **Skill Catalogue** above for the full set. Iron rule: if there is even a 1% chance a support skill applies, load it. Don't paraphrase — load and follow.
 
 ## Skills Health
 - Missing work-mode skill → halt: \`Skill [name] not found. Cannot dispatch safely.\`

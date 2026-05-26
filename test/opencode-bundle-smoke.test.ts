@@ -175,7 +175,7 @@ describe("opencode SPOC bundle bundle", () => {
 
     // SPOC-native skills (authored in this repo) live in the bundle but aren't
     // declared in bundle-runtime.json — they are preserved output files.
-    const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review"];
+    const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review", "init-project"];
     const expectedSkillNames = [
       ...new Set([
         ...Object.keys(runtimeManifest.skills),

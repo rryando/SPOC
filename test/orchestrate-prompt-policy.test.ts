@@ -189,6 +189,7 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "subagent-driven-development",
     "to-diagram",
     "loop",
+    "init-project",
   ];
 
   // Skills that are host-specific, formatting-only, or special-purpose (not routed by orchestrator)
