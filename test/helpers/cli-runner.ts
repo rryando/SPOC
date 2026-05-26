@@ -2,8 +2,8 @@
 // CLI Runner — test helper that invokes commands through the registry path
 // ---------------------------------------------------------------------------
 
-import { getCommand, type CLIResult } from "../../src/cli/command-registry.js";
 import { parseArgs } from "../../src/cli/arg-parser.js";
+import { type CLIResult, getCommand } from "../../src/cli/command-registry.js";
 
 // Import command registrations (side-effect imports)
 import "../../src/cli/commands/index.js";

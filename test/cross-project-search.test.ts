@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/utils/dag.js", () => ({
   readRootMeta: vi.fn(),
@@ -17,12 +17,12 @@ vi.mock("../src/utils/project-memory.js", () => ({
   readKnowledgeIndex: vi.fn(),
 }));
 
-import { readRootMeta } from "../src/utils/dag.js";
-import { buildProjectRetrievalIndex } from "../src/retrieval/index-builder.js";
-import { readKnowledgeIndex } from "../src/utils/project-memory.js";
 import { searchAcrossProjects } from "../src/retrieval/cross-project-search.js";
 import type { RetrievalIndex, ScoredEntry } from "../src/retrieval/index-builder.js";
+import { buildProjectRetrievalIndex } from "../src/retrieval/index-builder.js";
 import type { RootMeta } from "../src/utils/dag.js";
+import { readRootMeta } from "../src/utils/dag.js";
+import { readKnowledgeIndex } from "../src/utils/project-memory.js";
 
 const mockReadRootMeta = vi.mocked(readRootMeta);
 const mockBuildIndex = vi.mocked(buildProjectRetrievalIndex);
@@ -32,7 +32,8 @@ function makeIndex(knowledge: ScoredEntry[] = [], plans: ScoredEntry[] = []): Re
   return {
     searchKnowledge: (_q: string, _l?: number) => knowledge,
     searchPlans: (_q: string, _l?: number) => plans,
-    searchAll: (_q: string, _l?: number) => [...knowledge, ...plans].sort((a, b) => b.score - a.score),
+    searchAll: (_q: string, _l?: number) =>
+      [...knowledge, ...plans].sort((a, b) => b.score - a.score),
   };
 }
 
@@ -54,11 +55,23 @@ describe("searchAcrossProjects", () => {
     mockBuildIndex.mockImplementation(async (slug: string) => {
       if (slug === "proj-a") {
         return makeIndex([
-          { id: "k1", type: "knowledge", title: "Auth patterns", summary: "Auth flows", score: 5.2 },
+          {
+            id: "k1",
+            type: "knowledge",
+            title: "Auth patterns",
+            summary: "Auth flows",
+            score: 5.2,
+          },
         ]);
       }
       return makeIndex([
-        { id: "k2", type: "knowledge", title: "Auth middleware", summary: "Middleware auth", score: 7.1 },
+        {
+          id: "k2",
+          type: "knowledge",
+          title: "Auth middleware",
+          summary: "Middleware auth",
+          score: 7.1,
+        },
       ]);
     });
 
@@ -93,9 +106,7 @@ describe("searchAcrossProjects", () => {
   it("skips projects with errors gracefully", async () => {
     mockBuildIndex.mockImplementation(async (slug: string) => {
       if (slug === "proj-a") throw new Error("corrupt data");
-      return makeIndex([
-        { id: "k1", type: "knowledge", title: "Valid", summary: "", score: 4 },
-      ]);
+      return makeIndex([{ id: "k1", type: "knowledge", title: "Valid", summary: "", score: 4 }]);
     });
 
     const results = await searchAcrossProjects({ query: "valid" });
@@ -113,7 +124,11 @@ describe("searchAcrossProjects", () => {
       ]),
     );
 
-    const results = await searchAcrossProjects({ query: "test", limit: 2, projectSlugs: ["proj-a"] });
+    const results = await searchAcrossProjects({
+      query: "test",
+      limit: 2,
+      projectSlugs: ["proj-a"],
+    });
 
     expect(results).toHaveLength(2);
     expect(results[0].score).toBe(10);
@@ -163,12 +178,36 @@ describe("searchAcrossProjects", () => {
 
     mockReadKnowledge.mockResolvedValue({
       entries: [
-        { id: "k1", normalizedId: "k1", title: "Pattern A", kind: "pattern", keywords: [], summary: "", file: "k1.md", createdAt: "", updatedAt: "" },
-        { id: "k2", normalizedId: "k2", title: "Lesson B", kind: "lesson", keywords: [], summary: "", file: "k2.md", createdAt: "", updatedAt: "" },
+        {
+          id: "k1",
+          normalizedId: "k1",
+          title: "Pattern A",
+          kind: "pattern",
+          keywords: [],
+          summary: "",
+          file: "k1.md",
+          createdAt: "",
+          updatedAt: "",
+        },
+        {
+          id: "k2",
+          normalizedId: "k2",
+          title: "Lesson B",
+          kind: "lesson",
+          keywords: [],
+          summary: "",
+          file: "k2.md",
+          createdAt: "",
+          updatedAt: "",
+        },
       ],
     });
 
-    const results = await searchAcrossProjects({ query: "test", kind: "pattern", projectSlugs: ["proj-a"] });
+    const results = await searchAcrossProjects({
+      query: "test",
+      kind: "pattern",
+      projectSlugs: ["proj-a"],
+    });
 
     expect(results).toHaveLength(1);
     expect(results[0].entryId).toBe("k1");

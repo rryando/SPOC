@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
 import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("node:child_process", () => ({
   execSync: vi.fn(),
@@ -48,9 +48,8 @@ const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedReadFileSync = vi.mocked(fs.readFileSync);
 const mockedAppendFileSync = vi.mocked(fs.appendFileSync);
 
-import { detectGraphify, runExtraction, queryGraph, pathBetween } from "../src/utils/graphify.js";
-
 import { beforeEach } from "vitest";
+import { detectGraphify, pathBetween, queryGraph, runExtraction } from "../src/utils/graphify.js";
 
 beforeEach(() => {
   vi.clearAllMocks();

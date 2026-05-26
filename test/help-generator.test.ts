@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { defineCommand, type CLIResult, type CommandFlags } from "../src/cli/command-registry.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { type CLIResult, type CommandFlags, defineCommand } from "../src/cli/command-registry.js";
 import {
+  formatCommandsDiscovery,
   generateCommandHelp,
   generateCommandsDiscovery,
-  formatCommandsDiscovery,
 } from "../src/cli/help-generator.js";
 
 const noop = async (_p: Record<string, unknown>, _f: CommandFlags): Promise<CLIResult> => ({
@@ -17,7 +17,12 @@ beforeAll(() => {
     description: "Test command for help generator",
     mutation: false,
     params: {
-      summary: { type: "string", required: true, positional: 0, description: "Human-readable summary" },
+      summary: {
+        type: "string",
+        required: true,
+        positional: 0,
+        description: "Human-readable summary",
+      },
       ops: { type: "string", required: true, description: "Comma-separated operation names" },
       slug: { type: "string", required: true, description: "Target project slug" },
       ttl: { type: "number", required: false, default: 600000, description: "Token TTL in ms" },
@@ -29,7 +34,12 @@ beforeAll(() => {
     path: "help-test list",
     description: "List items",
     params: {
-      format: { type: "string", required: false, description: "Output format", enum: ["table", "json", "csv"] },
+      format: {
+        type: "string",
+        required: false,
+        description: "Output format",
+        enum: ["table", "json", "csv"],
+      },
     },
     handler: noop,
   });
@@ -41,7 +51,12 @@ describe("generateCommandHelp", () => {
       path: "help-test propose",
       description: "Test command for help generator",
       params: {
-        summary: { type: "string", required: true, positional: 0, description: "Human-readable summary" },
+        summary: {
+          type: "string",
+          required: true,
+          positional: 0,
+          description: "Human-readable summary",
+        },
         ops: { type: "string", required: true, description: "Comma-separated operation names" },
         slug: { type: "string", required: true, description: "Target project slug" },
         ttl: { type: "number", required: false, default: 600000, description: "Token TTL in ms" },
@@ -49,7 +64,9 @@ describe("generateCommandHelp", () => {
       handler: noop,
     });
     expect(help).toContain("spoc help-test propose — Test command for help generator");
-    expect(help).toContain("Usage: spoc help-test propose <summary> --ops=STRING --slug=STRING [--ttl=NUMBER]");
+    expect(help).toContain(
+      "Usage: spoc help-test propose <summary> --ops=STRING --slug=STRING [--ttl=NUMBER]",
+    );
   });
 
   it("shows positional params as <name>", () => {
@@ -86,7 +103,9 @@ describe("generateCommandHelp", () => {
     const help = generateCommandHelp({
       path: "help-test list",
       description: "List",
-      params: { format: { type: "string", required: false, description: "Format", enum: ["table", "json"] } },
+      params: {
+        format: { type: "string", required: false, description: "Format", enum: ["table", "json"] },
+      },
       handler: noop,
     });
     expect(help).toContain("table, json");
@@ -121,7 +140,7 @@ describe("generateCommandsDiscovery", () => {
     expect(cmd).toBeDefined();
     expect(cmd!.params.summary.positional).toBe(0);
     expect(cmd!.params.ttl.default).toBe(600000);
-    expect((cmd as unknown as Record<string, unknown>)).not.toHaveProperty("handler");
+    expect(cmd as unknown as Record<string, unknown>).not.toHaveProperty("handler");
   });
 
   it("includes errorCodes array in discovery output", () => {

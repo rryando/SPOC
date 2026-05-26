@@ -1,12 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -372,6 +365,7 @@ describe("opencode bundle runtime manifest", () => {
           "scripts/stop-server.sh",
         ],
         "code-agent": ["SKILL.md"],
+        "confidence-gate": ["SKILL.md"],
         "deep-pr-review": ["SKILL.md", "review-template.md", "graphify-diff.md"],
         "dispatching-parallel-agents": ["SKILL.md"],
         "executing-plans": ["SKILL.md"],

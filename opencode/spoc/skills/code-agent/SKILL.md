@@ -15,7 +15,7 @@ Task is mostly clear (50-90%) but 1-2 decisions remain open — resolvable by in
 flowchart TD
     A[Orient: spoc brief --lean --json] --> B[Search: spoc search slug keywords]
     B --> C[Inspect repo — patterns, types, fixtures]
-    C --> D{Decisions resolved?}
+    C --> D{Confidence score >=80?}
     D -->|Yes| E[Implement — TDD for new behavior]
     D -->|No, inferable| E
     D -->|No, genuine ambiguity| F[Ask ONE targeted question]
@@ -29,6 +29,7 @@ flowchart TD
 ## Behaviour
 
 - Inspect repo before asking anything
+- Score self-confidence per `confidence-gate` before any code edit; <80% triggers explore/web recovery, not improvisation
 - Proceed on inferred defaults when repo makes it clear
 - Ask at most one targeted question (product direction, naming, breaking trade-off)
 - TDD for new non-trivial behavior; skip for structural changes covered by existing tests

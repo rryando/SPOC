@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mkdir, mkdtemp, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGraphCache } from "../src/retrieval/graph-cache.js";
 import type { AdjacencyIndex } from "../src/retrieval/graph-types.js";
-import { mkdtemp, mkdir, writeFile, utimes } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 vi.mock("../src/retrieval/graph-builder.js", () => {
   return { buildAdjacencyIndex: vi.fn() };
@@ -192,10 +192,7 @@ describe("GraphCache", () => {
     });
     mockedBuild.mockResolvedValue(fakeIndex);
 
-    const [a, b] = await Promise.all([
-      cache.getOrBuild("my-slug"),
-      cache.getOrBuild("my-slug"),
-    ]);
+    const [a, b] = await Promise.all([cache.getOrBuild("my-slug"), cache.getOrBuild("my-slug")]);
     expect(a).toBe(b);
     expect(mockedBuild).toHaveBeenCalledTimes(1);
   });

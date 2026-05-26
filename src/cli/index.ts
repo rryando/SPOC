@@ -1,11 +1,15 @@
 import "./commands/index.js"; // Trigger command registrations
+import { parseArgs } from "./arg-parser.js";
+import { getCommand } from "./command-registry.js";
 import { handleDagCommand } from "./dag-commands.js";
+import {
+  formatCommandsDiscovery,
+  generateCommandHelp,
+  generateCommandsDiscovery,
+} from "./help-generator.js";
+import { render } from "./output-envelope.js";
 import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
-import { getCommand } from "./command-registry.js";
-import { parseArgs } from "./arg-parser.js";
-import { render } from "./output-envelope.js";
-import { generateCommandHelp, generateCommandsDiscovery, formatCommandsDiscovery } from "./help-generator.js";
 
 // ---------------------------------------------------------------------------
 // CLI Subcommand Router
@@ -57,8 +61,11 @@ export async function handleCli(args: string[]): Promise<boolean> {
     const registeredCmd = getCommand(match.path)!;
     const result = parseArgs(registeredCmd, match.remaining);
     if (!result.ok) {
-      const flags = { json: match.remaining.includes("--json"), lean: match.remaining.includes("--lean") };
-      render(result.error, flags);
+      const flags = {
+        json: match.remaining.includes("--json"),
+        lean: match.remaining.includes("--lean"),
+      };
+      render(result.error, flags, match.path);
       process.exitCode = 1;
       return true;
     }
@@ -67,7 +74,7 @@ export async function handleCli(args: string[]): Promise<boolean> {
       return true;
     }
     const cmdResult = await registeredCmd.handler(result.parsed.params, result.parsed.flags);
-    render(cmdResult, result.parsed.flags);
+    render(cmdResult, result.parsed.flags, match.path);
     if (!cmdResult.ok) process.exitCode = 1;
     return true;
   }
@@ -89,18 +96,10 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "knowledge":
     case "diagram":
     case "project":
-    case "write":
     case "doc":
     case "dependency":
     case "paths":
     case "loop":
-    case "audit":
-    case "diff":
-    case "git-log":
-    case "lint-bundle":
-    case "deploy-superpowers":
-    case "sync-agents-md":
-    case "related":
     case "graph":
       return handleDagCommand(command, args.slice(1));
 

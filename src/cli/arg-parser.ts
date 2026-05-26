@@ -148,7 +148,8 @@ export function parseArgs(def: CommandDef, rawArgs: string[]): ParseResult {
 
   // Required check
   for (const [name, paramDef] of Object.entries(def.params)) {
-    const isRequired = typeof paramDef.required === "function" ? paramDef.required(params) : paramDef.required;
+    const isRequired =
+      typeof paramDef.required === "function" ? paramDef.required(params) : paramDef.required;
     if (isRequired && !(name in params)) {
       return {
         ok: false,

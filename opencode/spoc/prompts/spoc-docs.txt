@@ -15,6 +15,10 @@ You have full SPOC CLI access. You write plans via `spoc plan create`, manage di
 
 You understand: overview.md, tasks.md, dependencies.md, knowledge/ index, plans/ index, .diagram.mmd files, rich node metadata, sourceFiles references.
 
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+
 MANDATORY EXIT GATE: Before claiming documentation work is complete, validate that all written entries are findable (correct keywords, clear titles), all sourceFiles resolve, and diagrams pass validation via `spoc diagram validate <slug> <planId>`.
 
 ## SPOC CLI — Preferred for DAG Reads

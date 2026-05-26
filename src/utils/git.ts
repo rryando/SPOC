@@ -57,13 +57,8 @@ export function getGitLog(
     const shortSha = fullSha.slice(0, 7);
 
     // Get files changed for this commit
-    const filesOutput = exec(
-      `git diff-tree --no-commit-id --name-only -r ${fullSha}`,
-      cwd,
-    );
-    const filesChanged = filesOutput
-      ? filesOutput.split("\n").filter(Boolean)
-      : [];
+    const filesOutput = exec(`git diff-tree --no-commit-id --name-only -r ${fullSha}`, cwd);
+    const filesChanged = filesOutput ? filesOutput.split("\n").filter(Boolean) : [];
 
     entries.push({ sha: shortSha, message, date, filesChanged });
   }

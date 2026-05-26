@@ -2,13 +2,13 @@
 // Tests for atomic task transition + diagram update
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "vitest";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { withTempDataDir } from "./helpers/temp-data-dir.js";
+import { describe, expect, it } from "vitest";
 import { runCommand } from "./helpers/cli-runner.js";
+import { withTempDataDir } from "./helpers/temp-data-dir.js";
 
-async function createTestProject(dir: string, slug = "test-proj"): Promise<void> {
+async function createTestProject(_dir: string, slug = "test-proj"): Promise<void> {
   await runCommand("project init", [slug, "--description=Test project"]);
 }
 
@@ -43,11 +43,7 @@ describe("task transition — atomic diagram update", () => {
       await createTestProject(dir);
       const taskId = await createTestTask("test-proj");
 
-      const result = await runCommand("task transition", [
-        "test-proj",
-        taskId,
-        "in_progress",
-      ]);
+      const result = await runCommand("task transition", ["test-proj", taskId, "in_progress"]);
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -189,7 +185,14 @@ describe("batch task-transition — atomic diagram update", () => {
 
       // Write batch file
       const batchOps = [
-        { op: "task-transition", slug: "test-proj", taskId, status: "done", planId: "test-plan", diagramNodeId: "T001" },
+        {
+          op: "task-transition",
+          slug: "test-proj",
+          taskId,
+          status: "done",
+          planId: "test-plan",
+          diagramNodeId: "T001",
+        },
       ];
       const batchFile = resolve(dir, "batch-ops.json");
       writeFileSync(batchFile, JSON.stringify(batchOps), "utf-8");
@@ -198,7 +201,12 @@ describe("batch task-transition — atomic diagram update", () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const results = result.data as Array<{ index: number; op: string; success: boolean; result: Record<string, unknown> }>;
+        const results = result.data as Array<{
+          index: number;
+          op: string;
+          success: boolean;
+          result: Record<string, unknown>;
+        }>;
         expect(results).toHaveLength(1);
         expect(results[0].success).toBe(true);
         expect(results[0].result.taskId).toBe(taskId);
@@ -224,7 +232,12 @@ describe("batch task-transition — atomic diagram update", () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const results = result.data as Array<{ index: number; op: string; success: boolean; result: Record<string, unknown> }>;
+        const results = result.data as Array<{
+          index: number;
+          op: string;
+          success: boolean;
+          result: Record<string, unknown>;
+        }>;
         expect(results).toHaveLength(1);
         expect(results[0].success).toBe(true);
         expect(results[0].result.taskId).toBe(taskId);

@@ -1,9 +1,9 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { invalidFileFormat } from "./errors.js";
 import { withLock } from "./file-lock.js";
 import { readJsonSafe, validateJson } from "./json.js";
 import { rootMetaSchema } from "./json-schemas.js";
-import { invalidFileFormat } from "./errors.js";
 
 export interface DagNode {
   id: string;

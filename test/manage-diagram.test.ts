@@ -141,9 +141,9 @@ describe("manage-diagram.mjs", () => {
 
       const output = JSON.parse(result.stdout);
       expect(output.ok).toBe(false);
-      expect(output.errors.some((e: string) => e.includes("acceptance") && e.includes("T001"))).toBe(
-        true,
-      );
+      expect(
+        output.errors.some((e: string) => e.includes("acceptance") && e.includes("T001")),
+      ).toBe(true);
     });
 
     it("fails on missing required field in a non-last metadata block", () => {
@@ -159,9 +159,9 @@ describe("manage-diagram.mjs", () => {
 
       const output = JSON.parse(result.stdout);
       expect(output.ok).toBe(false);
-      expect(output.errors.some((e: string) => e.includes("acceptance") && e.includes("T003"))).toBe(
-        true,
-      );
+      expect(
+        output.errors.some((e: string) => e.includes("acceptance") && e.includes("T003")),
+      ).toBe(true);
     });
 
     it("fails on stale status comment", () => {
@@ -661,9 +661,7 @@ describe("manage-diagram.mjs", () => {
     it("rejects missing required task field", () => {
       const meta = {
         planId: "test",
-        tasks: [
-          { id: "T001", title: "A", status: "done", skill: "s", scope: "a/" },
-        ],
+        tasks: [{ id: "T001", title: "A", status: "done", skill: "s", scope: "a/" }],
       }; // missing acceptance (required)
       const metaPath = writeMetadata(meta);
       const outPath = resolve(tempDir, "output.diagram.mmd");

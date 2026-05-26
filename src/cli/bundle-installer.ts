@@ -12,13 +12,13 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, relative, resolve } from "node:path";
-import { PACKAGE_ROOT } from "../utils/paths.js";
 import { readJsonSafeSync, validateJson } from "../utils/json.js";
 import {
-  opencodeSourceManifestSchema,
   opencodeInstalledManifestSchema,
+  opencodeSourceManifestSchema,
   packageJsonSchema,
 } from "../utils/json-schemas.js";
+import { PACKAGE_ROOT } from "../utils/paths.js";
 
 export type InstallState = "absent" | "spoc-managed" | "foreign-existing";
 
@@ -167,9 +167,7 @@ export function readInstalledSpocBundleManifest(): InstalledSpocBundleManifest |
   return validateJson(raw, opencodeInstalledManifestSchema, manifestPath);
 }
 
-export function writeInstalledSpocBundleManifest(
-  manifest: InstalledSpocBundleManifest,
-): void {
+export function writeInstalledSpocBundleManifest(manifest: InstalledSpocBundleManifest): void {
   writeJsonFile(spocInstalledManifestPath(), manifest);
 }
 

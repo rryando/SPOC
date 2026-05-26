@@ -1,13 +1,8 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  isGitRepo,
-  getHeadCommit,
-  getGitLog,
-  getFilesChanged,
-} from "../src/utils/git.js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getFilesChanged, getGitLog, getHeadCommit, isGitRepo } from "../src/utils/git.js";
 
 const REPO_ROOT = join(import.meta.dirname, "..");
 let tempDir: string;

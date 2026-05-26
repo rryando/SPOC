@@ -163,7 +163,7 @@ describe("applyAgentModelConfig", () => {
     ).not.toThrow();
   });
 
-  it("assigns tier-based models to sub-agents", async () => {
+  it("assigns tier-based models to all agents (including primary)", async () => {
     const config = {
       agent: {
         "SPOC Orchestrator": { prompt: "test" },
@@ -182,9 +182,9 @@ describe("applyAgentModelConfig", () => {
     expect(result.agent.explore.model).toBe("small/model");
     expect(result.agent["software-engineer"].model).toBe("big/model");
     expect(result.agent.build.model).toBe("mid/model");
-    // Primary agents get no model field (no perAgent override)
-    expect(result.agent["SPOC Orchestrator"].model).toBeUndefined();
-    expect(result.agent["SPOC Caveman"].model).toBeUndefined();
+    // Primary agents are standard tier
+    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/model");
+    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
   });
 
   it("applies perAgent override to sub-agents", async () => {
@@ -226,11 +226,11 @@ describe("applyAgentModelConfig", () => {
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
     expect(result.agent["SPOC Orchestrator"].model).toBe("special/orchestrator");
-    // Caveman has no override — no model field
-    expect(result.agent["SPOC Caveman"].model).toBeUndefined();
+    // Caveman has no override — falls back to standard tier
+    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
   });
 
-  it("removes model from primary agents when no perAgent override", async () => {
+  it("replaces stale model on primary agents with current tier value", async () => {
     const config = {
       agent: {
         "SPOC Orchestrator": { prompt: "test", model: "old/model" },
@@ -242,8 +242,9 @@ describe("applyAgentModelConfig", () => {
     applyAgentModelConfig({ heavy: "big/model", standard: "mid/model", light: "small/model" });
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
-    expect(result.agent["SPOC Orchestrator"].model).toBeUndefined();
-    expect(result.agent["SPOC Caveman"].model).toBeUndefined();
+    // Both primary agents are standard tier — old model is replaced, not removed
+    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/model");
+    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
   });
 
   it("skips agents not in tier map", async () => {
@@ -291,12 +292,12 @@ describe("writeOpencodeAgent with modelConfig", () => {
     await rm(tempDir, { recursive: true });
   });
 
-  it("does not set model on primary agents without perAgent override", async () => {
+  it("sets standard tier model on primary agents without perAgent override", async () => {
     writeOpencodeAgent({ heavy: "big/m", standard: "mid/m", light: "sm/m" });
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
-    expect(result.agent["SPOC Orchestrator"].model).toBeUndefined();
-    expect(result.agent["SPOC Caveman"].model).toBeUndefined();
+    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/m");
+    expect(result.agent["SPOC Caveman"].model).toBe("mid/m");
   });
 
   it("sets model on primary agents with perAgent override", async () => {
@@ -309,7 +310,8 @@ describe("writeOpencodeAgent with modelConfig", () => {
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
     expect(result.agent["SPOC Orchestrator"].model).toBe("override/orch");
-    expect(result.agent["SPOC Caveman"].model).toBeUndefined();
+    // Caveman falls back to standard tier
+    expect(result.agent["SPOC Caveman"].model).toBe("mid/m");
   });
 
   it("creates config file if it does not exist", async () => {

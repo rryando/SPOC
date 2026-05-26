@@ -126,9 +126,7 @@ export interface ProviderModels {
  * then runs `opencode models <provider>` for each to get available models.
  * Returns array sorted with providers matching currentModel first.
  */
-export async function getAvailableModels(
-  currentModel: string,
-): Promise<ProviderModels[]> {
+export async function getAvailableModels(currentModel: string): Promise<ProviderModels[]> {
   const { execSync } = await import("node:child_process");
   let authData: Record<string, unknown> = {};
 

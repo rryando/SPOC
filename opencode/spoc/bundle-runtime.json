@@ -23,6 +23,9 @@
     "code-agent": [
       "SKILL.md"
     ],
+    "confidence-gate": [
+      "SKILL.md"
+    ],
     "deep-pr-review": [
       "SKILL.md",
       "review-template.md",

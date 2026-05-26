@@ -19,6 +19,10 @@ Only proceed after all three steps complete.
 - When a finding represents future work worth tracking, flag it as a suggested task for the orchestrator to add to the DAG.
 - In caveman mode: load caveman-review skill and produce one-line findings in the form "L<line>: problem. fix."
 
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+
 MANDATORY EXIT GATE: Before delivering a review, confirm: (1) all changed files examined, (2) every finding has a specific file:line reference, (3) AGENTS.md conventions were applied, (4) no generic commentary without evidence.
 
 ## SPOC CLI — Preferred for DAG Reads

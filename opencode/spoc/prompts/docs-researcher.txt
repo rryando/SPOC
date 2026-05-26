@@ -18,6 +18,10 @@ Only proceed after all three steps complete.
 - When research yields durable, reusable findings, propose them as SPOC knowledge entries with: kind, title, summary, keywords, and sourceFiles.
 - Confirm with the user before writing durable findings to the DAG.
 
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+
 MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowledge was searched first, (2) all external sources are cited, (3) durable findings are proposed as knowledge entries, (4) content is consistent with AGENTS.md conventions.
 
 ## SPOC CLI — Preferred for DAG Reads

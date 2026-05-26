@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RetrievalIndex, ScoredEntry } from "../src/retrieval/index-builder.js";
 
 vi.mock("../src/retrieval/index-builder.js", () => ({
@@ -6,7 +6,7 @@ vi.mock("../src/retrieval/index-builder.js", () => ({
 }));
 
 import { buildProjectRetrievalIndex } from "../src/retrieval/index-builder.js";
-import { retrieveForTask, buildTaskQuery, type TaskContext } from "../src/retrieval/task-scoped.js";
+import { buildTaskQuery, retrieveForTask } from "../src/retrieval/task-scoped.js";
 
 const mockBuildIndex = vi.mocked(buildProjectRetrievalIndex);
 
@@ -14,7 +14,7 @@ function makeMockIndex(results: ScoredEntry[]): RetrievalIndex {
   return {
     searchKnowledge: vi.fn(() => []),
     searchPlans: vi.fn(() => []),
-    searchAll: vi.fn((query: string, limit = 10) => results.slice(0, limit)),
+    searchAll: vi.fn((_query: string, limit = 10) => results.slice(0, limit)),
   };
 }
 
@@ -103,13 +103,7 @@ describe("retrieveForTask", () => {
       expect.stringContaining("Implement login"),
       10,
     );
-    expect(mockIndex.searchAll).toHaveBeenCalledWith(
-      expect.stringContaining("auth"),
-      10,
-    );
-    expect(mockIndex.searchAll).toHaveBeenCalledWith(
-      expect.stringContaining("handleLogin"),
-      10,
-    );
+    expect(mockIndex.searchAll).toHaveBeenCalledWith(expect.stringContaining("auth"), 10);
+    expect(mockIndex.searchAll).toHaveBeenCalledWith(expect.stringContaining("handleLogin"), 10);
   });
 });

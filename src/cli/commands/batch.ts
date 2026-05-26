@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync, readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { getProjectDir } from "../../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
@@ -10,6 +11,9 @@ import {
   createKnowledgeEntry,
   createPlan,
   createTask,
+  deleteKnowledgeEntry,
+  deletePlan,
+  deleteTask,
   type FileRef,
   type KnowledgeKind,
   type PlanStatus,
@@ -20,11 +24,8 @@ import {
   updateTask,
 } from "../../utils/project-memory.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
-import {
-  type CLIResult,
-  type CommandFlags,
-  defineCommand,
-} from "../command-registry.js";
+import { readStdin } from "../../utils/stdin.js";
+import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 import { attemptDiagramUpdate } from "./task.js";
 
@@ -60,6 +61,9 @@ const BATCH_OPS: BatchOpInfo[] = [
   { canonical: "knowledge-update-body", description: "Update knowledge entry body" },
   { canonical: "plan-create", description: "Create a plan" },
   { canonical: "plan-update-meta", description: "Update plan metadata" },
+  { canonical: "plan-delete", description: "Delete a plan" },
+  { canonical: "task-delete", description: "Delete a task" },
+  { canonical: "knowledge-delete", description: "Delete a knowledge entry" },
   { canonical: "doc-update", description: "Update a project document" },
 ];
 
@@ -79,10 +83,12 @@ defineCommand({
   params: {
     file: {
       type: "string",
-      required: (params) => !params["list-ops"],
+      required: (params) => !params["list-ops"] && !params.stdin,
       description: "Path to JSON file with operations",
     },
+    stdin: { type: "boolean", required: false, description: "Read operations JSON from stdin" },
     "list-ops": { type: "boolean", description: "List valid batch operations" },
+    "fail-fast": { type: "boolean", required: false, description: "Abort on first operation failure" },
   },
   handler: handleBatch,
 });
@@ -96,22 +102,35 @@ async function handleBatch(
     return success({ ops: BATCH_OPS });
   }
 
-  const filePath = params.file as string;
-  if (!existsSync(filePath)) {
-    return failure("file_not_found", `Batch file not found: ${filePath}`);
+  const failFast = params["fail-fast"] as boolean | undefined;
+  const stdinFlag = params.stdin as boolean | undefined;
+  const filePath = params.file as string | undefined;
+
+  if (!filePath && !stdinFlag) {
+    return failure("missing_param", "Either --file or --stdin is required", {
+      usage: "spoc batch --file=<path> or spoc batch --stdin",
+    });
   }
 
   let ops: BatchOp[];
   try {
-    const raw = readFileSync(filePath, "utf-8");
+    let raw: string;
+    if (stdinFlag) {
+      raw = await readStdin();
+    } else {
+      if (!existsSync(filePath!)) {
+        return failure("file_not_found", `Batch file not found: ${filePath}`);
+      }
+      raw = readFileSync(filePath!, "utf-8");
+    }
     ops = JSON.parse(raw);
     if (!Array.isArray(ops)) {
-      return failure("invalid_format", "Batch file must contain a JSON array");
+      return failure("invalid_format", "Batch input must contain a JSON array");
     }
   } catch (err) {
     return failure(
       "parse_error",
-      `Failed to parse batch file: ${err instanceof Error ? err.message : String(err)}`,
+      `Failed to parse batch input: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
@@ -220,8 +239,7 @@ async function handleBatch(
           if (!existsSync(metaPath2)) throw new Error(`knowledge entry not found: ${entryId}`);
           const rawMeta2 = JSON.parse(readFileSync(metaPath2, "utf-8"));
           const bodyPath = resolve(projectDir, rawMeta2.file);
-          const { writeFile: writeFileAsync } = await import("node:fs/promises");
-          await writeFileAsync(bodyPath, body, "utf-8");
+          await writeFile(bodyPath, body, "utf-8");
           results.push({ index: i, op: op.op, success: true, result: { entryId } });
           break;
         }
@@ -270,21 +288,51 @@ async function handleBatch(
           const docFile = PROJECT_DOC_FILES[docType];
           if (!docFile) throw new Error(`Unknown doc type: ${docType}`);
           const docPath = resolve(projectDir, docFile);
-          const { writeFile } = await import("node:fs/promises");
           await writeFile(docPath, content, "utf-8");
           results.push({ index: i, op: op.op, success: true, result: { docType } });
           break;
         }
+        case "task-delete": {
+          const projectDir = getProjectDir(op.slug);
+          const taskId = op.taskId as string;
+          if (!taskId) throw new Error("taskId required");
+          await deleteTask(projectDir, taskId);
+          results.push({ index: i, op: op.op, success: true, result: { deleted: taskId } });
+          break;
+        }
+        case "knowledge-delete": {
+          const projectDir = getProjectDir(op.slug);
+          const entryId = op.entryId as string;
+          if (!entryId) throw new Error("entryId required");
+          await deleteKnowledgeEntry(projectDir, entryId);
+          results.push({ index: i, op: op.op, success: true, result: { deleted: entryId } });
+          break;
+        }
+        case "plan-delete": {
+          const projectDir = getProjectDir(op.slug);
+          const planId = op.planId as string;
+          if (!planId) throw new Error("planId required");
+          await deletePlan(projectDir, planId);
+          results.push({ index: i, op: op.op, success: true, result: { deleted: planId } });
+          break;
+        }
         default:
           results.push({ index: i, op: op.op, success: false, error: `Unknown op: ${op.op}` });
+          if (failFast) {
+            return success({ results, abortedAt: i, totalOps: ops.length, completed: false });
+          }
       }
     } catch (err) {
-      results.push({
+      const opResult: BatchResult = {
         index: i,
         op: op.op,
         success: false,
         error: err instanceof Error ? err.message : String(err),
-      });
+      };
+      results.push(opResult);
+      if (failFast) {
+        return success({ results, abortedAt: i, totalOps: ops.length, completed: false });
+      }
     }
   }
 

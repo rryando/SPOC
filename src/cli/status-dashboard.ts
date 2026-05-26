@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { resolve } from "node:path";
 import pc from "picocolors";
 
 import { getDataDir } from "../utils/paths.js";
@@ -50,11 +50,7 @@ export async function showStatusDashboard(): Promise<void> {
   render(project, taskCounts, plans, previewRunning);
 }
 
-function findProject(
-  projectsDir: string,
-  dataDir: string,
-  cwd: string,
-): ProjectMatch | null {
+function findProject(projectsDir: string, dataDir: string, cwd: string): ProjectMatch | null {
   const metaPath = resolve(dataDir, "meta.json");
   if (!existsSync(metaPath)) return null;
 
@@ -73,20 +69,14 @@ function findProject(
 
     try {
       const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
-      const paths: string[] = Array.isArray(projMeta.workspacePaths)
-        ? projMeta.workspacePaths
-        : [];
+      const paths: string[] = Array.isArray(projMeta.workspacePaths) ? projMeta.workspacePaths : [];
       for (const wp of paths) {
-        const resolved = wp.startsWith("~")
-          ? resolve(homedir(), wp.slice(2))
-          : resolve(wp);
-        if (cwd === resolved || cwd.startsWith(resolved + "/")) {
+        const resolved = wp.startsWith("~") ? resolve(homedir(), wp.slice(2)) : resolve(wp);
+        if (cwd === resolved || cwd.startsWith(`${resolved}/`)) {
           return { slug: node.id, name: node.name, status: node.status };
         }
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   return null;
@@ -147,13 +137,13 @@ function readPlans(projectDir: string): PlanInfo[] {
         const scriptPath = resolveManageDiagramScript();
         if (!scriptPath) continue;
 
-        const output = execSync(
-          `node "${scriptPath}" inspect "${diagramPath}"`,
-          { encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] },
-        );
+        const output = execSync(`node "${scriptPath}" inspect "${diagramPath}"`, {
+          encoding: "utf-8",
+          timeout: 5000,
+          stdio: ["pipe", "pipe", "pipe"],
+        });
         const data = JSON.parse(output);
-        const nodes: Array<{ id: string; label?: string; status?: string }> =
-          data.nodes ?? [];
+        const nodes: Array<{ id: string; label?: string; status?: string }> = data.nodes ?? [];
         const totalNodes = nodes.length;
         const doneNodes = nodes.filter((n) => n.status === "done").length;
         const inProgressNodes = nodes.filter((n) => n.status === "inProgress").length;
@@ -168,20 +158,36 @@ function readPlans(projectDir: string): PlanInfo[] {
           if (eqMatch) {
             readyIds = eqMatch[1].split(",").map((s: string) => s.trim());
           } else {
-            readyIds = readyComment.split(",").map((s: string) => s.trim()).filter((s: string) => /^T\d+$/i.test(s));
+            readyIds = readyComment
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter((s: string) => /^T\d+$/i.test(s));
           }
         }
-        const nextReadyNode = readyIds.length > 0
-          ? nodes.find((n) => n.id === readyIds[0])
-          : undefined;
-        const nextReady = nextReadyNode
-          ? `${nextReadyNode.id} ${nextReadyNode.label ?? ""}`
-          : "";
+        const nextReadyNode =
+          readyIds.length > 0 ? nodes.find((n) => n.id === readyIds[0]) : undefined;
+        const nextReady = nextReadyNode ? `${nextReadyNode.id} ${nextReadyNode.label ?? ""}` : "";
 
-        plans.push({ name: planName, totalNodes, doneNodes, inProgressNodes, blockedNodes, backlogNodes, nextReady });
+        plans.push({
+          name: planName,
+          totalNodes,
+          doneNodes,
+          inProgressNodes,
+          blockedNodes,
+          backlogNodes,
+          nextReady,
+        });
       } catch {
         // If inspect fails, still show the plan without progress
-        plans.push({ name: planName, totalNodes: 0, doneNodes: 0, inProgressNodes: 0, blockedNodes: 0, backlogNodes: 0, nextReady: "" });
+        plans.push({
+          name: planName,
+          totalNodes: 0,
+          doneNodes: 0,
+          inProgressNodes: 0,
+          blockedNodes: 0,
+          backlogNodes: 0,
+          nextReady: "",
+        });
       }
     }
   } catch {
@@ -198,10 +204,7 @@ function resolveManageDiagramScript(): string | null {
       import.meta.dirname,
       "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
     ),
-    resolve(
-      homedir(),
-      ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
-    ),
+    resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs"),
   ];
   for (const p of candidates) {
     if (existsSync(p)) return p;
@@ -236,23 +239,16 @@ function render(
   const topLine = `┌─ ${pc.bold("SPOC")} ${"─".repeat(WIDTH - 7)}┐`;
   const botLine = `└${"─".repeat(WIDTH - 2)}┘`;
 
-  const dirLine = padRight(
-    `  Dir:     ${process.cwd()}`,
-    innerWidth,
-  );
+  const dirLine = padRight(`  Dir:     ${process.cwd()}`, innerWidth);
   const projectLine = padRight(
     `  Project: ${pc.bold(project.name)} (${project.status})`,
     innerWidth,
   );
   const taskParts: string[] = [];
-  if (tasks.inProgress > 0)
-    taskParts.push(pc.yellow(`${tasks.inProgress} in-progress`));
+  if (tasks.inProgress > 0) taskParts.push(pc.yellow(`${tasks.inProgress} in-progress`));
   if (tasks.backlog > 0) taskParts.push(pc.dim(`${tasks.backlog} backlog`));
   if (tasks.done > 0) taskParts.push(pc.green(`${tasks.done} done`));
-  const taskLine = padRight(
-    `  Tasks:   ${taskParts.join(" · ")}`,
-    innerWidth,
-  );
+  const taskLine = padRight(`  Tasks:   ${taskParts.join(" · ")}`, innerWidth);
 
   console.log(topLine);
   console.log(`│${dirLine}│`);
@@ -267,18 +263,13 @@ function render(
     for (const plan of plans) {
       const barWidth = 7;
       const filled =
-        plan.totalNodes > 0
-          ? Math.round((plan.doneNodes / plan.totalNodes) * barWidth)
-          : 0;
+        plan.totalNodes > 0 ? Math.round((plan.doneNodes / plan.totalNodes) * barWidth) : 0;
       const bar = "█".repeat(filled) + "░".repeat(barWidth - filled);
-      const progress =
-        plan.totalNodes > 0 ? `${plan.doneNodes}/${plan.totalNodes}` : "—";
+      const progress = plan.totalNodes > 0 ? `${plan.doneNodes}/${plan.totalNodes}` : "—";
       const isDone = plan.totalNodes > 0 && plan.doneNodes === plan.totalNodes;
       const doneFlag = isDone ? ` ${pc.green("✓ done")}` : "";
       const name = truncate(plan.name, 30);
-      console.log(
-        `  ▸ ${pc.bold(name.padEnd(30))} ${bar} ${progress.padEnd(5)}${doneFlag}`,
-      );
+      console.log(`  ▸ ${pc.bold(name.padEnd(30))} ${bar} ${progress.padEnd(5)}${doneFlag}`);
 
       // Second line: node status counts + next ready task (only if diagram has nodes)
       if (plan.totalNodes > 0 && !isDone) {
@@ -287,9 +278,7 @@ function render(
         if (plan.inProgressNodes > 0) counts.push(pc.yellow(`◉${plan.inProgressNodes}`));
         if (plan.blockedNodes > 0) counts.push(pc.red(`✗${plan.blockedNodes}`));
         if (plan.backlogNodes > 0) counts.push(pc.dim(`○${plan.backlogNodes}`));
-        const next = plan.nextReady
-          ? `  next: ${truncate(plan.nextReady, 25)}`
-          : "";
+        const next = plan.nextReady ? `  next: ${truncate(plan.nextReady, 25)}` : "";
         console.log(`    ${counts.join(" ")}${pc.dim(next)}`);
       }
     }
@@ -298,13 +287,9 @@ function render(
   // Preview server
   console.log("");
   if (previewRunning) {
-    console.log(
-      `Preview: ${pc.green("●")} running → ${pc.cyan("http://localhost:4077")}`,
-    );
+    console.log(`Preview: ${pc.green("●")} running → ${pc.cyan("http://localhost:4077")}`);
   } else {
-    console.log(
-      `Preview: ${pc.dim("○")} stopped — run: ${pc.dim("spoc preview --open")}`,
-    );
+    console.log(`Preview: ${pc.dim("○")} stopped — run: ${pc.dim("spoc preview --open")}`);
   }
 
   // Hints
@@ -317,12 +302,13 @@ function render(
 
 function padRight(str: string, width: number): string {
   // Strip ANSI for length calculation
-  const stripped = str.replace(/\x1b\[[0-9;]*m/g, "");
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape detection
+  const stripped = str.replace(/\u001b\[[0-9;]*m/g, "");
   const pad = Math.max(0, width - stripped.length);
   return str + " ".repeat(pad);
 }
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
-  return str.slice(0, maxLen - 1) + "…";
+  return `${str.slice(0, maxLen - 1)}…`;
 }

@@ -44,6 +44,7 @@ defineCommand({
       enum: ["low", "medium", "high", "critical"],
     },
     planId: { type: "string", description: "Filter by plan ID" },
+    fields: { type: "string", required: false, description: "Comma-separated field names to include in output" },
   },
   handler: handleTaskList,
 });
@@ -56,6 +57,7 @@ async function handleTaskList(
   const status = params.status as TaskStatus | undefined;
   const priority = params.priority as TaskPriority | undefined;
   const planId = params.planId as string | undefined;
+  const fields = params.fields as string | undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -72,6 +74,18 @@ async function handleTaskList(
 
   if (planId) {
     tasks = tasks.filter((t) => t.planId === planId);
+  }
+
+  if (fields) {
+    const keys = fields.split(",").map((k) => k.trim());
+    const projected = tasks.map((item) => {
+      const out: Record<string, unknown> = {};
+      for (const key of keys) {
+        if (key in item) out[key] = (item as unknown as Record<string, unknown>)[key];
+      }
+      return out;
+    });
+    return success(projected);
   }
 
   return success(tasks);
@@ -129,7 +143,7 @@ defineCommand({
       type: "string",
       default: "medium",
       description: "Priority level",
-      enum: ["high", "medium", "low"],
+      enum: ["critical", "high", "medium", "low"],
     },
     status: {
       type: "string",
@@ -328,12 +342,7 @@ defineCommand({
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
     title: { type: "string", description: "New title" },
-    priority: { type: "string", description: "New priority", enum: ["high", "medium", "low"] },
-    status: {
-      type: "string",
-      description: "New status",
-      enum: ["backlog", "in_progress", "done", "cancelled"],
-    },
+    priority: { type: "string", description: "New priority", enum: ["critical", "high", "medium", "low"] },
     planId: { type: "string", description: "Associated plan ID" },
   },
   handler: handleTaskUpdate,
@@ -347,7 +356,6 @@ async function handleTaskUpdate(
   const taskId = params.taskId as string;
   const title = params.title as string | undefined;
   const priority = params.priority as TaskPriority | undefined;
-  const status = params.status as TaskStatus | undefined;
   const planId = params.planId as string | undefined;
 
   const projectDir = getProjectDir(slug);
@@ -360,7 +368,7 @@ async function handleTaskUpdate(
   if (flags.dryRun) {
     return success({
       dryRun: true,
-      wouldUpdate: { slug, taskId, title, priority, status, planId },
+      wouldUpdate: { slug, taskId, title, priority, planId },
     });
   }
 
@@ -368,7 +376,6 @@ async function handleTaskUpdate(
     const task = await updateTask(projectDir, {
       id: taskId,
       ...(title && { title }),
-      ...(status && { status }),
       ...(priority && { priority }),
       ...(planId && { planId }),
     });

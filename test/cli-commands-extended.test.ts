@@ -1,8 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 
 import { handleDagCommand } from "../src/cli/dag-commands.js";
 
@@ -47,7 +46,10 @@ function createTempDataDir(): string {
       ],
     }),
   );
-  writeFileSync(join(projDir, "tasks.md"), "# Tasks — Test Project\n\n## Backlog\n\n- [ ] **[high]** Fix the bug\n");
+  writeFileSync(
+    join(projDir, "tasks.md"),
+    "# Tasks — Test Project\n\n## Backlog\n\n- [ ] **[high]** Fix the bug\n",
+  );
   // knowledge
   const knowledgeDir = join(projDir, "knowledge");
   mkdirSync(knowledgeDir, { recursive: true });
@@ -182,6 +184,7 @@ describe("spoc plan get", () => {
     await handleDagCommand("plan", ["get", "test-proj", "my-plan", "--body", "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed.body).toContain("Do the refactor");
+    expect(parsed.meta.title).toBe("My Plan");
   });
 
   it("errors on missing plan", async () => {
@@ -247,11 +250,17 @@ describe("spoc batch", () => {
       batchFile,
       JSON.stringify([
         { op: "task-transition", slug: "test-proj", taskId: "fix-bug", status: "in_progress" },
-        { op: "knowledge-create", slug: "test-proj", title: "Batch Entry", kind: "gotcha", body: "Watch out!" },
+        {
+          op: "knowledge-create",
+          slug: "test-proj",
+          title: "Batch Entry",
+          kind: "gotcha",
+          body: "Watch out!",
+        },
       ]),
     );
 
-    await handleDagCommand("batch", ["--file=" + batchFile, "--json"]);
+    await handleDagCommand("batch", [`--file=${batchFile}`, "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed).toHaveLength(2);
     expect(parsed[0].success).toBe(true);
@@ -262,7 +271,7 @@ describe("spoc batch", () => {
     const batchFile = join(dataDir, "batch-bad.json");
     writeFileSync(batchFile, JSON.stringify([{ op: "unknown-op", slug: "test-proj" }]));
 
-    await handleDagCommand("batch", ["--file=" + batchFile, "--json"]);
+    await handleDagCommand("batch", [`--file=${batchFile}`, "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed[0].success).toBe(false);
     expect(parsed[0].error).toContain("Unknown op");

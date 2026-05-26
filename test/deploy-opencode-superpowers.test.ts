@@ -102,12 +102,10 @@ describe("deploy-opencode-bundle", () => {
       expect(result.dryRun).toBe(false);
       expect(result.filesAdded.length).toBeGreaterThan(0);
       // Files actually written
-      expect(
-        readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8"),
-      ).toBe("# Planner skill");
-      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe(
-        "// plugin code",
+      expect(readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8")).toBe(
+        "# Planner skill",
       );
+      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe("// plugin code");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -199,6 +197,69 @@ describe("deploy-opencode-bundle", () => {
       const result = JSON.parse(proc.stdout) as DeployResult;
       expect(result.restartRequired).toBe(true);
       expect(result.filesAdded).toContain("plugins/spoc.js");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("deploys agent prompts declared in manifest.agents", () => {
+    const tempRoot = mkdtempSync(resolve(tmpdir(), "deploy-agents-"));
+    const configRoot = resolve(tempRoot, "config");
+
+    try {
+      const bundleRoot = resolve(tempRoot, "bundle");
+      const manifest = {
+        bundleId: "spoc-opencode-bundle",
+        installMode: "opencode-spoc",
+        sourceRoot: "opencode/spoc",
+        skills: { source: "skills", destination: "skills/spoc" },
+        agents: [
+          {
+            source: "prompts/test-agent.txt",
+            destination: "prompts/test-agent.txt",
+          },
+        ],
+        ownedPaths: ["skills/spoc", "plugins/spoc.js"],
+        plugin: {
+          required: true,
+          source: ".opencode/plugins/spoc.js",
+          destination: "plugins/spoc.js",
+        },
+        config: { requiredMerges: [] },
+      };
+      writeFile(bundleRoot, "manifest.json", JSON.stringify(manifest, null, 2));
+      writeFile(bundleRoot, "skills/planner/SKILL.md", "# Planner skill");
+      writeFile(bundleRoot, ".opencode/plugins/spoc.js", "// plugin code");
+      writeFile(bundleRoot, "prompts/test-agent.txt", "agent prompt body");
+
+      // First deploy: agent file should be added
+      const proc = runDeploy({
+        DEPLOY_BUNDLE_ROOT: bundleRoot,
+        DEPLOY_CONFIG_ROOT: configRoot,
+        DEPLOY_DRY_RUN: "false",
+      });
+
+      expect(proc.status).toBe(0);
+      const result = JSON.parse(proc.stdout) as DeployResult;
+      expect(result.filesAdded).toContain("prompts/test-agent.txt");
+      expect(readFileSync(resolve(configRoot, "prompts/test-agent.txt"), "utf-8")).toBe(
+        "agent prompt body",
+      );
+
+      // Second deploy with changed source: agent file should be reported changed
+      writeFile(bundleRoot, "prompts/test-agent.txt", "agent prompt body v2");
+      const proc2 = runDeploy({
+        DEPLOY_BUNDLE_ROOT: bundleRoot,
+        DEPLOY_CONFIG_ROOT: configRoot,
+        DEPLOY_DRY_RUN: "false",
+      });
+
+      expect(proc2.status).toBe(0);
+      const result2 = JSON.parse(proc2.stdout) as DeployResult;
+      expect(result2.filesChanged).toContain("prompts/test-agent.txt");
+      expect(readFileSync(resolve(configRoot, "prompts/test-agent.txt"), "utf-8")).toBe(
+        "agent prompt body v2",
+      );
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

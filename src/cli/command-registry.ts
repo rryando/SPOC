@@ -28,6 +28,7 @@ export interface CommandDef {
   description: string;
   params: Record<string, ParamDef>;
   mutation?: boolean;
+  errorCodes?: string[];
   handler: (params: Record<string, unknown>, flags: CommandFlags) => Promise<CLIResult>;
 }
 
@@ -40,6 +41,10 @@ export const ERROR_CODES = {
   PROJECT_NOT_FOUND: "project_not_found",
   ENTITY_NOT_FOUND: "entity_not_found",
   AMBIGUOUS_ARG: "ambiguous_arg",
+  CREATE_ERROR: "create_error",
+  UPDATE_ERROR: "update_error",
+  DELETE_ERROR: "delete_error",
+  TRANSITION_ERROR: "transition_error",
 } as const;
 
 // ---------------------------------------------------------------------------

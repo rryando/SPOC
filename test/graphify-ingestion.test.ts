@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { ingestGraph, type KnowledgeProposal, type IngestionResult } from "../src/utils/graphify.js";
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { ingestGraph } from "../src/utils/graphify.js";
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `spoc-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -19,14 +19,62 @@ function writeGraph(dir: string, data: unknown): string {
 // Graphify's actual output format (from `graphify update --no-cluster`)
 const MINIMAL_GRAPH = {
   nodes: [
-    { id: "n1", label: "AuthService", file_type: "code", source_file: "src/auth/service.ts", source_location: "L1" },
-    { id: "n2", label: "UserRepo", file_type: "code", source_file: "src/auth/user-repo.ts", source_location: "L1" },
-    { id: "n3", label: "Logger", file_type: "code", source_file: "src/infra/logger.ts", source_location: "L1" },
-    { id: "n4", label: "Config", file_type: "code", source_file: "src/infra/config.ts", source_location: "L1" },
-    { id: "n5", label: "GodNode", file_type: "code", source_file: "src/core/god.ts", source_location: "L1" },
-    { id: "n6", label: "Utils", file_type: "code", source_file: "src/utils/helpers.ts", source_location: "L1" },
-    { id: "n7", label: "DB", file_type: "code", source_file: "src/db/pool.ts", source_location: "L1" },
-    { id: "n8", label: "Routes", file_type: "code", source_file: "src/routes/index.ts", source_location: "L1" },
+    {
+      id: "n1",
+      label: "AuthService",
+      file_type: "code",
+      source_file: "src/auth/service.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n2",
+      label: "UserRepo",
+      file_type: "code",
+      source_file: "src/auth/user-repo.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n3",
+      label: "Logger",
+      file_type: "code",
+      source_file: "src/infra/logger.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n4",
+      label: "Config",
+      file_type: "code",
+      source_file: "src/infra/config.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n5",
+      label: "GodNode",
+      file_type: "code",
+      source_file: "src/core/god.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n6",
+      label: "Utils",
+      file_type: "code",
+      source_file: "src/utils/helpers.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n7",
+      label: "DB",
+      file_type: "code",
+      source_file: "src/db/pool.ts",
+      source_location: "L1",
+    },
+    {
+      id: "n8",
+      label: "Routes",
+      file_type: "code",
+      source_file: "src/routes/index.ts",
+      source_location: "L1",
+    },
   ],
   links: [
     // GodNode has degree 7 (hub) — links to almost everything
@@ -51,7 +99,14 @@ const MINIMAL_GRAPH = {
 // Graph with explicit communities (clustered output)
 const CLUSTERED_GRAPH = {
   nodes: [
-    { id: "n1", label: "AuthService", type: "class", file: "src/auth.ts", community: 0, degree: 42 },
+    {
+      id: "n1",
+      label: "AuthService",
+      type: "class",
+      file: "src/auth.ts",
+      community: 0,
+      degree: 42,
+    },
     { id: "n2", label: "UserRepo", type: "class", file: "src/user.ts", community: 0, degree: 30 },
     { id: "n3", label: "Logger", type: "module", file: "src/logger.ts", community: 1, degree: 5 },
     { id: "n4", label: "Config", type: "module", file: "src/config.ts", community: 1, degree: 3 },
@@ -62,7 +117,12 @@ const CLUSTERED_GRAPH = {
     { source: "n5", target: "n3", type: "references", weight: 0.5 },
   ],
   communities: [
-    { id: 0, label: "Auth & Session Management", nodes: ["n1", "n2", "n5"], summary: "Handles auth" },
+    {
+      id: 0,
+      label: "Auth & Session Management",
+      nodes: ["n1", "n2", "n5"],
+      summary: "Handles auth",
+    },
     { id: 1, label: "Infrastructure", nodes: ["n3", "n4"], summary: "Logging and config" },
   ],
 };
@@ -92,7 +152,7 @@ describe("ingestGraph", () => {
     const graphPath = writeGraph(dir, MINIMAL_GRAPH);
     const result = ingestGraph(graphPath, "test-slug");
 
-    const godProposals = result.proposals.filter(p => p.kind === "module");
+    const godProposals = result.proposals.filter((p) => p.kind === "module");
     // GodNode (n5) has degree 7 (7 outgoing links), AuthService (n1) has 5
     // With 8 nodes, 95th percentile filters to just the top ~1 node
     // At minimum GodNode should be detected
@@ -107,7 +167,7 @@ describe("ingestGraph", () => {
     const graphPath = writeGraph(dir, MINIMAL_GRAPH);
     const result = ingestGraph(graphPath, "test-slug");
 
-    const archProposals = result.proposals.filter(p => p.kind === "architecture");
+    const archProposals = result.proposals.filter((p) => p.kind === "architecture");
     // src/auth has 2 nodes, src/infra has 2 nodes — both below 3 threshold
     // src/core has 1 node — below threshold
     // So with the minimal graph, directory communities might not form (need 3+ nodes per dir)
@@ -121,7 +181,7 @@ describe("ingestGraph", () => {
     const graphPath = writeGraph(dir, CLUSTERED_GRAPH);
     const result = ingestGraph(graphPath, "test-slug");
 
-    const archProposals = result.proposals.filter(p => p.kind === "architecture");
+    const archProposals = result.proposals.filter((p) => p.kind === "architecture");
     expect(archProposals.length).toBe(2);
     expect(archProposals[0].title).toContain("Auth & Session Management");
     expect(result.stats.communities).toBe(2);
@@ -155,7 +215,7 @@ describe("ingestGraph", () => {
         // a1 (ServiceA) gets very high degree (10 links)
         { source: "a1", target: "a2", relation: "calls", weight: 1 },
         { source: "a1", target: "a3", relation: "imports", weight: 1 },
-        { source: "a1", target: "b1", relation: "calls", weight: 1 },  // cross-module!
+        { source: "a1", target: "b1", relation: "calls", weight: 1 }, // cross-module!
         { source: "a1", target: "b2", relation: "imports", weight: 1 }, // cross-module!
         { source: "a1", target: "c1", relation: "calls", weight: 1 },
         { source: "a1", target: "c2", relation: "calls", weight: 1 },
@@ -166,7 +226,7 @@ describe("ingestGraph", () => {
         // b1 (ServiceB) gets high degree (8 links)
         { source: "b1", target: "b2", relation: "calls", weight: 1 },
         { source: "b1", target: "b3", relation: "imports", weight: 1 },
-        { source: "b1", target: "a1", relation: "calls", weight: 1 },  // cross-module!
+        { source: "b1", target: "a1", relation: "calls", weight: 1 }, // cross-module!
         { source: "b1", target: "c7", relation: "calls", weight: 1 },
         { source: "b1", target: "c8", relation: "calls", weight: 1 },
         { source: "b1", target: "c9", relation: "calls", weight: 1 },
@@ -178,7 +238,7 @@ describe("ingestGraph", () => {
     const graphPath = writeGraph(dir, graph);
     const result = ingestGraph(graphPath, "test-slug");
 
-    const gotchaProposals = result.proposals.filter(p => p.kind === "gotcha");
+    const gotchaProposals = result.proposals.filter((p) => p.kind === "gotcha");
     expect(gotchaProposals.length).toBeGreaterThanOrEqual(1);
     expect(gotchaProposals[0].title).toContain("Cross-module coupling");
     expect(result.stats.crossModuleCouplings).toBeGreaterThanOrEqual(1);
@@ -189,7 +249,10 @@ describe("ingestGraph", () => {
     const dir = makeTmpDir();
     // Create graph with many high-degree nodes
     const nodes = Array.from({ length: 50 }, (_, i) => ({
-      id: `n${i}`, label: `Node${i}`, file_type: "code", source_file: `src/mod${i % 10}/file${i}.ts`,
+      id: `n${i}`,
+      label: `Node${i}`,
+      file_type: "code",
+      source_file: `src/mod${i % 10}/file${i}.ts`,
     }));
     // Give every node many links so they all exceed threshold
     const links: Array<{ source: string; target: string; relation: string; weight: number }> = [];
@@ -263,14 +326,14 @@ describe("ingestGraph", () => {
     const result = ingestGraph(graphPath, "test-slug");
 
     // God nodes should NOT include the test file
-    const godProposals = result.proposals.filter(p => p.kind === "module");
+    const godProposals = result.proposals.filter((p) => p.kind === "module");
     for (const p of godProposals) {
       expect(p.sourceFiles[0].path).not.toMatch(/\.test\./);
       expect(p.sourceFiles[0].path).not.toMatch(/^test\//);
     }
 
     // Cross-module couplings should NOT include test file links
-    const gotchaProposals = result.proposals.filter(p => p.kind === "gotcha");
+    const gotchaProposals = result.proposals.filter((p) => p.kind === "gotcha");
     for (const p of gotchaProposals) {
       for (const sf of p.sourceFiles) {
         expect(sf.path).not.toMatch(/\.test\./);

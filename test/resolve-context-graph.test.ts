@@ -1,9 +1,5 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeMeta } from "../src/utils/project-memory.js";
-import { safeTime } from "../src/utils/workflow-policy.js";
 
 /**
  * Tests for graph-based knowledge selection in context assembly.
@@ -27,7 +23,7 @@ vi.mock("../src/utils/paths.js", () => ({
 }));
 
 vi.mock("../src/utils/project-memory.js", async (importOriginal) => {
-  const original = await importOriginal() as Record<string, unknown>;
+  const original = (await importOriginal()) as Record<string, unknown>;
   return {
     ...original,
     getTask: vi.fn().mockResolvedValue({
@@ -42,14 +38,18 @@ vi.mock("../src/utils/project-memory.js", async (importOriginal) => {
   };
 });
 
-import { selectKnowledgeEntries } from "../src/cli/dag-commands.js";
 import { retrieveRelated } from "../src/retrieval/graph-retrieval.js";
+import { selectKnowledgeEntries } from "../src/retrieval/knowledge-selection.js";
 import { retrieveForTask } from "../src/retrieval/task-scoped.js";
 
 const mockedRetrieveRelated = vi.mocked(retrieveRelated);
 const mockedRetrieveForTask = vi.mocked(retrieveForTask);
 
-function makeEntry(id: string, updatedAt: string, overrides?: Partial<KnowledgeMeta>): KnowledgeMeta {
+function makeEntry(
+  id: string,
+  updatedAt: string,
+  overrides?: Partial<KnowledgeMeta>,
+): KnowledgeMeta {
   return {
     id,
     normalizedId: id,

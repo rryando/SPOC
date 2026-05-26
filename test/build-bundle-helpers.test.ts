@@ -1,21 +1,14 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  normalizeRelativePath,
-  looksWindowsAbsolute,
   assertNoReservedPathSegments,
   assertSafeOutputPath,
+  looksWindowsAbsolute,
+  normalizeRelativePath,
 } from "../scripts/lib/bundle-helpers.mjs";
 
 const root = resolve(import.meta.dirname, "..");
@@ -36,7 +29,9 @@ function runBundleBuild(env: NodeJS.ProcessEnv) {
 
 describe("path validation helpers", () => {
   it("rejects directory traversal with .. segments", () => {
-    expect(() => assertNoReservedPathSegments("../escape")).toThrow("Invalid declared runtime path");
+    expect(() => assertNoReservedPathSegments("../escape")).toThrow(
+      "Invalid declared runtime path",
+    );
     expect(() => assertNoReservedPathSegments("foo/../bar")).toThrow(
       "Invalid declared runtime path",
     );

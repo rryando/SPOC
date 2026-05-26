@@ -1,10 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { traverseFrom } from "../src/retrieval/graph-traverse.js";
-import type {
-  AdjacencyIndex,
-  GraphNode,
-  GraphEdge,
-} from "../src/retrieval/graph-types.js";
+import type { AdjacencyIndex, GraphEdge, GraphNode } from "../src/retrieval/graph-types.js";
 
 function buildTestGraph(): AdjacencyIndex {
   const nodes = new Map<string, GraphNode>([

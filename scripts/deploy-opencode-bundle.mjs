@@ -81,6 +81,14 @@ async function main() {
     }
   }
 
+  // Agents (sub-agent prompts) — bundle prompts/<file> → config prompts/<file>
+  for (const agent of manifest.agents ?? []) {
+    const agentSource = resolve(bundleRoot, agent.source);
+    if (existsSync(agentSource)) {
+      deployMap.set(agent.destination, agentSource);
+    }
+  }
+
   // Determine file states
   const filesAdded = [];
   const filesChanged = [];

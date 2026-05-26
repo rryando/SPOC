@@ -4,11 +4,7 @@
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import {
-  type CLIResult,
-  type CommandFlags,
-  defineCommand,
-} from "../command-registry.js";
+import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
@@ -28,7 +24,7 @@ defineCommand({
 
 async function handleLintBundle(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const bundleRoot = params["bundle-root"] as string | undefined;
   const configRoot = params["config-root"] as string | undefined;

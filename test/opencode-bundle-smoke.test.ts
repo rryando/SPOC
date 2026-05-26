@@ -1,12 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-  cpSync,
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -178,10 +171,7 @@ describe("opencode SPOC bundle bundle", () => {
     // declared in bundle-runtime.json — they are preserved output files.
     const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review", "init-project"];
     const expectedSkillNames = [
-      ...new Set([
-        ...Object.keys(runtimeManifest.skills),
-        ...spocNativeSkillNames,
-      ]),
+      ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
     ].sort();
     expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 

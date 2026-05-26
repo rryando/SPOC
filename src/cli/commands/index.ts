@@ -4,6 +4,7 @@ import "./project-updates.js";
 import "./task.js";
 import "./plan.js";
 import "./knowledge.js";
+import "./knowledge-search.js";
 import "./utility.js";
 import "./batch.js";
 import "./diagram.js";

@@ -1,9 +1,8 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { readKnowledgeIndex, type KnowledgeMeta } from "../src/utils/project-memory.js";
+import { join } from "node:path";
+import { beforeEach, describe, expect, it } from "vitest";
+import { type KnowledgeMeta, readKnowledgeIndex } from "../src/utils/project-memory.js";
 
 /**
  * Tests for audience-based filtering in context assembly.
@@ -26,7 +25,9 @@ function makeProjectDir(): string {
   return dir;
 }
 
-function makeKnowledgeEntry(overrides: Partial<KnowledgeMeta> & { id: string; title: string }): KnowledgeMeta {
+function makeKnowledgeEntry(
+  overrides: Partial<KnowledgeMeta> & { id: string; title: string },
+): KnowledgeMeta {
   return {
     normalizedId: overrides.id,
     kind: "pattern",
@@ -55,10 +56,7 @@ describe("audience filtering in context assembly", () => {
     ];
 
     // Write index to disk so readKnowledgeIndex works
-    writeFileSync(
-      join(projectDir, "knowledge", "index.json"),
-      JSON.stringify({ entries }),
-    );
+    writeFileSync(join(projectDir, "knowledge", "index.json"), JSON.stringify({ entries }));
     // Write .md files
     for (const e of entries) {
       writeFileSync(join(projectDir, e.file), `# ${e.title}\n`);

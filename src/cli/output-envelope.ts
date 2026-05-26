@@ -4,6 +4,7 @@
 
 import type { CLIResult } from "./command-registry.js";
 import { leanify } from "./lean-output.js";
+import { renderMarkdown } from "./md-renderer.js";
 
 export { ERROR_CODES } from "./command-registry.js";
 
@@ -19,10 +20,9 @@ export function failure(
   return { ok: false, code, message, ...opts };
 }
 
-export function render(result: CLIResult, flags: { json: boolean; lean: boolean }): void {
+export function render(result: CLIResult, flags: { json: boolean; lean: boolean }, command?: string): void {
   if (flags.json) {
-    const output =
-      flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
+    const output = flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
     if (result.ok) {
       console.log(JSON.stringify(output));
     } else {
@@ -30,7 +30,8 @@ export function render(result: CLIResult, flags: { json: boolean; lean: boolean 
     }
   } else {
     if (result.ok) {
-      console.log(formatHuman(result.data));
+      const md = command ? renderMarkdown(command, result.data) : null;
+      console.log(md ?? formatHuman(result.data));
     } else {
       console.error(formatError(result));
     }

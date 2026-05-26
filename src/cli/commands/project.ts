@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { readRootMeta, writeRootMeta } from "../../utils/dag.js";
+import { type RootMeta, readRootMeta, writeRootMeta } from "../../utils/dag.js";
 import { readJsonSafe } from "../../utils/json.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
@@ -37,7 +37,7 @@ async function handleProjectList(
   _flags: CommandFlags,
 ): Promise<CLIResult> {
   const dataDir = getDataDir();
-  let rootMeta;
+  let rootMeta: RootMeta;
   try {
     rootMeta = await readRootMeta(dataDir);
   } catch {

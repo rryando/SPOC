@@ -1,16 +1,15 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve, join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { knowledgeMetaSchema } from "../src/utils/json-schemas.js";
 import {
   createKnowledgeEntry,
+  KNOWLEDGE_AUDIENCES,
+  type KnowledgeMeta,
   readKnowledgeIndex,
   updateKnowledgeEntry,
-  KNOWLEDGE_AUDIENCES,
-  type KnowledgeAudience,
-  type KnowledgeMeta,
 } from "../src/utils/project-memory.js";
-import { knowledgeMetaSchema } from "../src/utils/json-schemas.js";
 
 const tempDirs: string[] = [];
 

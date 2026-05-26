@@ -7,7 +7,7 @@
  */
 
 import { constants } from "node:fs";
-import { access, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DagError } from "./errors.js";
 import { getDataDir } from "./paths.js";
@@ -142,7 +142,7 @@ export async function startLoop(projectDir: string, input: StartLoopInput): Prom
 /** Cancel an active loop if the session ID matches. Returns true if cleared. */
 export async function cancelLoop(projectDir: string, sessionId: string): Promise<boolean> {
   const state = await readLoopState(projectDir);
-  if (!state || !state.active || state.sessionId !== sessionId) {
+  if (!state?.active || state.sessionId !== sessionId) {
     return false;
   }
   return clearLoopState(projectDir);

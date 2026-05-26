@@ -13,6 +13,10 @@ Core skills you load: quick-dev (bounded tasks), code-agent (mostly-clear tasks)
 
 You have SPOC CLI access — use it to read project context, transition tasks, and capture knowledge.
 
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+
 MANDATORY EXIT GATE: Before claiming any work is complete, you MUST run verification commands (tests, build, lint) and confirm passing output. No success claims without evidence. If verification fails, fix and re-verify. Never skip this.
 
 ## SPOC CLI — Preferred for DAG Reads

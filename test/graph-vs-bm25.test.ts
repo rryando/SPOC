@@ -8,10 +8,9 @@ vi.mock("../src/utils/paths.js", () => ({
   getDataDir: vi.fn(() => "/tmp/spoc-data"),
 }));
 
-import { getProjectDir } from "../src/utils/paths.js";
-import { buildAdjacencyIndex } from "../src/retrieval/graph-builder.js";
 import { retrieveRelated } from "../src/retrieval/graph-retrieval.js";
 import { retrieveForTask } from "../src/retrieval/task-scoped.js";
+import { getProjectDir } from "../src/utils/paths.js";
 
 const mockedGetProjectDir = vi.mocked(getProjectDir);
 
@@ -236,9 +235,7 @@ describe("graph retrieval vs BM25", () => {
       KNOWLEDGE("k3", { title: "Database optimization", keywords: ["database", "optimization"] }),
     ]);
 
-    writeTaskIndex(join(emptyDir, "tasks"), [
-      TASK("t1", { title: "Improve caching" }),
-    ]);
+    writeTaskIndex(join(emptyDir, "tasks"), [TASK("t1", { title: "Improve caching" })]);
 
     writePlanIndex(join(emptyDir, "plans"), []);
 

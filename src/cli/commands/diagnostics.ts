@@ -1,90 +1,27 @@
 // ---------------------------------------------------------------------------
-// Diagnostic commands — audit, diff (registry-based)
+// Diagnostic commands — audit (alias for validate --checks=sourcefiles), diff
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
-import { defineCommand, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
 import { getProjectDir } from "../../utils/paths.js";
-import { readJsonSafe, validateJson } from "../../utils/json.js";
-import { projectMetaSchema } from "../../utils/json-schemas.js";
-import {
-  listTasks,
-  readKnowledgeIndex,
-  readPlanIndex,
-} from "../../utils/project-memory.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { defineCommand, ERROR_CODES } from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
+import { runValidation } from "./utility.js";
 
 // ---------------------------------------------------------------------------
-// audit
+// audit — thin alias delegating to validate with checks=sourcefiles
 // ---------------------------------------------------------------------------
 
 defineCommand({
   path: "audit",
-  description: "Run a structural audit of a project (stale sourceFile references)",
+  description: "Run a structural audit of a project (alias for validate --checks=sourcefiles)",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
   },
   handler: async (params) => {
     const slug = params.slug as string;
-    const projectDir = getProjectDir(slug);
-
-    if (!existsSync(projectDir)) {
-      return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`);
-    }
-
-    const metaPath = resolve(projectDir, "meta.json");
-    const rawMeta = await readJsonSafe<unknown>(metaPath);
-    if (rawMeta === undefined) {
-      return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Failed to read project meta at ${metaPath}`);
-    }
-
-    const projectMeta = validateJson(rawMeta, projectMetaSchema, metaPath);
-    const workspacePaths = (projectMeta as { workspacePaths?: string[] }).workspacePaths ?? [];
-
-    const index = await readKnowledgeIndex(projectDir);
-    const entries = index.entries;
-
-    let totalSourceFiles = 0;
-    let staleCount = 0;
-    const staleEntries: {
-      entryId: string;
-      entryTitle: string;
-      staleFiles: { path: string; anchor?: string }[];
-    }[] = [];
-
-    for (const entry of entries) {
-      const sourceFiles = entry.sourceFiles ?? [];
-      const staleFiles: { path: string; anchor?: string }[] = [];
-
-      for (const ref of sourceFiles) {
-        totalSourceFiles++;
-        const found = workspacePaths.some((ws: string) => existsSync(resolve(ws, ref.path)));
-        if (!found) {
-          staleCount++;
-          const stale: { path: string; anchor?: string } = { path: ref.path };
-          if (ref.anchor) stale.anchor = ref.anchor;
-          staleFiles.push(stale);
-        }
-      }
-
-      if (staleFiles.length > 0) {
-        staleEntries.push({
-          entryId: entry.id,
-          entryTitle: entry.title,
-          staleFiles,
-        });
-      }
-    }
-
-    return success({
-      staleEntries,
-      counts: {
-        totalEntries: entries.length,
-        totalSourceFiles,
-        staleCount,
-      },
-    });
+    return runValidation(slug, new Set(["sourcefiles"]));
   },
 });
 
@@ -92,20 +29,29 @@ defineCommand({
 // diff
 // ---------------------------------------------------------------------------
 
+function parseRelativeTime(input: string): string | null {
+  const match = input.match(/^(\d+)(m|h|d)$/);
+  if (!match) return null;
+  const [, num, unit] = match;
+  const ms = { m: 60_000, h: 3_600_000, d: 86_400_000 }[unit!]!;
+  return new Date(Date.now() - parseInt(num!) * ms).toISOString();
+}
+
 defineCommand({
   path: "diff",
   description: "Show what changed in a project since a given timestamp",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    since: { type: "string", required: true, description: "ISO timestamp to diff from" },
+    since: { type: "string", required: true, description: "ISO timestamp or relative time (e.g. 30m, 2h, 7d)" },
   },
   handler: async (params) => {
     const slug = params.slug as string;
-    const sinceIso = params.since as string;
+    const sinceRaw = params.since as string;
 
+    const sinceIso = parseRelativeTime(sinceRaw) ?? sinceRaw;
     const sinceMs = new Date(sinceIso).getTime();
     if (!Number.isFinite(sinceMs)) {
-      return failure(ERROR_CODES.INVALID_TYPE, `Invalid ISO timestamp "${sinceIso}"`);
+      return failure(ERROR_CODES.INVALID_TYPE, `Invalid ISO timestamp "${sinceRaw}"`);
     }
 
     const projectDir = getProjectDir(slug);

@@ -117,7 +117,9 @@ interface GraphNode {
   degree: number;
 }
 
-function parseGraphJson(graphPath: string): { nodes: GraphNode[]; communities: GraphCommunity[] } | null {
+function parseGraphJson(
+  graphPath: string,
+): { nodes: GraphNode[]; communities: GraphCommunity[] } | null {
   try {
     const raw = readFileSync(graphPath, "utf-8");
     const data: RawGraphJson = JSON.parse(raw);
@@ -134,7 +136,7 @@ function parseGraphJson(graphPath: string): { nodes: GraphNode[]; communities: G
     }
 
     // Normalize nodes
-    const nodes: GraphNode[] = data.nodes.map(n => ({
+    const nodes: GraphNode[] = data.nodes.map((n) => ({
       id: n.id,
       label: n.label,
       type: n.type || n.file_type || "unknown",
@@ -144,7 +146,7 @@ function parseGraphJson(graphPath: string): { nodes: GraphNode[]; communities: G
     }));
 
     // Use communities if available; otherwise synthesize from source_file grouping
-    let communities: GraphCommunity[] = data.communities || [];
+    const communities: GraphCommunity[] = data.communities || [];
     if (communities.length === 0) {
       // Group nodes by directory prefix as pseudo-communities
       const dirGroups = new Map<string, string[]>();
@@ -182,10 +184,7 @@ function percentile(values: number[], p: number): number {
   return sorted[lower] + frac * (sorted[lower + 1] - sorted[lower]);
 }
 
-export function ingestGraph(
-  graphJsonPath: string,
-  _slug: string,
-): IngestionResult {
+export function ingestGraph(graphJsonPath: string, _slug: string): IngestionResult {
   const empty: IngestionResult = {
     proposals: [],
     stats: { godNodes: 0, communities: 0, crossModuleCouplings: 0, totalProposals: 0 },
@@ -195,7 +194,7 @@ export function ingestGraph(
   if (!graph || graph.nodes.length === 0) return empty;
 
   const proposals: KnowledgeProposal[] = [];
-  const nodeMap = new Map(graph.nodes.map(n => [n.id, n]));
+  const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
 
   // God nodes (degree > 95th percentile — top 5% most connected)
   // Exclude test files — they naturally import many modules but aren't architectural hubs
@@ -205,10 +204,10 @@ export function ingestGraph(
     file.startsWith("tests/") ||
     file.includes("/__tests__/");
 
-  const degrees = graph.nodes.map(n => n.degree).filter(d => d > 0);
+  const degrees = graph.nodes.map((n) => n.degree).filter((d) => d > 0);
   const threshold = percentile(degrees, 95);
   const godNodes = graph.nodes
-    .filter(n => n.degree > threshold && n.file && !isTestFile(n.file))
+    .filter((n) => n.degree > threshold && n.file && !isTestFile(n.file))
     .sort((a, b) => b.degree - a.degree)
     .slice(0, 8); // cap god nodes at 8 to leave room for other kinds
 
@@ -223,21 +222,23 @@ export function ingestGraph(
   }
 
   // Community clusters (sorted by size desc, top 8)
-  const communities = [...(graph.communities || [])].sort(
-    (a, b) => b.nodes.length - a.nodes.length,
-  ).slice(0, 8);
+  const communities = [...(graph.communities || [])]
+    .sort((a, b) => b.nodes.length - a.nodes.length)
+    .slice(0, 8);
 
   for (const community of communities) {
     const memberFiles = community.nodes
-      .map(id => nodeMap.get(id)?.file)
+      .map((id) => nodeMap.get(id)?.file)
       .filter((f): f is string => !!f);
     const uniqueFiles = [...new Set(memberFiles)];
     proposals.push({
       title: `Architecture cluster: ${community.label}`,
       kind: "architecture",
-      summary: community.summary || `Cluster containing ${community.nodes.length} related entities in ${community.label}.`,
+      summary:
+        community.summary ||
+        `Cluster containing ${community.nodes.length} related entities in ${community.label}.`,
       keywords: [community.label.toLowerCase(), "cluster", "architecture"],
-      sourceFiles: uniqueFiles.map(p => ({ path: p })),
+      sourceFiles: uniqueFiles.map((p) => ({ path: p })),
     });
   }
 
@@ -272,7 +273,7 @@ export function ingestGraph(
       keywords: [a.label.toLowerCase(), b.label.toLowerCase(), "coupling", "cross-module"],
       sourceFiles: [{ path: a.file }, { path: b.file }],
     });
-    if (proposals.filter(p => p.kind === "gotcha").length >= 5) break;
+    if (proposals.filter((p) => p.kind === "gotcha").length >= 5) break;
   }
 
   // Cap at 20
@@ -283,7 +284,7 @@ export function ingestGraph(
     stats: {
       godNodes: godNodes.length,
       communities: communities.length,
-      crossModuleCouplings: capped.filter(p => p.kind === "gotcha").length,
+      crossModuleCouplings: capped.filter((p) => p.kind === "gotcha").length,
       totalProposals: capped.length,
     },
   };

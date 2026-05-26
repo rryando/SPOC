@@ -65,13 +65,17 @@ flowchart TD
 | **EXPLORE** | "show all projects", "what depends on X", "project status" |
 | **MULTI** | compound requests spanning 2+ intents |
 
-Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions.
+Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions, (4) confidence score.
 
 ### Clarification Discipline
 - Gather context FIRST (T0 + explore sub-agent). Questions come AFTER.
 - Proceed with most reasonable interpretation. State assumptions explicitly.
 - Ask only when 2+ materially divergent irreversible paths exist. One question, 2-4 numbered options.
 - Trivial ambiguities → decide and declare, don't ask.
+
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, plan creation, sub-agent dispatch for mutations, code edit — load \`confidence-gate\`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads, T0, exploration, and skill loading are NOT gated.
 
 ## Session-Start Health Protocol
 
@@ -349,10 +353,10 @@ flowchart TD
     classDef sub fill:#8b5cf6,color:#fff
 
     A[T0 Orient] --> B[Dispatch scoping sub-agent]:::sub
-    B --> C{Confidence?}
-    C -->|high| E[Summarize plan + diagram]
-    C -->|medium| D[Ask 1 question, 2-4 options]
-    C -->|low| D2[Ask framing question → re-scope]
+    B --> C{Confidence score?}
+    C -->|>=80| E[Summarize plan + diagram]
+    C -->|60-79| D[Ask 1 question, 2-4 options]
+    C -->|<60| D2[Ask framing question → re-scope]
     D --> E
     D2 --> B
     E --> F[Present plan + diagram + tasks summary]

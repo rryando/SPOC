@@ -3,7 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
-import { cancelLoop, findActiveLoop, readLoopState, startLoop } from "../../utils/loop-state.js";
+import {
+  cancelLoop,
+  clearLoopState,
+  findActiveLoop,
+  incrementLoopIteration,
+  readLoopState,
+  startLoop,
+} from "../../utils/loop-state.js";
 import { getProjectDir } from "../../utils/paths.js";
 import {
   type CLIResult,

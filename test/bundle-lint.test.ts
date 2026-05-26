@@ -1,10 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -30,8 +25,6 @@ function writeFile(rootPath: string, relativePath: string, content: string) {
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, content);
 }
-
-
 
 describe("bundle linter", () => {
   it("reports missing manifest-declared files", () => {

@@ -107,6 +107,7 @@ export function generateCommandsDiscovery(): CommandDiscovery {
         ]),
       ),
       ...(def.mutation != null ? { mutation: def.mutation } : {}),
+      ...(def.errorCodes ? { errorCodes: def.errorCodes } : {}),
     })),
     errorCodes: Object.values(ERROR_CODES),
   };

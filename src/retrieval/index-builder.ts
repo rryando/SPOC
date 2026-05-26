@@ -2,9 +2,14 @@
  * Adapter that builds BM25 retrieval indexes from SPOC project knowledge and plan entries.
  */
 
-import { createBm25Index, type Document, type Bm25Index } from "./bm25.js";
 import { getProjectDir } from "../utils/paths.js";
-import { readKnowledgeIndex, readPlanIndex, type KnowledgeMeta, type PlanMeta } from "../utils/project-memory.js";
+import {
+  type KnowledgeMeta,
+  type PlanMeta,
+  readKnowledgeIndex,
+  readPlanIndex,
+} from "../utils/project-memory.js";
+import { type Bm25Index, createBm25Index, type Document } from "./bm25.js";
 
 export interface ScoredEntry {
   id: string;
@@ -95,12 +100,22 @@ export async function buildProjectRetrievalIndex(slug: string): Promise<Retrieva
   const planBm25 = createBm25Index(planDocs, FIELD_WEIGHTS);
 
   // Build meta maps for hydrating results
-  const knowledgeMetaMap = new Map<string, { title: string; summary: string; type: "knowledge" | "plan" }>();
+  const knowledgeMetaMap = new Map<
+    string,
+    { title: string; summary: string; type: "knowledge" | "plan" }
+  >();
   for (const entry of knowledgeEntries) {
-    knowledgeMetaMap.set(entry.id, { title: entry.title, summary: entry.summary ?? "", type: "knowledge" });
+    knowledgeMetaMap.set(entry.id, {
+      title: entry.title,
+      summary: entry.summary ?? "",
+      type: "knowledge",
+    });
   }
 
-  const planMetaMap = new Map<string, { title: string; summary: string; type: "knowledge" | "plan" }>();
+  const planMetaMap = new Map<
+    string,
+    { title: string; summary: string; type: "knowledge" | "plan" }
+  >();
   for (const plan of planEntries) {
     planMetaMap.set(plan.id, { title: plan.title, summary: plan.summary ?? "", type: "plan" });
   }

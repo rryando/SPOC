@@ -2,10 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeOpencodeAgent } from "../src/cli/instructions.js";
-import {
-  CAVEMAN_PREAMBLE,
-  ORCHESTRATE_CAVEMAN_PROMPT_TEXT,
-} from "../src/cli/spoc-orchestrate-caveman.js";
+import { CAVEMAN_PREAMBLE } from "../src/cli/spoc-orchestrate-caveman.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 describe("writeOpencodeAgent — agent key order", () => {
@@ -154,9 +151,7 @@ describe("Caveman preamble content regression", () => {
   });
 
   it("contains sub-agent inheritance block", () => {
-    expect(CAVEMAN_PREAMBLE).toContain(
-      "# Caveman Mode (INHERITED from SPOC Caveman orchestrator)",
-    );
+    expect(CAVEMAN_PREAMBLE).toContain("# Caveman Mode (INHERITED from SPOC Caveman orchestrator)");
     expect(CAVEMAN_PREAMBLE).toContain("Respond terse like caveman");
   });
 

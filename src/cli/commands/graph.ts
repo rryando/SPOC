@@ -3,11 +3,16 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
-import { getProjectDir } from "../../utils/paths.js";
-import { retrieveRelated } from "../../retrieval/graph-retrieval.js";
 import { createGraphCache } from "../../retrieval/graph-cache.js";
+import { retrieveRelated } from "../../retrieval/graph-retrieval.js";
+import { getProjectDir } from "../../utils/paths.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // related
@@ -26,7 +31,10 @@ defineCommand({
   handler: handleRelatedCmd,
 });
 
-async function handleRelatedCmd(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleRelatedCmd(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const taskId = params.task as string | undefined;
   const knowledgeId = params.knowledge as string | undefined;
@@ -34,7 +42,8 @@ async function handleRelatedCmd(params: Record<string, unknown>, flags: CommandF
 
   if (!taskId && !knowledgeId && !planId) {
     return failure(ERROR_CODES.MISSING_PARAM, "One of --task, --knowledge, or --plan is required", {
-      usage: "spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
+      usage:
+        "spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
     });
   }
 
@@ -66,7 +75,10 @@ defineCommand({
   handler: handleGraphInspectCmd,
 });
 
-async function handleGraphInspectCmd(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleGraphInspectCmd(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
 
   const projectDir = getProjectDir(slug);

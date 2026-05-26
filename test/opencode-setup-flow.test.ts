@@ -58,12 +58,6 @@ describe("OpenCode setup flow", () => {
     const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
-      .mockResolvedValueOnce(false) // customizeAgents
-      .mockResolvedValueOnce(true); // register agent
-
-    vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true); // register agent
 
@@ -80,7 +74,6 @@ describe("OpenCode setup flow", () => {
     const installer = await import("../src/cli/bundle-installer.js");
 
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(false); // decline agent registration
 
@@ -102,7 +95,6 @@ describe("OpenCode setup flow", () => {
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(true); // replace SPOC Bundle
@@ -123,7 +115,6 @@ describe("OpenCode setup flow", () => {
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(true); // replace SPOC Bundle
@@ -144,7 +135,6 @@ describe("OpenCode setup flow", () => {
       state: "foreign-existing",
     } as any);
     vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
       .mockResolvedValueOnce(false) // customizeAgents
       .mockResolvedValueOnce(true) // register agent
       .mockResolvedValueOnce(false); // decline SPOC Bundle
@@ -163,9 +153,7 @@ describe("OpenCode setup flow", () => {
     const prompts = await import("@clack/prompts");
     const { readFileSync } = await import("node:fs");
 
-    vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
-      .mockResolvedValueOnce(false); // customizeAgents — agent already present, no prompts
+    vi.mocked((prompts as any).__confirm).mockResolvedValueOnce(false); // customizeAgents — agent already present, no prompts
 
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");
@@ -193,9 +181,7 @@ describe("OpenCode setup flow", () => {
     const prompts = await import("@clack/prompts");
     const { readFileSync } = await import("node:fs");
 
-    vi.mocked((prompts as any).__confirm)
-      .mockResolvedValueOnce(true) // setup confirm
-      .mockResolvedValueOnce(false); // customizeAgents — both already present, no extra prompts
+    vi.mocked((prompts as any).__confirm).mockResolvedValueOnce(false); // customizeAgents — both already present, no extra prompts
 
     await withTempHomeDir(async (homeDir) => {
       const configFile = resolve(homeDir, ".config", "opencode", "opencode.json");

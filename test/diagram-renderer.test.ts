@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { renderDiagramTree, type InspectOutput } from "../src/cli/diagram-renderer.js";
+import { describe, expect, it } from "vitest";
+import { type InspectOutput, renderDiagramTree } from "../src/cli/diagram-renderer.js";
 
-const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape detection
+const stripAnsi = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, "");
 
 describe("renderDiagramTree", () => {
   it("renders a linear chain with correct status markers", () => {

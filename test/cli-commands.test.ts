@@ -1,8 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 
 // We test handleDagCommand directly
 import { handleDagCommand } from "../src/cli/dag-commands.js";
@@ -31,7 +30,10 @@ function createTempDataDir(): string {
     }),
   );
   // overview
-  writeFileSync(join(projDir, "overview.md"), "# Test Project\n\n> A test project\n\n## Goals\n\nBuild things.\n");
+  writeFileSync(
+    join(projDir, "overview.md"),
+    "# Test Project\n\n> A test project\n\n## Goals\n\nBuild things.\n",
+  );
   // tasks
   const tasksDir = join(projDir, "tasks");
   mkdirSync(tasksDir, { recursive: true });
@@ -61,7 +63,10 @@ function createTempDataDir(): string {
     }),
   );
   // tasks.md
-  writeFileSync(join(projDir, "tasks.md"), "# Tasks — Test Project\n\n## In Progress\n\n- [/] **[medium]** Add feature\n\n## Backlog\n\n- [ ] **[high]** Fix the bug\n");
+  writeFileSync(
+    join(projDir, "tasks.md"),
+    "# Tasks — Test Project\n\n## In Progress\n\n- [/] **[medium]** Add feature\n\n## Backlog\n\n- [ ] **[high]** Fix the bug\n",
+  );
   // knowledge
   const knowledgeDir = join(projDir, "knowledge");
   mkdirSync(knowledgeDir, { recursive: true });
@@ -241,14 +246,25 @@ describe("spoc task get", () => {
 
 describe("spoc task transition", () => {
   it("transitions a task status", async () => {
-    const result = await handleDagCommand("task", ["transition", "test-proj", "fix-bug", "in_progress"]);
+    const result = await handleDagCommand("task", [
+      "transition",
+      "test-proj",
+      "fix-bug",
+      "in_progress",
+    ]);
     expect(result).toBe(true);
     const output = stdout.join("\n");
     expect(output).toContain("in_progress");
   });
 
   it("outputs JSON with --json", async () => {
-    const result = await handleDagCommand("task", ["--json", "transition", "test-proj", "fix-bug", "done"]);
+    const result = await handleDagCommand("task", [
+      "--json",
+      "transition",
+      "test-proj",
+      "fix-bug",
+      "done",
+    ]);
     expect(result).toBe(true);
     const parsed = JSON.parse(stdout.join("\n"));
     expect(parsed.previousStatus).toBe("backlog");
@@ -256,7 +272,12 @@ describe("spoc task transition", () => {
   });
 
   it("errors for invalid status", async () => {
-    const result = await handleDagCommand("task", ["transition", "test-proj", "fix-bug", "invalid"]);
+    const result = await handleDagCommand("task", [
+      "transition",
+      "test-proj",
+      "fix-bug",
+      "invalid",
+    ]);
     expect(result).toBe(true);
     expect(stderr.length).toBeGreaterThan(0);
   });

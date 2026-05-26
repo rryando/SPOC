@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { renderBrief, type BriefData } from "../src/cli/brief-renderer.js";
+import { describe, expect, it } from "vitest";
+import { type BriefData, renderBrief } from "../src/cli/brief-renderer.js";
 
 const sampleData: BriefData = {
   slug: "myapp",
@@ -83,7 +83,8 @@ describe("renderBrief", () => {
 
   it("contains no ANSI escape sequences", () => {
     const md = renderBrief(sampleData);
-    expect(md).not.toMatch(/\x1b\[/);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape detection
+    expect(md).not.toMatch(/\u001b\[/);
   });
 
   it("contains no box-drawing characters", () => {

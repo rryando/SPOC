@@ -1,11 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
-
-import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
-import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 import { readJsonSafeSync } from "../utils/json.js";
 import type { ModelTierConfig } from "./config.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
+import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,7 +25,7 @@ function writeJsonFile(path: string, data: Record<string, unknown>): void {
  * Deep-set a nested key path on an object (mutates in place).
  * E.g. deepSet(obj, ["agent", "SPOC Orchestrator"], value)
  */
-function deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
+function _deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
   let current = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const k = keys[i];
@@ -52,6 +51,8 @@ const AGENT_TIER_MAP: Record<string, "heavy" | "standard" | "light"> = {
   plan: "heavy",
   general: "heavy",
   build: "standard",
+  "SPOC Orchestrator": "standard",
+  "SPOC Caveman": "standard",
   explore: "light",
   "code-reviewer": "light",
   "tech-architect": "light",
@@ -187,15 +188,24 @@ export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteRes
   const existing = readJsonFile(configFile);
   const existingAgents = (existing.agent ?? {}) as Record<string, unknown>;
 
-  // Primary agents: only include model field if user explicitly overrode via perAgent
+  // Primary agents get a model field resolved from tier map (standard) unless
+  // the user provided a perAgent override, which always wins.
   const orchestratorEntry: Record<string, unknown> = { ...SPOC_AGENT_ENTRY };
-  if (modelConfig?.perAgent?.[SPOC_AGENT_KEY]) {
-    orchestratorEntry.model = modelConfig.perAgent[SPOC_AGENT_KEY];
+  if (modelConfig) {
+    orchestratorEntry.model = resolveAgentModel(
+      SPOC_AGENT_KEY,
+      AGENT_TIER_MAP[SPOC_AGENT_KEY] ?? "standard",
+      modelConfig,
+    );
   }
 
   const cavemanEntry: Record<string, unknown> = { ...SPOC_CAVEMAN_AGENT_ENTRY };
-  if (modelConfig?.perAgent?.[SPOC_CAVEMAN_AGENT_KEY]) {
-    cavemanEntry.model = modelConfig.perAgent[SPOC_CAVEMAN_AGENT_KEY];
+  if (modelConfig) {
+    cavemanEntry.model = resolveAgentModel(
+      SPOC_CAVEMAN_AGENT_KEY,
+      AGENT_TIER_MAP[SPOC_CAVEMAN_AGENT_KEY] ?? "standard",
+      modelConfig,
+    );
   }
 
   const orderedAgents: Record<string, unknown> = {
@@ -231,8 +241,8 @@ export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteRes
 
 /**
  * Applies ModelTierConfig to all known agent entries in opencode.json.
- * Sub-agents always get a `model` field with the resolved value.
- * Primary agents only get a `model` field if perAgent override exists.
+ * Each agent (primary or sub-agent) listed in AGENT_TIER_MAP gets a `model`
+ * field resolved from its tier. perAgent overrides always win.
  * Call this AFTER bundle install so it overwrites hardcoded manifest models.
  */
 export function applyAgentModelConfig(modelConfig: ModelTierConfig): void {
@@ -246,17 +256,6 @@ export function applyAgentModelConfig(modelConfig: ModelTierConfig): void {
   for (const [name, entry] of Object.entries(agents)) {
     if (typeof entry !== "object" || entry === null) continue;
 
-    // Primary agents: only set model if perAgent override exists
-    if (name === SPOC_AGENT_KEY || name === SPOC_CAVEMAN_AGENT_KEY) {
-      if (modelConfig.perAgent?.[name]) {
-        entry.model = modelConfig.perAgent[name];
-      } else {
-        delete entry.model;
-      }
-      continue;
-    }
-
-    // Sub-agents: resolve from tier map
     const tier = AGENT_TIER_MAP[name];
     if (tier) {
       entry.model = resolveAgentModel(name, tier, modelConfig);
