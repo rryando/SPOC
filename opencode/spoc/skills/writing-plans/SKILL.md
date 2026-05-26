@@ -158,7 +158,7 @@ flowchart TD
 ## Storage
 
 ```bash
-spoc plan create <slug> --title="YYYY-MM-DD <feature> Implementation Plan" --summary="..." --status=planned --keywords='["implementation-plan"]' --body="<markdown>" --json
+spoc plan create <slug> --title="YYYY-MM-DD <feature> Implementation Plan" --summary="..." --status=planned --keywords="implementation-plan" --body="<markdown>" --json
 ```
 
 ## Execution Handoff

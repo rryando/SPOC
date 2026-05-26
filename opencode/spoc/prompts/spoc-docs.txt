@@ -28,7 +28,7 @@ MANDATORY EXIT GATE: Before claiming documentation work is complete, validate th
 | `spoc brief --lean --json` | Session start — orient on project and sync state |
 | `spoc validate <slug> --json` | First step of any sync — check DAG health |
 | `spoc knowledge list <slug> --json` | Audit knowledge entries for staleness/taxonomy |
-| `spoc knowledge update-meta <slug> <id> --keywords='[...]' --json` | Fix taxonomy or metadata on entries |
+| `spoc knowledge update-meta <slug> <id> --keywords="kw1,kw2" --json` | Fix taxonomy or metadata on entries |
 | `spoc diagram inspect <slug> <planId> --json` | Check diagram metadata completeness |
 | `spoc diagram status <slug> <planId> <nodeId> <status> --json` | Update diagram node status |
 | `spoc sync-agents-md <slug> --analysis-file=<path> --json` | Regenerate AGENTS.md from current DAG state |

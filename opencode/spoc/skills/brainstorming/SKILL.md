@@ -82,7 +82,7 @@ A plan diagram MUST be generated and presented before proceeding to storage. Dra
 ## Storage
 
 ```bash
-spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="..." --status=proposed --keywords='["spec","design"]' --body="<markdown>" --json
+spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="..." --status=proposed --keywords="spec,design" --body="<markdown>" --json
 ```
 
 After storage: _"Spec saved to plan `<planId>` in project `<slug>`. Please review and let me know if changes needed before implementation planning."_
