@@ -35,7 +35,7 @@ MANDATORY EXIT GATE: Before claiming documentation work is complete, validate th
 | `spoc plan update-meta <slug> <planId> --status=done --json` | Close completed plans |
 | `spoc git-log <slug> --json` | Check commits since last sync to scope audit |
 
-All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 
 ## SYNC Workflow (Primary Responsibility)
 

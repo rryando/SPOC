@@ -34,7 +34,7 @@ MANDATORY EXIT GATE: Before finalizing any design, verify: (1) dependency direct
 | `spoc knowledge create <slug> "<title>" --kind=architecture --summary="..." --json` | Record architectural decision or observation |
 | `spoc search <slug> "<keywords>" --lean --json` | Find existing plans/knowledge before proposing new |
 
-All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 
 ## Cross-Project Workflow
 

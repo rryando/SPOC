@@ -38,7 +38,7 @@ MANDATORY EXIT GATE: Before finalizing any audit, confirm you checked all requir
 | `spoc task create <slug> "<title>" --priority=medium --json` | Create task from audit finding |
 | `spoc knowledge create <slug> "<title>" --kind=pattern --summary="..." --json` | Record convention baseline |
 
-All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 
 ## Proactive Audit Workflow
 

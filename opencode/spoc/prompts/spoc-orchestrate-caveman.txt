@@ -123,6 +123,8 @@ All operations: `spoc <group> <action> [args] --json`. Mutating commands run dir
 
 Discovery: `spoc --commands --json` (cache once per session). Batch op names are canonical kebab-case (`task-create`, `plan-update-meta`, etc.).
 
+**Routing:** success JSON → stdout, errors → stderr — always capture both with `2>&1`.
+
 ### Key Commands
 
 | Operation | Command |
@@ -139,7 +141,8 @@ Discovery: `spoc --commands --json` (cache once per session). Batch op names are
 | Create task | `spoc task create <slug> <title> --priority=medium --planId=<id> --json` |
 | Create knowledge | `spoc knowledge create <slug> <title> --kind=<kind> --summary="..." --json` |
 | Create plan | `spoc plan create <slug> <title> --summary="..." --status=planned --json` |
-| Role-targeted context | `spoc context --audience=<role> --lean --json` |
+| Update plan meta | `spoc plan update-meta <slug> <planId> [--status=proposed\|planned\|in_progress\|done\|archived] --json` — note: `blocked` only at create-time |
+| Role-targeted context | `spoc context <slug> --audience=<role> --lean --json` |
 
 ## Master Routing
 
@@ -380,7 +383,7 @@ VERIFY: <command(s) to run before claiming done>
 RETURN: <what final message must include>
 
 CLI:
-  spoc context --audience=<role> --lean --json
+  spoc context <slug> --audience=<role> --lean --json
   spoc search <slug> "<keywords>" --lean --json
 ```
 
@@ -584,13 +587,13 @@ Graphify is an **optional but heavily-leveraged** static-graph CLI. SPOC integra
 
 **Lifecycle integration:**
 - **INIT:** `spoc project init` auto-runs extraction + knowledge seeding when graphify is on PATH and workspace looks like a codebase (has `.git` or `package.json`). Response includes `graphify.hooksHint` when applicable.
-- **SYNC:** `spoc graphify-sync <slug>` re-extracts and ingests new structural knowledge. Use when `lastSyncedAt` > 7 days or major refactor commits landed.
+- **SYNC:** Run `graphify update <workspacePath> --force --no-cluster` directly (graphify binary, not a spoc command) to re-extract and ingest structural knowledge. Use when `lastSyncedAt` > 7 days or major refactor commits landed.
 
 **Sub-agent usage:** Load `graphify-aware` skill on any sub-agent doing codebase reads when `graphify-out/graph.json` exists. The skill covers `graphify query`, `affected`, `explain`, `path` commands.
 
 | Command | When to use | Owner |
 |---------|------------|-------|
-| `graphify update <path> --force --no-cluster` | INIT (auto) and SYNC (`spoc graphify-sync`) | orchestrator / CLI |
+| `graphify update <path> --force --no-cluster` | INIT (auto) and SYNC (run directly via graphify binary) | orchestrator / CLI |
 | `graphify query "<question>" --graph <path> --budget 2000` | BRAINSTORM scoping, architecture-review evidence | sub-agent (read-only) |
 | `graphify affected "<symbol>" --graph <path> --depth 2` | EXECUTE pre-flight, blast-radius analysis | sub-agent (read-only) |
 | `graphify explain "<node>" --graph <path>` | BRAINSTORM scoping summaries | sub-agent (read-only) |

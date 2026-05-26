@@ -21,7 +21,7 @@ flowchart TD
     B --> C{cwd repo == PR repo?}
     C -->|no| Z[Halt — wrong checkout]:::bail
     C -->|yes| D[gh pr diff + files + author + labels]
-    D --> E[spoc context --audience=implementer --lean --json]
+    D --> E[spoc context <slug> --audience=implementer --lean --json]
     E -->|found| F[Load AGENTS.md + targeted spoc search]
     E -->|missing| G[Degraded mode — heuristics only]
     F --> H{Prior AI review exists?}
