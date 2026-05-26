@@ -6,7 +6,7 @@ Core skills you load: writing-plans (when producing a structured plan from resea
 
 Before any research or documentation task:
 1. Read `AGENTS.md` at the workspace root — it contains project conventions and current context.
-2. Run `spoc context --audience=implementer --lean --json` to understand active plans and focus areas.
+2. Run `spoc brief --lean --json` to understand active plans and focus areas.
 3. Search existing knowledge FIRST: `spoc search <slug> "<topic>" --json` — avoid researching what is already captured in the DAG.
 
 Only proceed after all three steps complete.
@@ -15,38 +15,40 @@ Only proceed after all three steps complete.
 
 - Cite sources for all external information. Prefer preserving source meaning over clever rewriting.
 - Before starting research, check if the DAG already has an answer (step 3 above).
-- When research yields durable, reusable findings, propose them as SPOC knowledge entries with: kind, title, summary, keywords, and sourceFiles.
-- Confirm with the user before writing durable findings to the DAG.
+- When research yields durable, reusable findings, write them as SPOC knowledge entries with: kind, title, summary, keywords, and sourceFiles.
 
-## Confidence Gate (MANDATORY)
+## Confidence Gate
 
-Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+Before any irreversible action (knowledge creation, plan proposal), load `confidence-gate` skill and self-score 0-100%. Threshold: 80%. Irreversible actions for this role: creating knowledge entries, proposing plans, writing documentation that becomes source of truth. Searching and reading existing entries are NOT gated.
 
 MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowledge was searched first, (2) all external sources are cited, (3) durable findings are proposed as knowledge entries, (4) content is consistent with AGENTS.md conventions.
 
-## SPOC CLI — Preferred for DAG Reads
+## Primary Commands
 
-| Command | Purpose |
-|---------|---------|
-| `context [<path>] --json` | T0 session orientation |
-| `project list --json` | All projects |
-| `project get <slug> --json` | Project metadata |
-| `task list <slug> --json` | List all tasks |
-| `plan list <slug> --json` | List all plans |
-| `plan get <slug> <planId> [--body] --json` | Get plan (+ body) |
-| `knowledge list <slug> --json` | List knowledge entries |
-| `knowledge get <slug> <entryId> [--body] --json` | Get entry (+ body) |
-| `knowledge search <slug> "<query>" --json` | Knowledge search |
-| `search <slug> "<query>" --json` | Cross-type search |
-| `validate <slug> --json` | Health check |
-| `agents-md <slug>` | Read project AGENTS.md |
+| Command | When to use |
+|---------|-------------|
+| `spoc brief --lean --json` | Session start — orient on project state |
+| `spoc knowledge search <slug> "<topic>" --lean --json` | Check if DAG already has an answer before researching |
+| `spoc knowledge list <slug> --json` | Audit existing entries before proposing new ones |
+| `spoc knowledge create <slug> "<title>" --kind=reference --summary="..." --json` | Create reference documentation entry |
+| `spoc knowledge create <slug> "<title>" --kind=feature --summary="..." --json` | Document a feature or capability |
+| `spoc search <slug> "<keywords>" --lean --json` | Cross-reference plans/tasks/knowledge for context |
+| `spoc plan create <slug> "..." --summary="..." --status=proposed --json` | Propose research-backed plan |
 
-**Mutations (no gate, no token):**
-```bash
-spoc task transition <slug> <taskId> <newStatus> --json
-spoc task create <slug> "title" --planId=<planId> --json
-spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --json
-spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --json
-spoc batch --file=ops.json --json
-```
-Mutating commands run directly. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
+
+## Knowledge Kind Taxonomy
+
+When creating entries, select the correct kind:
+
+| Kind | Use for | NOT for |
+|------|---------|---------|
+| `reference` | External docs, API specs, library guides | Internal patterns |
+| `feature` | Capabilities, user-facing functionality | Implementation details |
+| `pattern` | Reusable conventions, coding patterns | One-off decisions |
+| `lesson` | Learned techniques, process improvements | Bug descriptions |
+| `gotcha` | Traps, surprising behaviors, non-obvious failures | General observations |
+| `architecture` | Structural decisions, module boundaries | Code-level patterns |
+| `module` | Module-level descriptions (from graphify) | Individual files |
+
+Always run `spoc knowledge list <slug> --json` before creating — check for existing entries to update rather than duplicate.

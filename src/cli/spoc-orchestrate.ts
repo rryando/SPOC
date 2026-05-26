@@ -37,6 +37,10 @@ Discovery: \`spoc --commands --json\` (cache once per session). Batch op names a
 | Validate | \`spoc validate <slug> --json\` |
 | Task transition | \`spoc task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --json\` |
 | Batch writes | \`spoc batch --file=ops.json --json\` |
+| Create task | \`spoc task create <slug> <title> --priority=medium --planId=<id> --json\` |
+| Create knowledge | \`spoc knowledge create <slug> <title> --kind=<kind> --summary="..." --json\` |
+| Create plan | \`spoc plan create <slug> <title> --summary="..." --status=planned --json\` |
+| Role-targeted context | \`spoc context --audience=<role> --lean --json\` |
 
 ## Master Routing
 
@@ -60,9 +64,9 @@ flowchart TD
 |--------|----------------|
 | **INIT** | "new project", "track this repo", "add project X" |
 | **BRAINSTORM** | "plan features", "what should we work on", "break down tasks" |
-| **EXECUTE** | "work on X", "do next task", "implement Y" |
+| **EXECUTE** | "work on X", "do next task", "implement Y", "I finished X", "mark X done", "what should I work on next" |
 | **SYNC** | "update docs", "is this up to date", "sync project" |
-| **EXPLORE** | "show all projects", "what depends on X", "project status" |
+| **EXPLORE** | "show all projects", "what depends on X", "project status", "capture this", "remember that", "take note" |
 | **MULTI** | compound requests spanning 2+ intents |
 
 Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions, (4) confidence score.
@@ -127,7 +131,7 @@ flowchart TD
 }
 \`\`\`
 
-Use \`recommendedSurface\` to pick the routing branch: \`QUEUE\` → EXECUTE, \`PLAN\` → BRAINSTORM, \`MEMORY\` → review knowledge or propose a new plan.
+Use \`recommendedSurface\` to pick the routing branch: \`QUEUE\` → EXECUTE, \`PLAN\` → BRAINSTORM, \`MEMORY\` → Dispatch \`spoc-docs\` for knowledge staleness audit, or dispatch \`docs-researcher\` for gap-filling. If brief shows specific stale entries, prioritize updating them over creating new.
 
 ## Delegation
 
@@ -233,14 +237,14 @@ flowchart TD
 | \`finishing-a-development-branch\` | Implementation complete, decide merge/PR/cleanup |
 | \`knowledge-curation\` | Audit knowledge for staleness, duplication, taxonomy drift |
 | \`to-diagram\` | Creating or updating a SPOC plan \`.diagram.mmd\` |
-| \`writing-skills\` | Creating, editing, verifying skills (TDD applied to process docs) |
 | \`aesthetic\` | Any frontend/UI work — components, pages, styles, layouts, motion |
-| \`loop\` | Self-referential development loop until task completion |
-| \`spoc-dashboard\` | Starting/managing the SPOC Plan Dashboard for multi-plan view |
+| \`task-triage\` | Choosing what to work on next — backlog prioritization |
+| \`onboarding-session\` | Session start on existing project — quick orientation |
+| \`spoc-sync\` | DAG reconciliation when stale or after major work |
 | \`customize-opencode\` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
 | \`using-superpowers\` | Always — establishes how to find and use skills |
-| \`caveman-commit\` | Writing git commit messages (especially in Caveman mode) |
-| \`caveman-review\` | Writing PR review comments (especially in Caveman mode) |
+
+> **Agent-internal skills** (auto-loaded by context, not orchestrator-selected): \`writing-skills\`, \`caveman-commit\`, \`caveman-review\`, \`spoc-dashboard\`, \`loop\`
 
 ### Auto-Layer Signals
 
@@ -334,17 +338,7 @@ flowchart TD
 
 #### INIT Graphify Sub-Flow (DEFAULT: ON when binary present)
 
-1. Detect: \`spoc\` already exposes \`detectGraphify()\` and \`runExtraction()\` via \`src/utils/graphify.ts\`. If unavailable, skip cleanly and log "graphify not on PATH; skipping graph ingestion."
-2. Trust the code: \`runExtraction()\` automatically appends \`graphify-out/\` to \`.gitignore\` (see \`ensureGitignoreEntry\` in \`src/utils/graphify.ts\`). Do **not** redundantly check or modify \`.gitignore\` from the orchestrator.
-3. Run AST-only extraction (no LLM key required): \`graphify update <workspacePath> --force --no-cluster\` — produces \`graphify-out/graph.json\`.
-4. Ingest: call the internal \`ingestGraph(graphJsonPath, slug)\` to get up to 20 \`KnowledgeProposal\` records (8 god nodes \`kind=module\`, 8 clusters \`kind=architecture\`, 5 cross-module couplings \`kind=gotcha\`, test files filtered).
-5. Optional enrichment via \`graphify query\` (BFS traversal, capped budget):
-   - \`graphify query "entry points and main commands"\` → seeds for "key files" reference entries
-   - \`graphify query "core data flow"\` → seeds for "core modules" entries
-   - \`graphify affected "<critical-symbol>"\` → reverse-impact map for high-risk modules
-   - \`graphify explain "<godNodeLabel>"\` → plain-language summary to enrich a \`module\` entry's body
-6. Hand the proposals + query results to the typed analysis agents above; they merge graph evidence with code reading and return finalized knowledge entries.
-7. Write entries directly via \`spoc knowledge create\` (one call per entry) or batch them with \`spoc batch\`.
+**INIT sequence:** detect graphify → \`graphify update <path> --force --no-cluster\` → \`ingestGraph()\` (≤20 proposals) → enrich via \`graphify query\`/\`explain\`/\`affected\` → fan-out to typed analysis agents → collect proposals → write via \`spoc knowledge create\` or \`spoc batch\`. See Graphify Toolbelt table for full command surface.
 
 ### BRAINSTORM Workflow
 
@@ -405,7 +399,7 @@ flowchart TD
 **Constraints:**
 - Orchestrator NEVER loads T1+ directly — delegate reads to sub-agent
 - \`spoc task transition\` atomically updates task status + diagram node. MUST pass both \`--planId\` and \`--diagramNodeId\` (both required for diagram patch)
-- Sub-agents NEVER edit \`.mmd\` files — agents must NOT manually patch \`.mmd\` for status transitions. Scope changes reported back, orchestrator regenerates via \`manage-diagram.mjs regenerate <file> --metadata <metadata.json>\`
+- Sub-agents NEVER edit \`.mmd\` files — agents must NOT manually patch \`.mmd\` for status transitions. Scope changes reported back, orchestrator regenerates via \`spoc diagram sort-metadata <slug> <planId> --json\`
 - \`spoc diagram ready\` after each transition to discover newly-unblocked nodes
 - If blocked → note blocker, advance to next unblocked task
 
@@ -471,7 +465,7 @@ Load \`dispatching-parallel-agents\` for independent phases. Load \`subagent-dri
 \`\`\`mermaid
 flowchart TD
     A{What changed?} -->|status only| B[spoc task transition --planId --diagramNodeId]
-    A -->|scope change: task added/removed/deps changed| C[manage-diagram.mjs regenerate --metadata]
+    A -->|scope change: task added/removed/deps changed| C[spoc diagram sort-metadata slug planId]
     B --> D[Re-run: spoc diagram ready]
     C --> D
 \`\`\`
@@ -523,6 +517,7 @@ Trust the integration: \`runExtraction()\` already auto-appends \`graphify-out/\
 - Use \`--dry-run\` to validate params before committing mutation.
 - On errors: \`spoc <command> --help --json\` for schema. \`spoc --commands --json\` for discovery.
 - \`sourceFiles\` on every knowledge/plan/task entry that relates to specific files (\`{path, anchor?}\`).
+- Before \`spoc knowledge create\` or \`spoc plan create\` — run \`spoc search <slug> "<proposed title keywords>" --json\` to check for duplicates. Prefer \`update-body\`/\`update-meta\` over creating duplicates.
 
 ### Bundle and Release Discipline
 When deploying SPOC bundles: \`spoc lint-bundle\` → pass → \`spoc deploy-superpowers\` → re-lint. Never skip lint — bundle integrity is binary.

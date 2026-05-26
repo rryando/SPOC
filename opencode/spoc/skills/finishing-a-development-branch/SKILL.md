@@ -46,6 +46,20 @@ flowchart TD
 - **Keep as-is** — Work-in-progress, waiting on dependency, want to revisit later
 - **Discard** — Experimental spike that proved the wrong approach, superseded by different solution
 
+## DAG Closure (Required Post-Merge)
+
+After merge is confirmed, close the DAG loop:
+
+```bash
+# Transition each completed task
+spoc task transition <slug> <taskId> done --planId=<planId> --diagramNodeId=<nodeId> --json
+
+# If all plan tasks are done, close the plan
+spoc plan update-meta <slug> <planId> --status=done --json
+```
+
+Never skip DAG closure — it's the most common source of plan/task drift.
+
 ## Constraints
 
 - Never proceed with failing tests

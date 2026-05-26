@@ -9,6 +9,10 @@ description: Use when you have a written implementation plan to execute in a sep
 
 You have a written implementation plan to execute task-by-task with verification checkpoints.
 
+**NOT for:**
+- If subagents are available → use `subagent-driven-development` instead (parallel dispatch, two-stage review)
+- If the task needs iterative self-correction without a structured plan → use `loop` instead
+
 > CLI: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
 
 ## Flow

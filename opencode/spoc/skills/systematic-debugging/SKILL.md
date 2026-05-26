@@ -123,6 +123,38 @@ After root cause identified, persist as knowledge:
 
 Include: root cause summary, evidence, affected files, fix approach.
 
+### Capture Resolution as Knowledge
+
+After resolving the issue, persist the learning:
+
+```bash
+# For a surprising behavior or trap
+spoc knowledge create <slug> "Redis connection pool exhaustion under load" \
+  --kind=gotcha \
+  --summary="Pool size defaults to 10; under concurrent requests >50, connections time out silently" \
+  --body="Root cause: default pool size. Fix: set poolSize to max(50, expectedConcurrency). Symptoms: intermittent 503s with no error logs." \
+  --json
+
+# For a reusable debugging technique or resolution pattern
+spoc knowledge create <slug> "Diagnosing silent connection failures" \
+  --kind=lesson \
+  --summary="Enable connection-level event logging before load testing" \
+  --body="Attach listeners to pool 'error' and 'timeout' events. Default Node.js behavior swallows these." \
+  --json
+
+# For a pattern that should be followed going forward
+spoc knowledge create <slug> "Connection pool sizing formula" \
+  --kind=pattern \
+  --summary="Pool size = max(50, 2x expected peak concurrency)" \
+  --body="Applies to Redis, Postgres, and HTTP agent pools. Validated under load test 2026-05-26." \
+  --json
+```
+
+**Kind selection guide:**
+- `gotcha` — surprising behavior, trap, or non-obvious failure mode
+- `lesson` — learned technique, debugging approach, resolution method
+- `pattern` — reusable solution that should be applied going forward
+
 ## Constraints
 
 - **NO FIXES WITHOUT ROOT CAUSE INVESTIGATION.** If Phase 1 incomplete, you cannot propose fixes.

@@ -13,7 +13,8 @@ Task is mostly clear (50-90%) but 1-2 decisions remain open — resolvable by in
 
 ```mermaid
 flowchart TD
-    A[Orient: spoc brief --lean --json] --> B[Search: spoc search slug keywords]
+    A[Orient: spoc brief --lean --json] --> K[Knowledge: spoc knowledge search slug keywords]
+    K --> B[Search: spoc search slug keywords]
     B --> C[Inspect repo — patterns, types, fixtures]
     C --> D{Confidence score >=80?}
     D -->|Yes| E[Implement — TDD for new behavior]
@@ -25,6 +26,21 @@ flowchart TD
     H -->|No| I[Done]
     H -->|Yes| J[Pause — state issue — offer brainstorming]
 ```
+
+## Phase 0: Check Existing Knowledge
+
+Before investigating or implementing, check what the DAG already knows:
+
+```bash
+spoc knowledge search <slug> "<task-keywords>" --lean --json
+```
+
+Look for:
+- `kind: pattern` — existing conventions that apply to this change
+- `kind: gotcha` — known traps in this area
+- `kind: lesson` — prior learnings from similar work
+
+If relevant entries exist, incorporate their guidance. Don't rediscover what's already known.
 
 ## Behaviour
 

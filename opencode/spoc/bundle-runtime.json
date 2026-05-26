@@ -98,6 +98,15 @@
       "SKILL.md",
       "plan-document-reviewer-prompt.md"
     ],
+    "task-triage": [
+      "SKILL.md"
+    ],
+    "onboarding-session": [
+      "SKILL.md"
+    ],
+    "spoc-sync": [
+      "SKILL.md"
+    ],
     "writing-skills": [
       "SKILL.md",
       "anthropic-best-practices.md",
