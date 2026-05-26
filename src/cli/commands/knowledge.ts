@@ -12,6 +12,7 @@ import {
   createKnowledgeEntry,
   readKnowledgeIndex,
   updateKnowledgeEntry,
+  deleteKnowledgeEntry,
   KNOWLEDGE_KINDS,
   type KnowledgeKind,
 } from "../../utils/project-memory.js";
@@ -121,6 +122,8 @@ async function handleKnowledgeGet(params: Record<string, unknown>, flags: Comman
 defineCommand({
   path: "knowledge create",
   description: "Create a new knowledge entry",
+  gated: true,
+  gateName: "knowledge-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Entry title" },
@@ -186,6 +189,8 @@ async function handleKnowledgeCreate(params: Record<string, unknown>, flags: Com
 defineCommand({
   path: "knowledge update-meta",
   description: "Update metadata of a knowledge entry",
+  gated: true,
+  gateName: "knowledge-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
@@ -251,6 +256,8 @@ async function handleKnowledgeUpdateMeta(params: Record<string, unknown>, flags:
 defineCommand({
   path: "knowledge update-body",
   description: "Update the body content of a knowledge entry",
+  gated: true,
+  gateName: "knowledge-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
@@ -364,6 +371,64 @@ async function handleKnowledgeSearch(params: Record<string, unknown>, flags: Com
   }
 
   return success(results);
+}
+
+// ---------------------------------------------------------------------------
+// knowledge delete
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "knowledge delete",
+  description: "Delete a knowledge entry",
+  gated: true,
+  gateName: "knowledge-delete",
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    entryId: { type: "string", required: true, positional: 1, description: "Entry ID" },
+    token: { type: "string", required: true, description: "Write-gate token" },
+  },
+  handler: handleKnowledgeDelete,
+});
+
+async function handleKnowledgeDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const entryId = params.entryId as string;
+  const token = params.token as string | undefined;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
+      hint: "Run 'spoc project list' to see available projects.",
+    });
+  }
+
+  const knowledgeIndex = await readKnowledgeIndex(projectDir);
+  const entry = knowledgeIndex.entries.find((e) => e.id === entryId || e.normalizedId === entryId);
+  if (!entry) {
+    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Knowledge entry "${entryId}" not found`, {
+      hint: `Run 'spoc knowledge list ${slug}' to see available entries.`,
+    });
+  }
+
+  if (flags.dryRun) {
+    return success({ dryRun: true, wouldDelete: { slug, entryId: entry.id } });
+  }
+
+  try {
+    requireWriteGate(token, slug, "tool:delete_project_knowledge_entry");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      return failure(err.code, err.message, { hint: err.hint });
+    }
+    throw err;
+  }
+
+  try {
+    await deleteKnowledgeEntry(projectDir, entry.id);
+    return success({ deleted: entry.id });
+  } catch (err) {
+    return failure("knowledge_delete_error", err instanceof Error ? err.message : String(err));
+  }
 }
 
 // ---------------------------------------------------------------------------

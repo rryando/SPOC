@@ -2,7 +2,7 @@
 // Help Generator — per-command help and --commands discovery
 // ---------------------------------------------------------------------------
 
-import { type CommandDef, listCommands, type ParamDef } from "./command-registry.js";
+import { type CommandDef, listCommands, type ParamDef, ERROR_CODES } from "./command-registry.js";
 
 export interface CommandDiscovery {
   commands: Array<{
@@ -19,7 +19,10 @@ export interface CommandDiscovery {
         enum?: string[];
       }
     >;
+    gated?: boolean;
+    gateName?: string;
   }>;
+  errorCodes: string[];
 }
 
 export function generateCommandHelp(def: CommandDef): string {
@@ -96,7 +99,7 @@ export function generateCommandsDiscovery(): CommandDiscovery {
           name,
           {
             type: p.type,
-            required: p.required ?? false,
+            required: typeof p.required === "function" ? true : (p.required ?? false),
             ...(p.positional != null ? { positional: p.positional } : {}),
             ...(p.default !== undefined ? { default: p.default } : {}),
             description: p.description,
@@ -104,7 +107,10 @@ export function generateCommandsDiscovery(): CommandDiscovery {
           },
         ]),
       ),
+      ...(def.gated ? { gated: true } : {}),
+      ...(def.gateName ? { gateName: def.gateName } : {}),
     })),
+    errorCodes: Object.values(ERROR_CODES),
   };
 }
 

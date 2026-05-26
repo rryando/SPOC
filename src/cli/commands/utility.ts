@@ -299,8 +299,10 @@ function normalizeBatchOp(op: string): string {
 defineCommand({
   path: "batch",
   description: "Run batch operations from a JSON file",
+  gated: true,
+  gateName: "batch",
   params: {
-    file: { type: "string", required: true, description: "Path to JSON file with operations" },
+    file: { type: "string", required: (params) => !params["list-ops"], description: "Path to JSON file with operations" },
     token: { type: "string", description: "Write-gate token" },
     "list-ops": { type: "boolean", description: "List valid batch operations" },
   },

@@ -117,6 +117,8 @@ async function handleProjectGet(params: Record<string, unknown>, _flags: Command
 defineCommand({
   path: "project init",
   description: "Initialize a new project",
+  gated: true,
+  gateName: "project-init",
   params: {
     name: { type: "string", required: true, positional: 0, description: "Project name" },
     description: { type: "string", required: true, description: "Project description" },
@@ -217,6 +219,8 @@ async function handleProjectInit(params: Record<string, unknown>, flags: Command
 defineCommand({
   path: "project update-doc",
   description: "Update a project document",
+  gated: true,
+  gateName: "project-update-doc",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     doc: { type: "string", required: true, positional: 1, description: "Document to update", enum: ["overview", "tasks", "dependencies", "knowledge"] },
@@ -296,6 +300,8 @@ async function handleProjectUpdateDoc(params: Record<string, unknown>, flags: Co
 defineCommand({
   path: "project update-status",
   description: "Update a project's status",
+  gated: true,
+  gateName: "project-update-status",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     status: { type: "string", required: true, positional: 1, description: "New status", enum: ["active", "paused", "completed", "archived"] },
@@ -347,6 +353,8 @@ async function handleProjectUpdateStatus(params: Record<string, unknown>, flags:
 defineCommand({
   path: "project update-paths",
   description: "Add or remove workspace paths for a project",
+  gated: true,
+  gateName: "project-update-paths",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     add: { type: "string", description: "Path to add to workspace paths" },

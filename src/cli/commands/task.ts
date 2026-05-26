@@ -12,6 +12,7 @@ import {
   getTask,
   createTask,
   updateTask,
+  deleteTask,
   type TaskStatus,
   type TaskPriority,
 } from "../../utils/project-memory.js";
@@ -92,6 +93,8 @@ async function handleTaskGet(params: Record<string, unknown>, _flags: CommandFla
 defineCommand({
   path: "task create",
   description: "Create a new task",
+  gated: true,
+  gateName: "task-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Task title" },
@@ -151,6 +154,8 @@ async function handleTaskCreate(params: Record<string, unknown>, flags: CommandF
 defineCommand({
   path: "task transition",
   description: "Transition task status",
+  gated: true,
+  gateName: "task-transition",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
@@ -203,6 +208,8 @@ async function handleTaskTransition(params: Record<string, unknown>, flags: Comm
 defineCommand({
   path: "task update",
   description: "Update task metadata",
+  gated: true,
+  gateName: "task-update",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
@@ -255,5 +262,63 @@ async function handleTaskUpdate(params: Record<string, unknown>, flags: CommandF
     return success(task);
   } catch (err) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, err instanceof Error ? err.message : String(err));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// task delete
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "task delete",
+  description: "Delete a task",
+  gated: true,
+  gateName: "task-delete",
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
+    token: { type: "string", required: true, description: "Write-gate token" },
+  },
+  handler: handleTaskDelete,
+});
+
+async function handleTaskDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const taskId = params.taskId as string;
+  const token = params.token as string | undefined;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
+      hint: "Run 'spoc project list' to see available projects.",
+    });
+  }
+
+  if (flags.dryRun) {
+    return success({ dryRun: true, wouldDelete: { slug, taskId } });
+  }
+
+  try {
+    requireWriteGate(token, slug, "tool:delete_project_task");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      return failure(err.code, err.message, { hint: err.hint });
+    }
+    throw err;
+  }
+
+  try {
+    await getTask(projectDir, taskId);
+  } catch {
+    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Task "${taskId}" not found`, {
+      hint: `Run 'spoc task list ${slug}' to see available tasks.`,
+    });
+  }
+
+  try {
+    await deleteTask(projectDir, taskId);
+    return success({ deleted: taskId });
+  } catch (err) {
+    return failure("task_delete_error", err instanceof Error ? err.message : String(err));
   }
 }

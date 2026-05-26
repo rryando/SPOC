@@ -32,6 +32,18 @@ beforeAll(() => {
     },
     handler: noop,
   });
+
+  defineCommand({
+    path: "help-test gated",
+    description: "A gated command",
+    gated: true,
+    gateName: "help-test-gated",
+    params: {
+      slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+      token: { type: "string", description: "Write-gate token" },
+    },
+    handler: noop,
+  });
 });
 
 describe("generateCommandHelp", () => {
@@ -121,6 +133,30 @@ describe("generateCommandsDiscovery", () => {
     expect(cmd!.params.summary.positional).toBe(0);
     expect(cmd!.params.ttl.default).toBe(600000);
     expect((cmd as unknown as Record<string, unknown>)).not.toHaveProperty("handler");
+  });
+
+  it("includes errorCodes array in discovery output", () => {
+    const discovery = generateCommandsDiscovery();
+    expect(discovery.errorCodes).toBeInstanceOf(Array);
+    expect(discovery.errorCodes).toContain("missing_param");
+    expect(discovery.errorCodes).toContain("project_not_found");
+    expect(discovery.errorCodes.length).toBeGreaterThanOrEqual(9);
+  });
+
+  it("includes gated and gateName for gated commands", () => {
+    const discovery = generateCommandsDiscovery();
+    const gatedCmd = discovery.commands.find((c) => c.path === "help-test gated");
+    expect(gatedCmd).toBeDefined();
+    expect(gatedCmd!.gated).toBe(true);
+    expect(gatedCmd!.gateName).toBe("help-test-gated");
+  });
+
+  it("omits gated and gateName for non-gated commands", () => {
+    const discovery = generateCommandsDiscovery();
+    const helpList = discovery.commands.find((c) => c.path === "help-test list");
+    expect(helpList).toBeDefined();
+    expect(helpList!.gated).toBeUndefined();
+    expect(helpList!.gateName).toBeUndefined();
   });
 });
 

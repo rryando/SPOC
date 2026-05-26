@@ -12,6 +12,7 @@ import {
   createPlan,
   readPlanIndex,
   updatePlan,
+  deletePlan,
   PLAN_STATUSES,
   type PlanStatus,
 } from "../../utils/project-memory.js";
@@ -117,6 +118,8 @@ async function handlePlanGet(params: Record<string, unknown>, flags: CommandFlag
 defineCommand({
   path: "plan create",
   description: "Create a new plan",
+  gated: true,
+  gateName: "plan-create",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Plan title" },
@@ -178,6 +181,8 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
 defineCommand({
   path: "plan update-meta",
   description: "Update plan metadata",
+  gated: true,
+  gateName: "plan-update-meta",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
@@ -241,6 +246,8 @@ async function handlePlanUpdateMeta(params: Record<string, unknown>, flags: Comm
 defineCommand({
   path: "plan update-body",
   description: "Update plan body content",
+  gated: true,
+  gateName: "plan-update-body",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
@@ -314,5 +321,63 @@ async function handlePlanUpdateBody(params: Record<string, unknown>, flags: Comm
     return success({ meta: plan, body });
   } catch (err) {
     return failure("plan_update_body_error", err instanceof Error ? err.message : String(err));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// plan delete
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "plan delete",
+  description: "Delete a plan",
+  gated: true,
+  gateName: "plan-delete",
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    planId: { type: "string", required: true, positional: 1, description: "Plan ID" },
+    token: { type: "string", required: true, description: "Write-gate token" },
+  },
+  handler: handlePlanDelete,
+});
+
+async function handlePlanDelete(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const planId = params.planId as string;
+  const token = params.token as string | undefined;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
+      hint: "Run 'spoc project list' to see available projects.",
+    });
+  }
+
+  const planIndex = await readPlanIndex(projectDir);
+  const plan = planIndex.plans.find((p) => p.id === planId || p.normalizedId === planId);
+  if (!plan) {
+    return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Plan "${planId}" not found`, {
+      hint: `Run 'spoc plan list ${slug}' to see available plans.`,
+    });
+  }
+
+  if (flags.dryRun) {
+    return success({ dryRun: true, wouldDelete: { slug, planId: plan.id } });
+  }
+
+  try {
+    requireWriteGate(token, slug, "tool:delete_project_plan");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      return failure(err.code, err.message, { hint: err.hint });
+    }
+    throw err;
+  }
+
+  try {
+    await deletePlan(projectDir, plan.id);
+    return success({ deleted: plan.id });
+  } catch (err) {
+    return failure("plan_delete_error", err instanceof Error ? err.message : String(err));
   }
 }

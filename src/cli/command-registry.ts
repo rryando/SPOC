@@ -6,7 +6,7 @@ export type ParamType = "string" | "number" | "boolean";
 
 export interface ParamDef {
   type: ParamType;
-  required?: boolean;
+  required?: boolean | ((params: Record<string, unknown>) => boolean);
   positional?: number;
   default?: unknown;
   description: string;
@@ -27,6 +27,8 @@ export interface CommandDef {
   path: string;
   description: string;
   params: Record<string, ParamDef>;
+  gated?: boolean;
+  gateName?: string;
   handler: (params: Record<string, unknown>, flags: CommandFlags) => Promise<CLIResult>;
 }
 

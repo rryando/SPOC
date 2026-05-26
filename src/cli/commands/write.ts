@@ -70,6 +70,8 @@ async function handleWritePropose(params: Record<string, unknown>, flags: Comman
 defineCommand({
   path: "write apply",
   description: "Consume a write-gate proposal token",
+  gated: true,
+  gateName: "write-apply",
   params: {
     token: { type: "string", required: true, positional: 0, description: "The proposal token to consume" },
     slug: { type: "string", required: true, description: "Target project slug" },

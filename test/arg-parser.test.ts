@@ -146,3 +146,20 @@ describe("generateUsage", () => {
     expect(usage).toBe("Usage: spoc write propose <summary> --ops=OPS --slug=SLUG [--ttl=TTL]");
   });
 });
+
+describe("conditional required", () => {
+  const def = makeDef({
+    file: { type: "string", required: (params) => !params["list-ops"], description: "file path" },
+    "list-ops": { type: "boolean", description: "list operations" },
+  });
+
+  it("returns missing_param when condition is true and param missing", () => {
+    const result = parseArgs(def, []);
+    expect(result).toMatchObject({ ok: false, error: { code: "missing_param", param: "file" } });
+  });
+
+  it("no error when condition is false and param missing", () => {
+    const result = parseArgs(def, ["--list-ops"]);
+    expect(result).toMatchObject({ ok: true, parsed: { params: { "list-ops": true } } });
+  });
+});
