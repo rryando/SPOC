@@ -8,6 +8,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveOpName } from "./op-names.js";
 import { getDataDir } from "./paths.js";
 
 // ---------------------------------------------------------------------------
@@ -21,7 +22,18 @@ export interface WriteProposal {
   operations: string[];
   createdAt: string;
   expiresAt: string;
+  /**
+   * Timestamp of the first consumption against this proposal, or null if
+   * untouched. For multi-op proposals, this is set when the first op-slot
+   * is consumed and remains set as further slots are drained.
+   */
   consumedAt: string | null;
+  /**
+   * Per-op consumption ledger. Each entry corresponds to one slot in
+   * `operations[]` that has been spent. The proposal is exhausted when
+   * `consumedOps.length === operations.length`. Stored as canonical op names.
+   */
+  consumedOps: string[];
 }
 
 export interface WriteProposalInput {
@@ -132,12 +144,20 @@ function formatExpiryMessage(proposal: WriteProposal, nowMs: number, expiresAtMs
 // ---------------------------------------------------------------------------
 
 /**
- * Normalize an operation name for comparison:
- * - Strip `tool:` or `cli:` prefixes
- * - Replace underscores with hyphens
- * - Lowercase
+ * Normalize an operation name for write-gate comparison.
+ *
+ * Resolves canonical names, legacy `tool:` / `cli:` prefixed names, and
+ * snake_case aliases all to a single canonical kebab-case form (e.g.
+ * `tool:create_project_plan` → `plan-create`). This lets handlers pass legacy
+ * gate strings while users propose canonical op names (and vice versa).
+ *
+ * For unknown ops, falls back to a generic strip+kebab transform so behaviour
+ * remains backward-compatible for ops not yet listed in OP_REGISTRY.
  */
 export function normalizeOpName(op: string): string {
+  const resolved = resolveOpName(op);
+  if (resolved !== op) return resolved;
+  // Generic fallback for ops not in the registry
   return op.toLowerCase().replace(/^(tool|cli):/, "").replace(/_/g, "-");
 }
 
@@ -174,6 +194,7 @@ export function createWriteProposal(input: WriteProposalInput, nowMs: number = D
     createdAt: new Date(nowMs).toISOString(),
     expiresAt: new Date(nowMs + input.ttlMs).toISOString(),
     consumedAt: null,
+    consumedOps: [],
   };
   storeSet(token, proposal);
   return proposal;
@@ -279,12 +300,9 @@ export function requireWriteGate(
     throw new WriteGateError("Proposal not found");
   }
 
-  if (proposal.consumedAt !== null) {
-    throw new WriteGateError(
-      "Proposal already consumed",
-      "token_consumed",
-      "Each token is single-use. Propose a new token for this operation.",
-    );
+  // Backfill consumedOps for proposals that predate the multi-op budget feature.
+  if (!Array.isArray(proposal.consumedOps)) {
+    proposal.consumedOps = proposal.consumedAt === null ? [] : ["__legacy__"];
   }
 
   const expiresAtMs = new Date(proposal.expiresAt).getTime();
@@ -300,17 +318,52 @@ export function requireWriteGate(
     throw new WriteGateError(`Project scope mismatch: proposal for "${proposal.slug}", target "${slug}"`);
   }
 
-  // Normalize: strip prefixes and unify separators for comparison so both
-  // "tool:create_project_plan" and "create-project-plan" match.
-  const normalizedOp = normalizeOpName(operation);
-  const matches = proposal.operations.some((op) => normalizeOpName(op) === normalizedOp);
-  if (!matches) {
+  // Per-op budget: every entry in operations[] is one consumable slot.
+  // Match the requested op (canonical-normalized) against unconsumed slots.
+  if (proposal.consumedOps.length >= proposal.operations.length) {
     throw new WriteGateError(
-      `Operation mismatch: proposal authorizes [${proposal.operations.join(", ")}], requested "${operation}"`,
+      "Proposal budget exhausted (all op-slots already consumed)",
+      "token_consumed",
+      `Each op-slot in the proposal is single-use. The proposal authorized ${proposal.operations.length} mutation(s); all have been spent. Re-propose for additional writes.`,
     );
   }
 
-  proposal.consumedAt = new Date(nowMs).toISOString();
+  const normalizedRequest = normalizeOpName(operation);
+  const normalizedSlots = proposal.operations.map(normalizeOpName);
+  const normalizedConsumed = [...proposal.consumedOps];
+
+  // Find an unconsumed slot matching the request: walk slots, decrement
+  // available count by removing one matching entry from a copy of consumed.
+  let slotMatched = false;
+  for (const slot of normalizedSlots) {
+    if (slot !== normalizedRequest) continue;
+    const consumedIdx = normalizedConsumed.indexOf(slot);
+    if (consumedIdx === -1) {
+      // Found an unconsumed slot for this op
+      slotMatched = true;
+      break;
+    }
+    // This slot is already consumed; remove from working copy and keep looking
+    normalizedConsumed.splice(consumedIdx, 1);
+  }
+
+  if (!slotMatched) {
+    const remaining = normalizedSlots.filter((s, i) => {
+      const tally = normalizedSlots.slice(0, i + 1).filter((x) => x === s).length;
+      const consumedTally = proposal.consumedOps.filter((x) => normalizeOpName(x) === s).length;
+      return tally > consumedTally;
+    });
+    const uniqueRemaining = [...new Set(remaining)];
+    throw new WriteGateError(
+      `Operation mismatch: proposal authorizes [${proposal.operations.join(", ")}], requested "${operation}". Remaining budget: [${uniqueRemaining.join(", ") || "none"}]`,
+    );
+  }
+
+  // Consume one slot
+  proposal.consumedOps.push(normalizedRequest);
+  if (proposal.consumedAt === null) {
+    proposal.consumedAt = new Date(nowMs).toISOString();
+  }
   storeSet(token, proposal);
   return proposal;
 }

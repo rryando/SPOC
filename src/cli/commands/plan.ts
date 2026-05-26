@@ -124,6 +124,7 @@ defineCommand({
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Plan title" },
+    status: { type: "string", description: "Initial status (default: proposed)", enum: [...PLAN_STATUSES] },
     summary: { type: "string", description: "Plan summary" },
     keywords: { type: "string", description: "Comma-separated keywords" },
     body: { type: "string", description: "Inline markdown body content" },
@@ -136,6 +137,7 @@ defineCommand({
 async function handlePlanCreate(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
   const slug = params.slug as string;
   const title = params.title as string;
+  const status = (params.status as PlanStatus | undefined) ?? "proposed";
   const summary = params.summary as string | undefined;
   const keywordsRaw = params.keywords as string | undefined;
   const bodyInline = params.body as string | undefined;
@@ -157,11 +159,11 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
   const id = normalizeIdentifier(title);
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldCreate: { title, slug, id, status: "proposed", summary, keywords, hasBody: !!(bodyInline || bodyFile) } });
+    return success({ dryRun: true, wouldCreate: { title, slug, id, status, summary, keywords, hasBody: !!(bodyInline || bodyFile) } });
   }
 
   try {
-    requireWriteGate(token, slug, "tool:create_project_plan");
+    requireWriteGate(token, slug, "plan-create");
   } catch (err) {
     if (err instanceof WriteGateError) {
       return failure(err.code, err.message, { hint: err.hint });
@@ -181,7 +183,7 @@ async function handlePlanCreate(params: Record<string, unknown>, flags: CommandF
     const meta = await createPlan(projectDir, {
       id,
       title,
-      status: "proposed",
+      status,
       keywords,
       summary,
       ...(content && { content }),

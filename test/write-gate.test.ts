@@ -5,6 +5,9 @@ import {
   getWriteProposal,
   clearWriteProposals,
   normalizeOpName,
+  requireWriteGate,
+  enableWriteGateBypass,
+  disableWriteGateBypass,
   type WriteProposal,
   type WriteProposalInput,
   WriteGateError,
@@ -111,6 +114,91 @@ describe("write-gate token model", () => {
     });
   });
 
+  describe("multi-op proposals (per-op consumption budget)", () => {
+    beforeEach(() => {
+      disableWriteGateBypass();
+    });
+    afterEach(() => {
+      enableWriteGateBypass();
+    });
+
+    it("allows N consumptions when ops list has N entries with the same op", () => {
+      // Regression for bug 3: a proposal listing task-transition 3 times should
+      // authorize three task-transition mutations, not one.
+      const proposal = createWriteProposal(
+        makeInput({ operations: ["task-transition", "task-transition", "task-transition"] }),
+        now,
+      );
+
+      // Three successive consumptions all succeed
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "task-transition", now + 1000),
+      ).not.toThrow();
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "task-transition", now + 2000),
+      ).not.toThrow();
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "task-transition", now + 3000),
+      ).not.toThrow();
+    });
+
+    it("rejects the (N+1)th consumption once budget is exhausted", () => {
+      const proposal = createWriteProposal(
+        makeInput({ operations: ["task-transition", "task-transition"] }),
+        now,
+      );
+
+      requireWriteGate(proposal.token, "my-project", "task-transition", now + 1000);
+      requireWriteGate(proposal.token, "my-project", "task-transition", now + 2000);
+
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "task-transition", now + 3000),
+      ).toThrow(/exhausted|already consumed|no remaining budget/i);
+    });
+
+    it("matches consumption requests by canonical op name", () => {
+      // Proposal lists canonical 'plan-create'; handler passes legacy
+      // 'tool:create_project_plan'. Both must resolve to the same budget slot.
+      const proposal = createWriteProposal(
+        makeInput({ operations: ["plan-create", "task-create"] }),
+        now,
+      );
+
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "tool:create_project_plan", now + 1000),
+      ).not.toThrow();
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "create_project_task", now + 2000),
+      ).not.toThrow();
+    });
+
+    it("rejects requested op not in the budget", () => {
+      const proposal = createWriteProposal(
+        makeInput({ operations: ["task-transition"] }),
+        now,
+      );
+
+      expect(() =>
+        requireWriteGate(proposal.token, "my-project", "plan-create", now + 1000),
+      ).toThrow(/operation mismatch|not authorized/i);
+    });
+
+    it("preserves existing single-op behavior for consumeWriteProposal", () => {
+      // consumeWriteProposal (used by 'spoc write apply') treats the entire
+      // proposal as one-shot regardless of ops length. This is by design — it's
+      // the explicit-consume API. Per-op budgeting only applies via
+      // requireWriteGate (handler-driven consumption).
+      const proposal = createWriteProposal(
+        makeInput({ operations: ["task-transition", "task-transition"] }),
+        now,
+      );
+      consumeWriteProposal(proposal, "my-project", now + 1000);
+      expect(() => consumeWriteProposal(proposal, "my-project", now + 2000)).toThrow(
+        /already consumed/,
+      );
+    });
+  });
+
   describe("getWriteProposal (in-memory store)", () => {
     it("retrieves a stored proposal by token", () => {
       const proposal = createWriteProposal(makeInput(), now);
@@ -132,8 +220,14 @@ describe("write-gate token model", () => {
       expect(normalizeOpName("cli:task_create")).toBe("task-create");
     });
 
-    it("normalizes underscores to hyphens without prefix", () => {
-      expect(normalizeOpName("create_project_task")).toBe("create-project-task");
+    it("resolves snake_case legacy aliases to canonical kebab-case", () => {
+      // create_project_task is a known legacy alias of task-create (see op-names.ts)
+      expect(normalizeOpName("create_project_task")).toBe("task-create");
+    });
+
+    it("falls back to generic kebab-case for unknown ops", () => {
+      // not in the registry — generic transform applies
+      expect(normalizeOpName("custom_unregistered_op")).toBe("custom-unregistered-op");
     });
 
     it("lowercases the result", () => {
@@ -142,6 +236,13 @@ describe("write-gate token model", () => {
 
     it("passes through already-normalized names", () => {
       expect(normalizeOpName("task-create")).toBe("task-create");
+    });
+
+    it("resolves canonical and tool: prefixed alias to the same value", () => {
+      // Regression: handler passes "tool:create_project_plan", proposal lists "plan-create".
+      // Both must normalize to the same canonical so the gate match succeeds.
+      expect(normalizeOpName("tool:create_project_plan")).toBe(normalizeOpName("plan-create"));
+      expect(normalizeOpName("tool:create_project_plan")).toBe("plan-create");
     });
   });
 });

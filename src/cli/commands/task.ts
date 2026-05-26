@@ -178,10 +178,15 @@ defineCommand({
   handler: handleTaskTransition,
 });
 
-/** Map task status to diagram classDef status */
+/**
+ * Map task status (snake_case in the SPOC task model) to diagram classDef
+ * status (camelCase in the Mermaid script). The two namespaces are
+ * intentionally distinct — task statuses follow Python/JSON convention,
+ * diagram statuses match the classDef identifiers.
+ */
 function taskStatusToDiagramStatus(status: TaskStatus): string {
   switch (status) {
-    case "in_progress": return "in_progress";
+    case "in_progress": return "inProgress";
     case "done": return "done";
     case "cancelled": return "blocked";
     case "backlog": return "backlog";
@@ -216,6 +221,9 @@ export function attemptDiagramUpdate(slug: string, planId: string, nodeId: strin
     execSync(`node "${scriptPath}" status "${diagramPath}" "${nodeId}" "${diagramStatus}"`, {
       encoding: "utf-8",
       timeout: 10000,
+      // Capture child stderr so script error output never leaks to the parent's
+      // stderr — keeps --json output clean and parseable for agents.
+      stdio: ["ignore", "pipe", "pipe"],
     });
     return { diagramUpdated: true };
   } catch (err) {

@@ -20,6 +20,7 @@ import {
   type TaskPriority,
   type PlanStatus,
 } from "../../utils/project-memory.js";
+import { resolveOpName } from "../../utils/op-names.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
 import { requireWriteGate } from "../../utils/write-gate.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
@@ -63,13 +64,16 @@ const BATCH_OPS: BatchOpInfo[] = [
 
 const VALID_OPS = BATCH_OPS.map((o) => o.canonical);
 
+/**
+ * Resolve a batch op name to the canonical form that this handler implements.
+ * Uses the shared op-names registry for alias resolution, then validates the
+ * result is a batch-supported op (a subset of all gated ops). Returns the
+ * input unchanged if not a recognized batch op so the handler reports a clear
+ * "unsupported op" error downstream.
+ */
 function normalizeBatchOp(op: string): string {
-  if (VALID_OPS.includes(op)) return op;
-  for (const info of BATCH_OPS) {
-    if (info.aliases.includes(op)) return info.canonical;
-  }
-  const normalized = op.toLowerCase().replace(/[\s_]+/g, "-");
-  if (VALID_OPS.includes(normalized)) return normalized;
+  const canonical = resolveOpName(op);
+  if (VALID_OPS.includes(canonical)) return canonical;
   return op;
 }
 
