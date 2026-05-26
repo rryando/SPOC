@@ -203,6 +203,8 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "architecture-review",   // agent-loaded skill for system-architect
     "knowledge-curation",    // agent-loaded skill for spoc-docs
     "performance-diagnosis", // agent-loaded skill for code-doctor
+    "deep-pr-review",        // host-specific skill invoked directly by user PR-review trigger
+    "customize-opencode",    // host-specific meta-skill for editing opencode's own config
   ];
 
   it("every skill on disk is either routed or listed as non-routed exception", () => {
