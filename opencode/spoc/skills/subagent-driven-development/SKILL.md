@@ -9,6 +9,10 @@ description: Use when executing implementation plans with independent tasks in t
 
 You have an implementation plan with mostly-independent tasks and want to execute them in-session via fresh subagents with two-stage review.
 
+**NOT for:**
+- If no subagent dispatch capability is available → use `executing-plans` instead (single-agent sequential)
+- If the work is iterative self-correction without structured plan tasks → use `loop` instead
+
 > CLI Primer: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
 
 ## Flow
@@ -98,6 +102,21 @@ Do NOT make the subagent read the plan file. Provide full text in the prompt.
 - `./implementer-prompt.md`
 - `./spec-reviewer-prompt.md`
 - `./code-quality-reviewer-prompt.md`
+
+## Parallelism Rules
+
+When dispatching multiple implementers in the same round:
+
+1. **Independence check:** Tasks must not share files. If file overlap → serialize instead.
+2. **Batch limit:** Maximum 4 concurrent subagents per round. Queue remaining.
+3. **Prompt construction:** Each subagent gets: Scope, Goal, Context, Constraints, Output format — all required.
+4. **Conflict detection:** After fan-out completes, check for conflicting edits before committing.
+5. **Shared context:** Fetch once (e.g., project brief), inject into all subagent prompts — don't make each agent re-fetch.
+
+**When to serialize instead:**
+- Tasks share source files (even different functions in same file)
+- Task B's approach depends on Task A's output
+- Both tasks modify test fixtures or shared mocks
 
 ## Constraints
 

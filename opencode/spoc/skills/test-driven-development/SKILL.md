@@ -9,6 +9,8 @@ description: Use when implementing any feature or bugfix, before writing impleme
 
 Implementing any feature, bugfix, or behavior change. No production code without a failing test first.
 
+> **Note:** This skill is typically invoked BY `code-agent` when new non-trivial behavior needs test-first implementation. Rarely loaded directly by orchestrators — prefer routing through `code-agent` which will invoke TDD as needed.
+
 ## Flow
 
 ```mermaid

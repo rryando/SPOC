@@ -73,7 +73,7 @@ flowchart TD
 A plan diagram MUST be generated and presented before proceeding to storage. Draft in memory or `/tmp` — never write to DAG before the user confirms the design.
 </HARD-GATE>
 
-- Load `to-diagram` skill silently (don't narrate conventions to user)
+- Load the `to-diagram` skill before generating any diagram content.
 - Use `flowchart TD` for task/dependency graphs; `stateDiagram-v2` for lifecycles
 - All nodes start `:::backlog`, stable IDs (`T001`, `T002`, ...)
 - Persist to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` only after the user confirms the design

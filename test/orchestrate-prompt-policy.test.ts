@@ -122,11 +122,11 @@ describe("orchestrate prompt policy — diagram drift types enumeration", () => 
     expect(syncSection.toLowerCase()).toContain("spoc-docs");
   });
 
-  it("EXECUTE diagram section references manage-diagram.mjs for regeneration", () => {
+  it("EXECUTE diagram section references spoc diagram for regeneration", () => {
     const execStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### EXECUTE Workflow");
     const execEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
     const execSection = ORCHESTRATE_PROMPT_TEXT.slice(execStart, execEnd);
-    expect(execSection).toContain("manage-diagram.mjs");
+    expect(execSection).toContain("spoc diagram");
   });
 
   it("EXECUTE references spoc diagram ready for task selection", () => {
@@ -163,6 +163,9 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "to-diagram",
     "loop",
     "init-project",
+    "task-triage",
+    "onboarding-session",
+    "spoc-sync",
   ];
 
   // Skills that are host-specific, formatting-only, or special-purpose (not routed by orchestrator)

@@ -371,6 +371,7 @@ describe("opencode bundle runtime manifest", () => {
         "executing-plans": ["SKILL.md"],
         "finishing-a-development-branch": ["SKILL.md"],
         "knowledge-curation": ["SKILL.md"],
+        "onboarding-session": ["SKILL.md"],
         "performance-diagnosis": ["SKILL.md"],
         "quick-dev": ["SKILL.md"],
         "receiving-code-review": ["SKILL.md"],
@@ -383,6 +384,7 @@ describe("opencode bundle runtime manifest", () => {
           "start-server.sh",
           "stop-server.sh",
         ],
+        "spoc-sync": ["SKILL.md"],
         "subagent-driven-development": [
           "SKILL.md",
           "code-quality-reviewer-prompt.md",
@@ -398,6 +400,7 @@ describe("opencode bundle runtime manifest", () => {
           "phases-reference.md",
           "root-cause-tracing.md",
         ],
+        "task-triage": ["SKILL.md"],
         "test-driven-development": [
           "SKILL.md",
           "tdd-rationalizations-and-examples.md",

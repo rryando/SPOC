@@ -37,7 +37,7 @@ flowchart TD
 
 ## Mode Detection
 
-- Bash available (`spoc --version` works) → **agent-direct**: write plan + diagram + tasks via CLI
+- Bash available (`spoc --commands --json` works) → **agent-direct**: write plan + diagram + tasks via CLI
 - No bash → **orchestrator mode**: return structured artifact:
 
 ```

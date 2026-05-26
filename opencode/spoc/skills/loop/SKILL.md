@@ -9,6 +9,10 @@ description: Use when you need to run a self-referential development loop that a
 
 Running iterative work that should auto-continue until a task is fully complete.
 
+**NOT for:**
+- If you have a structured plan with discrete tasks and dependencies → use `executing-plans` or `subagent-driven-development`
+- If the work is a one-shot bounded change → use `quick-dev` instead
+
 ## Flow
 
 ```mermaid

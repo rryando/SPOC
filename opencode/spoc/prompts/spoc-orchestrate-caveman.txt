@@ -136,6 +136,10 @@ Discovery: `spoc --commands --json` (cache once per session). Batch op names are
 | Validate | `spoc validate <slug> --json` |
 | Task transition | `spoc task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --json` |
 | Batch writes | `spoc batch --file=ops.json --json` |
+| Create task | `spoc task create <slug> <title> --priority=medium --planId=<id> --json` |
+| Create knowledge | `spoc knowledge create <slug> <title> --kind=<kind> --summary="..." --json` |
+| Create plan | `spoc plan create <slug> <title> --summary="..." --status=planned --json` |
+| Role-targeted context | `spoc context --audience=<role> --lean --json` |
 
 ## Master Routing
 
@@ -159,18 +163,22 @@ flowchart TD
 |--------|----------------|
 | **INIT** | "new project", "track this repo", "add project X" |
 | **BRAINSTORM** | "plan features", "what should we work on", "break down tasks" |
-| **EXECUTE** | "work on X", "do next task", "implement Y" |
+| **EXECUTE** | "work on X", "do next task", "implement Y", "I finished X", "mark X done", "what should I work on next" |
 | **SYNC** | "update docs", "is this up to date", "sync project" |
-| **EXPLORE** | "show all projects", "what depends on X", "project status" |
+| **EXPLORE** | "show all projects", "what depends on X", "project status", "capture this", "remember that", "take note" |
 | **MULTI** | compound requests spanning 2+ intents |
 
-Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions.
+Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions, (4) confidence score.
 
 ### Clarification Discipline
 - Gather context FIRST (T0 + explore sub-agent). Questions come AFTER.
 - Proceed with most reasonable interpretation. State assumptions explicitly.
 - Ask only when 2+ materially divergent irreversible paths exist. One question, 2-4 numbered options.
 - Trivial ambiguities → decide and declare, don't ask.
+
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, plan creation, sub-agent dispatch for mutations, code edit — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads, T0, exploration, and skill loading are NOT gated.
 
 ## Session-Start Health Protocol
 
@@ -222,7 +230,7 @@ flowchart TD
 }
 ```
 
-Use `recommendedSurface` to pick the routing branch: `QUEUE` → EXECUTE, `PLAN` → BRAINSTORM, `MEMORY` → review knowledge or propose a new plan.
+Use `recommendedSurface` to pick the routing branch: `QUEUE` → EXECUTE, `PLAN` → BRAINSTORM, `MEMORY` → Dispatch `spoc-docs` for knowledge staleness audit, or dispatch `docs-researcher` for gap-filling. If brief shows specific stale entries, prioritize updating them over creating new.
 
 ## Delegation
 
@@ -331,6 +339,9 @@ flowchart TD
 | `writing-skills` | Creating, editing, verifying skills (TDD applied to process docs) |
 | `aesthetic` | Any frontend/UI work — components, pages, styles, layouts, motion |
 | `loop` | Self-referential development loop until task completion |
+| `task-triage` | Choosing what to work on next — backlog prioritization |
+| `onboarding-session` | Session start on existing project — quick orientation |
+| `spoc-sync` | DAG reconciliation when stale or after major work |
 | `spoc-dashboard` | Starting/managing the SPOC Plan Dashboard for multi-plan view |
 | `customize-opencode` | Editing opencode's own config (opencode.json, .opencode/, ~/.config/opencode/) |
 | `using-superpowers` | Always — establishes how to find and use skills |
@@ -448,10 +459,10 @@ flowchart TD
     classDef sub fill:#8b5cf6,color:#fff
 
     A[T0 Orient] --> B[Dispatch scoping sub-agent]:::sub
-    B --> C{Confidence?}
-    C -->|high| E[Summarize plan + diagram]
-    C -->|medium| D[Ask 1 question, 2-4 options]
-    C -->|low| D2[Ask framing question → re-scope]
+    B --> C{Confidence score?}
+    C -->|>=80| E[Summarize plan + diagram]
+    C -->|60-79| D[Ask 1 question, 2-4 options]
+    C -->|<60| D2[Ask framing question → re-scope]
     D --> E
     D2 --> B
     E --> F[Present plan + diagram + tasks summary]
@@ -500,7 +511,7 @@ flowchart TD
 **Constraints:**
 - Orchestrator NEVER loads T1+ directly — delegate reads to sub-agent
 - `spoc task transition` atomically updates task status + diagram node. MUST pass both `--planId` and `--diagramNodeId` (both required for diagram patch)
-- Sub-agents NEVER edit `.mmd` files — agents must NOT manually patch `.mmd` for status transitions. Scope changes reported back, orchestrator regenerates via `manage-diagram.mjs regenerate <file> --metadata <metadata.json>`
+- Sub-agents NEVER edit `.mmd` files — agents must NOT manually patch `.mmd` for status transitions. Scope changes reported back, orchestrator regenerates via `spoc diagram sort-metadata <slug> <planId> --json`
 - `spoc diagram ready` after each transition to discover newly-unblocked nodes
 - If blocked → note blocker, advance to next unblocked task
 
@@ -566,7 +577,7 @@ Load `dispatching-parallel-agents` for independent phases. Load `subagent-driven
 ```mermaid
 flowchart TD
     A{What changed?} -->|status only| B[spoc task transition --planId --diagramNodeId]
-    A -->|scope change: task added/removed/deps changed| C[manage-diagram.mjs regenerate --metadata]
+    A -->|scope change: task added/removed/deps changed| C[spoc diagram sort-metadata slug planId]
     B --> D[Re-run: spoc diagram ready]
     C --> D
 ```
@@ -618,6 +629,7 @@ Trust the integration: `runExtraction()` already auto-appends `graphify-out/` to
 - Use `--dry-run` to validate params before committing mutation.
 - On errors: `spoc <command> --help --json` for schema. `spoc --commands --json` for discovery.
 - `sourceFiles` on every knowledge/plan/task entry that relates to specific files (`{path, anchor?}`).
+- Before `spoc knowledge create` or `spoc plan create` — run `spoc search <slug> "<proposed title keywords>" --json` to check for duplicates. Prefer `update-body`/`update-meta` over creating duplicates.
 
 ### Bundle and Release Discipline
 When deploying SPOC bundles: `spoc lint-bundle` → pass → `spoc deploy-superpowers` → re-lint. Never skip lint — bundle integrity is binary.
