@@ -1,0 +1,120 @@
+// ---------------------------------------------------------------------------
+// Graph-related commands — related, graph inspect (registry-based)
+// ---------------------------------------------------------------------------
+
+import { existsSync } from "node:fs";
+import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
+import { success, failure } from "../output-envelope.js";
+import { getProjectDir } from "../../utils/paths.js";
+import { retrieveRelated } from "../../retrieval/graph-retrieval.js";
+import { createGraphCache } from "../../retrieval/graph-cache.js";
+
+// ---------------------------------------------------------------------------
+// related
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "related",
+  description: "Find entities related to a task, knowledge entry, or plan via the knowledge graph",
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    task: { type: "string", description: "Task ID to find related entities for" },
+    plan: { type: "string", description: "Plan ID to find related entities for" },
+    knowledge: { type: "string", description: "Knowledge entry ID to find related entities for" },
+    limit: { type: "number", description: "Max results to return (default 10)" },
+  },
+  handler: handleRelatedCmd,
+});
+
+async function handleRelatedCmd(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const taskId = params.task as string | undefined;
+  const knowledgeId = params.knowledge as string | undefined;
+  const planId = params.plan as string | undefined;
+
+  if (!taskId && !knowledgeId && !planId) {
+    return failure(ERROR_CODES.MISSING_PARAM, "One of --task, --knowledge, or --plan is required", {
+      usage: "spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
+    });
+  }
+
+  let startNodeId: string;
+  if (taskId) {
+    startNodeId = `task:${taskId}`;
+  } else if (knowledgeId) {
+    startNodeId = `knowledge:${knowledgeId}`;
+  } else {
+    startNodeId = `plan:${planId}`;
+  }
+
+  const limit = (params.limit as number | undefined) ?? 10;
+  const results = await retrieveRelated(slug, startNodeId, { limit });
+
+  return success({ related: results });
+}
+
+// ---------------------------------------------------------------------------
+// graph inspect
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "graph inspect",
+  description: "Show knowledge graph index statistics for a project",
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+  },
+  handler: handleGraphInspectCmd,
+});
+
+async function handleGraphInspectCmd(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+  const slug = params.slug as string;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`);
+  }
+
+  const cache = createGraphCache();
+  const index = await cache.getOrBuild(slug);
+
+  const nodeCount = index.nodes.size;
+
+  let edgeCount = 0;
+  for (const edgeList of index.edges.values()) {
+    edgeCount += edgeList.length;
+  }
+
+  const nodesByType: Record<string, number> = {};
+  for (const node of index.nodes.values()) {
+    nodesByType[node.type] = (nodesByType[node.type] || 0) + 1;
+  }
+
+  const mostConnectedFiles = [...index.fileIndex.entries()]
+    .map(([path, refs]) => ({ path, refs: refs.length }))
+    .sort((a, b) => b.refs - a.refs)
+    .slice(0, 10);
+
+  // Orphan nodes: no outgoing AND no incoming edges
+  const hasConnection = new Set<string>();
+  for (const [source, edgeList] of index.edges.entries()) {
+    if (edgeList.length > 0) hasConnection.add(source);
+    for (const edge of edgeList) {
+      hasConnection.add(edge.target);
+    }
+  }
+  const orphanNodes: string[] = [];
+  for (const nodeId of index.nodes.keys()) {
+    if (!hasConnection.has(nodeId)) orphanNodes.push(nodeId);
+  }
+
+  const density = nodeCount > 1 ? edgeCount / (nodeCount * (nodeCount - 1)) : 0;
+
+  return success({
+    nodeCount,
+    edgeCount,
+    nodesByType,
+    mostConnectedFiles,
+    orphanNodes,
+    density: Math.round(density * 1000) / 1000,
+  });
+}
