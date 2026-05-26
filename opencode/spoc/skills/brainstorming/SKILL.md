@@ -43,12 +43,14 @@ flowchart TD
 
 ## Confidence Check
 
+Score per `confidence-gate` rubric. The HARD-GATE that blocks moving to `writing-plans` additionally requires score ≥80% before requesting user approval — under threshold, recover (ask user) before proposing approaches.
+
 ```mermaid
 flowchart TD
-    Q[Assess understanding] --> R{Confidence level?}
-    R -->|High - clear scope, known patterns| S[Propose approaches directly]
-    R -->|Medium - some unknowns| T[Ask 2-3 targeted questions]
-    R -->|Low - vague or multi-system| U[Scope decomposition first]
+    Q[Assess understanding] --> R{Confidence score?}
+    R -->|>=80 - clear scope, known patterns| S[Propose approaches directly]
+    R -->|60-79 - some unknowns| T[Ask 1 targeted question per confidence-gate]
+    R -->|<60 - vague or multi-system| U[Scope decomposition first]
 ```
 
 ## Q&A Rhythm

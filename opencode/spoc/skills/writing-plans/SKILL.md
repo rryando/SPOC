@@ -153,6 +153,7 @@ flowchart TD
 
 - Chunk boundaries: `## Chunk N: <name>`, ≤1000 lines each
 - Same agent fixes (preserves context). Max 5 iterations, then surface to human.
+- Reviewer must announce confidence score per `confidence-gate`. Score <80% loops back to "Fix chunk" — never proceed past a sub-threshold review.
 
 ## Storage
 

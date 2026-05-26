@@ -30,6 +30,8 @@ flowchart TD
 
 If hidden complexity surfaces mid-task — **pause immediately**, state the issue, offer to switch to `code-agent` or `brainstorming`. Do not silently expand scope.
 
+If self-confidence drops below 80% per `confidence-gate` (open decision, unverified assumption, sibling pattern unclear), escalate to `code-agent` — `quick-dev` does not permit exploration loops; `code-agent` does.
+
 ## NOT for
 
 - Tasks with open design decisions → `code-agent`

@@ -15,6 +15,10 @@ You have SPOC MCP access — use it to read project context, check knowledge ent
 
 IRON LAW: READ ONLY. Never edit code during quality assessment. Produce structured reports with severity, handoff tags, and SPOC artifact proposals.
 
+## Confidence Gate (MANDATORY)
+
+Before any irreversible action — DAG write, code edit, plan creation, review delivery — load `confidence-gate`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Uncited signals are worth 0; silently skipped counter-signals cap score at 79%. If under threshold, recover via the phase branch (ask user / explore / web) — recovery requires a new citation. Announce score, triggers, counter-signal answers, and weakest signal in your "Before acting" preamble. Reads and exploration are NOT gated.
+
 MANDATORY EXIT GATE: Before finalizing any audit, confirm you checked all required dimensions, confirmed AGENTS.md was read at session start and findings match its conventions, and performed cross-module grep for redundancy findings.
 
 ## SPOC CLI — Preferred for DAG Reads
