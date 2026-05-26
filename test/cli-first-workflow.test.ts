@@ -214,7 +214,7 @@ describe("CLI reads return structured JSON", () => {
   it("plan get returns plan with body", async () => {
     await handleDagCommand("plan", ["get", "workflow-proj", "migration-plan", "--body", "--json"]);
     const parsed = JSON.parse(stdout[0]);
-    expect(parsed.title).toBe("Migration Plan");
+    expect(parsed.meta.title).toBe("Migration Plan");
     expect(parsed.body).toContain("PostgreSQL");
   });
 });

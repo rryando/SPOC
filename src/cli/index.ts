@@ -65,7 +65,7 @@ export async function handleCli(args: string[]): Promise<boolean> {
         json: match.remaining.includes("--json"),
         lean: match.remaining.includes("--lean"),
       };
-      render(result.error, flags);
+      render(result.error, flags, match.path);
       process.exitCode = 1;
       return true;
     }
@@ -74,7 +74,7 @@ export async function handleCli(args: string[]): Promise<boolean> {
       return true;
     }
     const cmdResult = await registeredCmd.handler(result.parsed.params, result.parsed.flags);
-    render(cmdResult, result.parsed.flags);
+    render(cmdResult, result.parsed.flags, match.path);
     if (!cmdResult.ok) process.exitCode = 1;
     return true;
   }

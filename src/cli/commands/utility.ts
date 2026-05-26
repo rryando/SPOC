@@ -4,14 +4,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 import { extractOverviewContent } from "../../utils/content-assembly.js";
-import { type RootMeta, readRootMeta } from "../../utils/dag.js";
-import { readJsonSafe, validateJson } from "../../utils/json.js";
-import { projectMetaSchema } from "../../utils/json-schemas.js";
-import { getDataDir, getProjectDir } from "../../utils/paths.js";
+import { getProjectDir } from "../../utils/paths.js";
 import {
   KNOWLEDGE_AUDIENCES,
   type KnowledgeAudience,
@@ -19,8 +15,8 @@ import {
   readKnowledgeIndex,
   readPlanIndex,
 } from "../../utils/project-memory.js";
+import { resolveProject } from "../../utils/project-resolver.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
-import { findBestMatch, type WorkspaceProject } from "../../utils/workspace-match.js";
 import {
   type CLIResult,
   type CommandFlags,
@@ -47,7 +43,7 @@ defineCommand({
       description: "Target audience for knowledge filtering (default: orchestrator)",
       enum: ["orchestrator", "implementer", "designer"],
     },
-    task: { type: "string", description: "Task ID for scoped context" },
+    // TODO: wire task-scoped context via src/retrieval/task-scoped.ts
     full: {
       type: "boolean",
       description: "Include done/cancelled tasks and done/archived plans (default: false)",
@@ -63,7 +59,6 @@ async function handleContext(
 ): Promise<CLIResult> {
   const rawArg = params.pathOrSlug as string | undefined;
   const audience = (params.audience as KnowledgeAudience | undefined) ?? "orchestrator";
-  const _taskIdFlag = params.task as string | undefined;
   const full = params.full as boolean | undefined;
   const _noGraph = params["no-graph"] as boolean | undefined;
 
@@ -75,93 +70,10 @@ async function handleContext(
   }
 
   // Resolve path/slug
-  let queryPath: string;
-  if (!rawArg) {
-    queryPath = process.cwd();
-  } else if (rawArg.startsWith("/")) {
-    queryPath = rawArg;
-  } else if (!rawArg.includes("/") && !rawArg.includes(".")) {
-    // Slug resolution
-    const dataDir = getDataDir();
-    const projMetaPath = resolve(dataDir, "projects", rawArg, "meta.json");
-    if (!existsSync(projMetaPath)) {
-      return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${rawArg}" not found in SPOC`);
-    }
-    try {
-      const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
-      const paths: string[] = Array.isArray(projMeta.workspacePaths) ? projMeta.workspacePaths : [];
-      if (paths.length === 0) {
-        return failure(
-          "no_workspace_paths",
-          `Project "${rawArg}" has no workspace paths configured`,
-        );
-      }
-      const first = paths[0];
-      queryPath = first.startsWith("~") ? resolve(homedir(), first.slice(2)) : resolve(first);
-    } catch {
-      return failure("read_error", `Could not read project metadata for "${rawArg}"`);
-    }
-  } else {
-    queryPath = resolve(rawArg);
-    if (!existsSync(queryPath)) {
-      return failure(
-        "path_not_found",
-        `Path "${rawArg}" does not exist. Use an absolute path or a project slug.`,
-      );
-    }
-  }
+  const resolved = await resolveProject(rawArg);
+  if (!resolved.ok) return resolved.result;
 
-  // Read root meta
-  const dataDir = getDataDir();
-  let rootMeta: RootMeta;
-  try {
-    rootMeta = await readRootMeta(dataDir);
-  } catch {
-    return failure("read_error", "Could not read SPOC data directory");
-  }
-
-  type ProjectMetaValidated = {
-    id: string;
-    name: string;
-    description: string;
-    createdAt: string;
-    workspacePaths: string[];
-    status?: string;
-    repoUrl?: string;
-  };
-  const workspaceProjects: WorkspaceProject[] = [];
-  const projectMetas = new Map<string, ProjectMetaValidated>();
-
-  for (const node of rootMeta.projects) {
-    const metaPath = resolve(dataDir, "projects", node.id, "meta.json");
-    if (!existsSync(metaPath)) continue;
-    const raw = await readJsonSafe<unknown>(metaPath);
-    if (raw === undefined) continue;
-    const meta = validateJson(raw, projectMetaSchema, metaPath) as ProjectMetaValidated;
-    const paths = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
-    if (paths.length > 0) {
-      workspaceProjects.push({ slug: node.id, workspacePaths: paths });
-      projectMetas.set(node.id, meta);
-    }
-  }
-
-  const matchResult = findBestMatch(queryPath, workspaceProjects);
-
-  if (matchResult.kind === "none") {
-    return failure("no_match", `No project found matching path "${queryPath}"`);
-  }
-  if (matchResult.kind === "ambiguous") {
-    return failure(
-      "ambiguous_match",
-      `Ambiguous match for "${queryPath}" — matches: ${matchResult.slugs.join(", ")}`,
-    );
-  }
-
-  const slug = matchResult.slug;
-  const projectDir = getProjectDir(slug);
-  const meta = projectMetas.get(slug);
-  const name = meta?.name ?? slug;
-  const description = meta?.description ?? "";
+  const { slug, name, description, projectDir } = resolved;
 
   // Build JSON output
   const overviewPath = resolve(projectDir, "overview.md");
@@ -298,6 +210,11 @@ defineCommand({
   description: "Run health checks on a project's DAG state",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    checks: {
+      type: "string",
+      description:
+        "Comma-separated checks to run (default: all). Valid: all, sourcefiles, status-drift, diagrams, agents-md",
+    },
   },
   handler: handleValidate,
 });
@@ -311,12 +228,22 @@ interface ValidationIssue {
   safeToAutoRepair?: boolean;
 }
 
-async function handleValidate(
-  params: Record<string, unknown>,
-  _flags: CommandFlags,
-): Promise<CLIResult> {
-  const slug = params.slug as string;
+const VALID_CHECKS = ["all", "sourcefiles", "status-drift", "diagrams", "agents-md"] as const;
+type CheckName = (typeof VALID_CHECKS)[number];
 
+function parseChecks(raw: string | undefined): Set<CheckName> {
+  if (!raw || raw === "all") return new Set(VALID_CHECKS);
+  const parts = raw.split(",").map((s) => s.trim()) as CheckName[];
+  return new Set(parts);
+}
+
+/**
+ * Core validation logic — exported for reuse by the `audit` alias command.
+ */
+export async function runValidation(
+  slug: string,
+  checks: Set<CheckName>,
+): Promise<CLIResult> {
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
@@ -337,81 +264,93 @@ async function handleValidate(
   let totalChecks = 0;
 
   // Check 1: Knowledge sourceFiles exist
-  const knowledgeIndex = await readKnowledgeIndex(projectDir);
-  for (const entry of knowledgeIndex.entries) {
-    const sourceFiles = entry.sourceFiles ?? [];
-    for (const ref of sourceFiles) {
+  if (checks.has("all") || checks.has("sourcefiles")) {
+    const knowledgeIndex = await readKnowledgeIndex(projectDir);
+    for (const entry of knowledgeIndex.entries) {
+      const sourceFiles = entry.sourceFiles ?? [];
+      for (const ref of sourceFiles) {
+        totalChecks++;
+        const found = workspacePaths.some((ws) => existsSync(resolve(ws, ref.path)));
+        if (!found && workspacePaths.length > 0) {
+          issues.push({
+            severity: "warning",
+            kind: "stale_knowledge_source",
+            message: `Knowledge entry "${entry.title}" references missing file: ${ref.path}`,
+            file: ref.path,
+            repair: `Remove stale sourceFile reference from knowledge entry "${entry.id}"`,
+            safeToAutoRepair: false,
+          });
+        }
+      }
+    }
+  }
+
+  // Check 2: AGENTS.md exists in workspace paths
+  if (checks.has("all") || checks.has("agents-md")) {
+    for (const ws of workspacePaths) {
       totalChecks++;
-      const found = workspacePaths.some((ws) => existsSync(resolve(ws, ref.path)));
-      if (!found && workspacePaths.length > 0) {
+      const agentsPath = resolve(ws, "AGENTS.md");
+      if (!existsSync(agentsPath)) {
         issues.push({
-          severity: "warning",
-          kind: "stale_knowledge_source",
-          message: `Knowledge entry "${entry.title}" references missing file: ${ref.path}`,
-          file: ref.path,
-          repair: `Remove stale sourceFile reference from knowledge entry "${entry.id}"`,
+          severity: "info",
+          kind: "missing_agents_md",
+          message: `No AGENTS.md found at workspace path: ${ws}`,
+          file: agentsPath,
+          repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
+          safeToAutoRepair: true,
+        });
+      }
+    }
+  }
+
+  // Check 3: Plan diagrams
+  if (checks.has("all") || checks.has("diagrams")) {
+    const planIndex = await readPlanIndex(projectDir);
+    const plansDir = resolve(projectDir, "plans");
+    const activeStatuses = ["planned", "in_progress", "blocked"];
+
+    for (const plan of planIndex.plans) {
+      if (!activeStatuses.includes(plan.status)) continue;
+      totalChecks++;
+      const diagramPath = resolve(plansDir, `${plan.normalizedId}.diagram.mmd`);
+      if (!existsSync(diagramPath)) {
+        issues.push({
+          severity: "info",
+          kind: "missing_plan_diagram",
+          message: `Active plan "${plan.title}" has no diagram file`,
+          file: diagramPath,
+          repair: `Create diagram for plan "${plan.id}" using to-diagram skill`,
           safeToAutoRepair: false,
         });
       }
     }
   }
 
-  // Check 2: AGENTS.md exists in workspace paths
-  for (const ws of workspacePaths) {
-    totalChecks++;
-    const agentsPath = resolve(ws, "AGENTS.md");
-    if (!existsSync(agentsPath)) {
-      issues.push({
-        severity: "info",
-        kind: "missing_agents_md",
-        message: `No AGENTS.md found at workspace path: ${ws}`,
-        file: agentsPath,
-        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
-        safeToAutoRepair: true,
-      });
-    }
-  }
-
-  // Check 3: Plan diagrams
-  const planIndex = await readPlanIndex(projectDir);
-  const plansDir = resolve(projectDir, "plans");
-  const activeStatuses = ["planned", "in_progress", "blocked"];
-
-  for (const plan of planIndex.plans) {
-    if (!activeStatuses.includes(plan.status)) continue;
-    totalChecks++;
-    const diagramPath = resolve(plansDir, `${plan.normalizedId}.diagram.mmd`);
-    if (!existsSync(diagramPath)) {
-      issues.push({
-        severity: "info",
-        kind: "missing_plan_diagram",
-        message: `Active plan "${plan.title}" has no diagram file`,
-        file: diagramPath,
-        repair: `Create diagram for plan "${plan.id}" using to-diagram skill`,
-        safeToAutoRepair: false,
-      });
-    }
-  }
-
   // Check 4: Plan status vs task completion
-  const allTasks = await listTasks(projectDir);
-  for (const plan of planIndex.plans) {
-    if (!activeStatuses.includes(plan.status)) continue;
-    const planTasks = allTasks.filter((t) => t.planId === plan.id);
-    if (planTasks.length === 0) continue;
-    totalChecks++;
-    const allDone =
-      planTasks.every((t) => t.status === "done") &&
-      !planTasks.some((t) => t.status === "cancelled");
-    if (allDone) {
-      issues.push({
-        severity: "warning",
-        kind: "plan_status_drift",
-        message: `Plan "${plan.title}" is "${plan.status}" but all ${planTasks.length} tasks are done`,
-        file: resolve(plansDir, `${plan.normalizedId}.meta.json`),
-        repair: `Update plan "${plan.id}" status to "done"`,
-        safeToAutoRepair: false,
-      });
+  if (checks.has("all") || checks.has("status-drift")) {
+    const planIndex = await readPlanIndex(projectDir);
+    const plansDir = resolve(projectDir, "plans");
+    const activeStatuses = ["planned", "in_progress", "blocked"];
+    const allTasks = await listTasks(projectDir);
+
+    for (const plan of planIndex.plans) {
+      if (!activeStatuses.includes(plan.status)) continue;
+      const planTasks = allTasks.filter((t) => t.planId === plan.id);
+      if (planTasks.length === 0) continue;
+      totalChecks++;
+      const allDone =
+        planTasks.every((t) => t.status === "done") &&
+        !planTasks.some((t) => t.status === "cancelled");
+      if (allDone) {
+        issues.push({
+          severity: "warning",
+          kind: "plan_status_drift",
+          message: `Plan "${plan.title}" is "${plan.status}" but all ${planTasks.length} tasks are done`,
+          file: resolve(plansDir, `${plan.normalizedId}.meta.json`),
+          repair: `Update plan "${plan.id}" status to "done"`,
+          safeToAutoRepair: false,
+        });
+      }
     }
   }
 
@@ -427,4 +366,13 @@ async function handleValidate(
       },
     },
   });
+}
+
+async function handleValidate(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const checks = parseChecks(params.checks as string | undefined);
+  return runValidation(slug, checks);
 }

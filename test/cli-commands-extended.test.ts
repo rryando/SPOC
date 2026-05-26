@@ -184,6 +184,7 @@ describe("spoc plan get", () => {
     await handleDagCommand("plan", ["get", "test-proj", "my-plan", "--body", "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed.body).toContain("Do the refactor");
+    expect(parsed.meta.title).toBe("My Plan");
   });
 
   it("errors on missing plan", async () => {

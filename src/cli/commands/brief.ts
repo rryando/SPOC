@@ -2,15 +2,11 @@
 // brief — Tight T0 routing brief for orchestrator
 // ---------------------------------------------------------------------------
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { extractOverviewContent } from "../../utils/content-assembly.js";
-import { type RootMeta, readRootMeta } from "../../utils/dag.js";
-import { readJsonSafe, validateJson } from "../../utils/json.js";
-import { projectMetaSchema } from "../../utils/json-schemas.js";
-import { getDataDir, getProjectDir } from "../../utils/paths.js";
+import { getProjectDir } from "../../utils/paths.js";
 import {
   KNOWLEDGE_AUDIENCES,
   type KnowledgeAudience,
@@ -18,14 +14,13 @@ import {
   readKnowledgeIndex,
   readPlanIndex,
 } from "../../utils/project-memory.js";
+import { resolveProject } from "../../utils/project-resolver.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
-import { findBestMatch, type WorkspaceProject } from "../../utils/workspace-match.js";
 import { renderBrief } from "../brief-renderer.js";
 import {
   type CLIResult,
   type CommandFlags,
   defineCommand,
-  ERROR_CODES,
 } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 
@@ -184,95 +179,4 @@ function pickFirstProseParagraph(content: string): string {
   return fallback.length > 200 ? fallback.slice(0, 200) : fallback;
 }
 
-// ---------------------------------------------------------------------------
-// Project resolution — reuses same logic as handleContext
-// ---------------------------------------------------------------------------
 
-type ResolveSuccess = { ok: true; slug: string; name: string; projectDir: string };
-type ResolveFailure = { ok: false; result: CLIResult };
-
-async function resolveProject(
-  rawArg: string | undefined,
-): Promise<ResolveSuccess | ResolveFailure> {
-  let queryPath: string;
-  if (!rawArg) {
-    queryPath = process.cwd();
-  } else if (rawArg.startsWith("/")) {
-    queryPath = rawArg;
-  } else if (!rawArg.includes("/") && !rawArg.includes(".")) {
-    // Slug resolution
-    const dataDir = getDataDir();
-    const projMetaPath = resolve(dataDir, "projects", rawArg, "meta.json");
-    if (!existsSync(projMetaPath)) {
-      return {
-        ok: false,
-        result: failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${rawArg}" not found in SPOC`),
-      };
-    }
-    try {
-      const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
-      const paths: string[] = Array.isArray(projMeta.workspacePaths) ? projMeta.workspacePaths : [];
-      if (paths.length === 0) {
-        return {
-          ok: false,
-          result: failure(
-            "no_workspace_paths",
-            `Project "${rawArg}" has no workspace paths configured`,
-          ),
-        };
-      }
-      const first = paths[0];
-      queryPath = first.startsWith("~") ? resolve(homedir(), first.slice(2)) : resolve(first);
-    } catch {
-      return {
-        ok: false,
-        result: failure("read_error", `Could not read project metadata for "${rawArg}"`),
-      };
-    }
-  } else {
-    queryPath = resolve(rawArg);
-    if (!existsSync(queryPath)) {
-      return { ok: false, result: failure("path_not_found", `Path "${rawArg}" does not exist.`) };
-    }
-  }
-
-  const dataDir = getDataDir();
-  let rootMeta: RootMeta;
-  try {
-    rootMeta = await readRootMeta(dataDir);
-  } catch {
-    return { ok: false, result: failure("read_error", "Could not read SPOC data directory") };
-  }
-
-  type PM = { id: string; name: string; workspacePaths: string[] };
-  const workspaceProjects: WorkspaceProject[] = [];
-  const projectMetas = new Map<string, PM>();
-
-  for (const node of rootMeta.projects) {
-    const metaPath = resolve(dataDir, "projects", node.id, "meta.json");
-    if (!existsSync(metaPath)) continue;
-    const raw = await readJsonSafe<unknown>(metaPath);
-    if (raw === undefined) continue;
-    const meta = validateJson(raw, projectMetaSchema, metaPath) as PM;
-    const paths = Array.isArray(meta.workspacePaths) ? meta.workspacePaths : [];
-    if (paths.length > 0) {
-      workspaceProjects.push({ slug: node.id, workspacePaths: paths });
-      projectMetas.set(node.id, meta);
-    }
-  }
-
-  const matchResult = findBestMatch(queryPath, workspaceProjects);
-  if (matchResult.kind === "none") {
-    return {
-      ok: false,
-      result: failure("no_match", `No project found matching path "${queryPath}"`),
-    };
-  }
-  if (matchResult.kind === "ambiguous") {
-    return { ok: false, result: failure("ambiguous_match", `Ambiguous match for "${queryPath}"`) };
-  }
-
-  const slug = matchResult.slug;
-  const meta = projectMetas.get(slug);
-  return { ok: true, slug, name: meta?.name ?? slug, projectDir: getProjectDir(slug) };
-}

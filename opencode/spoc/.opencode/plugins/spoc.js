@@ -60,20 +60,7 @@ const getSpocDataDir = () => {
   return path.join(os.homedir(), ".spoc");
 };
 
-// Read dashboard info from .dashboard-info file.
-// Returns { url, port, pid, startedAt } or null. Atomic read — no separate
-// existsSync, so no race if the file disappears between check and read.
-const getDashboardInfo = () => {
-  const infoPath = path.join(getSpocDataDir(), '.dashboard-info');
-  try {
-    return JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-  } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    // Malformed JSON — stale file from crashed server. Remove silently.
-    try { fs.unlinkSync(infoPath); } catch {}
-    return null;
-  }
-};
+
 
 // Read loop state from a project directory
 const readLoopState = (projectDir) => {
@@ -124,10 +111,26 @@ const findActiveLoop = () => {
   return null;
 };
 
-// Build continuation prompt
+// Build continuation prompt based on strategy
 const buildContinuationPrompt = (state) => {
   const maxLabel =
     typeof state.maxIterations === "number" ? String(state.maxIterations) : "unbounded";
+
+  if (state.strategy === "reset") {
+    return `[SYSTEM DIRECTIVE - SPOC LOOP ITERATION ${state.iteration}/${maxLabel}]
+
+Start fresh on the following task. Previous attempts did not complete successfully.
+
+IMPORTANT:
+- Do NOT rely on previous context or partial work
+- Approach the task from scratch with a clean perspective
+- When FULLY complete, output: <promise>${state.completionPromise}</promise>
+- Do not stop until the task is truly done
+
+Task:
+${state.prompt}`;
+  }
+
   return `[SYSTEM DIRECTIVE - SPOC LOOP ITERATION ${state.iteration}/${maxLabel}]
 
 Your previous attempt did not output the completion promise. Continue working on the task.
@@ -142,18 +145,15 @@ Original task:
 ${state.prompt}`;
 };
 
-let dashboardToastShown = false;
-
 export const SpocPlugin = async ({ client, directory }) => {
   const inFlightSessions = new Set();
   const homeDir = os.homedir();
-  const spocSkillsDir = path.resolve(__dirname, "../../skills");
+  const spocSkillsDir = path.resolve(__dirname, "../skills/spoc");
   const envConfigDir = normalizePath(process.env.OPENCODE_CONFIG_DIR, homeDir);
   const configDir = envConfigDir || path.join(homeDir, ".config/opencode");
 
-  // Helper to generate bootstrap content
-  const getBootstrapContent = () => {
-    // Try to load using-superpowers skill
+  // Cache bootstrap content at plugin load (file doesn't change during session)
+  const cachedBootstrap = (() => {
     const skillPath = path.join(spocSkillsDir, "using-superpowers", "SKILL.md");
     if (!fs.existsSync(skillPath)) return null;
 
@@ -168,7 +168,7 @@ When skills reference tools you don't have, substitute OpenCode equivalents:
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
 
 **Skills location:**
-SPOC skills are in \`${configDir}/spoc/skills/\`
+SPOC skills are in \`${configDir}/skills/spoc/\`
 Use OpenCode's native \`skill\` tool to list and load skills.`;
 
     return `<EXTREMELY_IMPORTANT>
@@ -180,14 +180,13 @@ ${content}
 
 ${toolMapping}
 </EXTREMELY_IMPORTANT>`;
-  };
+  })();
 
   return {
     // Use system prompt transform to inject bootstrap (fixes #226 agent reset bug)
     "experimental.chat.system.transform": async (_input, output) => {
-      const bootstrap = getBootstrapContent();
-      if (bootstrap) {
-        (output.system ||= []).push(bootstrap);
+      if (cachedBootstrap) {
+        (output.system ||= []).push(cachedBootstrap);
       }
 
       // Inject the workspace directory so SPOC and other agents always know
@@ -197,31 +196,10 @@ ${toolMapping}
         (output.system ||= []).push(`<env>\n  Working directory: ${directory}\n</env>`);
       }
 
-      // Inject SPOC Dashboard URL if server is running
-      const dashboardInfo = getDashboardInfo();
-      if (dashboardInfo?.url) {
-        (output.system ||= []).push(`<spoc_dashboard>\n  Dashboard URL: ${dashboardInfo.url}\n  SPOC Dashboard is available as an optional multi-plan browser. Use for project-wide plan overview only — single-plan diagrams go through the visual companion.\n</spoc_dashboard>`);
-      }
+
     },
 
     event: async ({ event, client }) => {
-      // Dashboard toast: fires once per plugin load (module-level flag).
-      // Resets on opencode restart. No persistence intended.
-      if (!dashboardToastShown) {
-        const dashboardInfo = getDashboardInfo();
-        if (dashboardInfo?.url) {
-          dashboardToastShown = true;
-          await client.tui?.showToast?.({
-            body: {
-              title: "SPOC Dashboard (Multi-Plan Browser)",
-              message: dashboardInfo.url,
-              variant: "info",
-              duration: 4000,
-            },
-          }).catch(() => {});
-        }
-      }
-
       const props = event.properties;
 
       if (event.type === "session.idle") {
