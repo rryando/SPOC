@@ -15,9 +15,95 @@ export interface CurrentFocus {
 
 export interface OperatingBrief {
   currentFocus: string;
-  recommendedSurface: WorkflowSurface;
+  recommendedSurface: "QUEUE" | "PLAN" | "MEMORY";
   why: string;
   nextAction: string;
+}
+
+export interface StructuredTask {
+  id: string;
+  title: string;
+  status: "backlog" | "in_progress" | "done" | "cancelled";
+  planId?: string;
+  priority?: "low" | "medium" | "high";
+}
+
+export interface StructuredPlan {
+  id: string;
+  title: string;
+  status: "proposed" | "planned" | "in_progress" | "blocked" | "done" | "archived";
+}
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+/**
+ * Derive an operating brief from structured task and plan data.
+ */
+export function deriveOperatingBrief(input: {
+  tasks: StructuredTask[];
+  plans: StructuredPlan[];
+}): OperatingBrief {
+  const { tasks, plans } = input;
+
+  // 1. Any task in_progress → QUEUE
+  const inProgress = tasks.filter((t) => t.status === "in_progress");
+  if (inProgress.length > 0) {
+    const task = inProgress[0]!;
+    return {
+      currentFocus: task.title,
+      recommendedSurface: "QUEUE",
+      why: `Task in progress: ${task.title}`,
+      nextAction: `Continue task ${task.id}`,
+    };
+  }
+
+  // 2. Any plan in_progress with a backlog task → QUEUE
+  const inProgressPlans = plans.filter((p) => p.status === "in_progress");
+  for (const plan of inProgressPlans) {
+    const readyTask = tasks.find((t) => t.status === "backlog" && t.planId === plan.id);
+    if (readyTask) {
+      return {
+        currentFocus: plan.title,
+        recommendedSurface: "QUEUE",
+        why: `Plan ${plan.title} has ready tasks`,
+        nextAction: `Start task ${readyTask.id}`,
+      };
+    }
+  }
+
+  // 3. Any plan proposed or planned → PLAN
+  const needsPlanning = plans.find((p) => p.status === "proposed" || p.status === "planned");
+  if (needsPlanning) {
+    return {
+      currentFocus: needsPlanning.title,
+      recommendedSurface: "PLAN",
+      why: `Plan "${needsPlanning.title}" needs attention (status: ${needsPlanning.status})`,
+      nextAction: `Advance plan ${needsPlanning.id}`,
+    };
+  }
+
+  // 4. Any backlog task (no in-progress plan) → QUEUE, highest priority
+  const backlog = tasks.filter((t) => t.status === "backlog");
+  if (backlog.length > 0) {
+    const sorted = [...backlog].sort(
+      (a, b) => (PRIORITY_ORDER[a.priority ?? "medium"] ?? 1) - (PRIORITY_ORDER[b.priority ?? "medium"] ?? 1),
+    );
+    const task = sorted[0]!;
+    return {
+      currentFocus: task.title,
+      recommendedSurface: "QUEUE",
+      why: `Backlog task ready: ${task.title}`,
+      nextAction: `Start task ${task.id}`,
+    };
+  }
+
+  // 5. Nothing active
+  return {
+    currentFocus: "No active work",
+    recommendedSurface: "MEMORY",
+    why: "All plans/tasks complete",
+    nextAction: "Review knowledge or start a new plan",
+  };
 }
 
 export function chooseCurrentFocus(input: {
@@ -76,40 +162,6 @@ export function recommendSurface(input: {
   return {
     surface: "queue",
     why: "This is best tracked as immediate execution state.",
-  };
-}
-
-export function deriveOperatingBrief(input: {
-  plans: WorkflowPlanCandidate[];
-  inProgressTasks: string[];
-  backlogTasks: string[];
-  hasDurableKnowledgeSignal: boolean;
-}): OperatingBrief {
-  const focus = chooseCurrentFocus(input);
-  const recommendation = recommendSurface({
-    hasPlanSignals: focus.kind === "plan",
-    hasDurableKnowledgeSignal: input.hasDurableKnowledgeSignal,
-    itemLabel: focus.label,
-  });
-
-  if (focus.kind === "none") {
-    return {
-      currentFocus: "None",
-      recommendedSurface: "queue",
-      why: "No active focus was detected, so the safest default is the execution queue.",
-      nextAction:
-        "Review the backlog and either start the next queue item or create the next plan.",
-    };
-  }
-
-  return {
-    currentFocus: focus.label,
-    recommendedSurface: recommendation.surface,
-    why: recommendation.why,
-    nextAction:
-      focus.kind === "plan"
-        ? `Continue the active plan "${focus.label}" and keep related task status aligned.`
-        : `Continue the queue item "${focus.label}" and update task status as work progresses.`,
   };
 }
 

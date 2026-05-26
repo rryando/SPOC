@@ -22,6 +22,7 @@ import {
   KNOWLEDGE_AUDIENCES,
 } from "../../utils/project-memory.js";
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
+import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
 
 // ---------------------------------------------------------------------------
 // context
@@ -32,8 +33,9 @@ defineCommand({
   description: "Resolve project context for a workspace path or slug",
   params: {
     pathOrSlug: { type: "string", positional: 0, description: "Absolute path or project slug (defaults to cwd)" },
-    audience: { type: "string", description: "Target audience for knowledge filtering", enum: ["orchestrator", "implementer", "designer"] },
+    audience: { type: "string", description: "Target audience for knowledge filtering (default: orchestrator)", enum: ["orchestrator", "implementer", "designer"] },
     task: { type: "string", description: "Task ID for scoped context" },
+    full: { type: "boolean", description: "Include done/cancelled tasks and done/archived plans (default: false)" },
     "no-graph": { type: "boolean", description: "Skip graph-based retrieval" },
   },
   handler: handleContext,
@@ -41,8 +43,9 @@ defineCommand({
 
 async function handleContext(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
   const rawArg = params.pathOrSlug as string | undefined;
-  const audience = params.audience as KnowledgeAudience | undefined;
+  const audience = (params.audience as KnowledgeAudience | undefined) ?? "orchestrator";
   const taskIdFlag = params.task as string | undefined;
+  const full = params.full as boolean | undefined;
   const noGraph = params["no-graph"] as boolean | undefined;
 
   if (audience && !(KNOWLEDGE_AUDIENCES as readonly string[]).includes(audience)) {
@@ -140,19 +143,34 @@ async function handleContext(params: Record<string, unknown>, flags: CommandFlag
   }
 
   const knowledgeIndex = await readKnowledgeIndex(projectDir);
-  const filteredKnowledge = audience
-    ? knowledgeIndex.entries.filter((e) => !e.audience || e.audience === audience || e.audience === "universal")
-    : knowledgeIndex.entries;
+  const filteredKnowledge = knowledgeIndex.entries.filter(
+    (e) => !e.audience || e.audience === audience || e.audience === "universal",
+  );
   const planIndex = await readPlanIndex(projectDir);
   const allTasks = await listTasks(projectDir);
+
+  // Default-filter done items unless --full
+  const filteredPlans = full
+    ? planIndex.plans
+    : planIndex.plans.filter((p) => p.status !== "done" && p.status !== "archived");
+  const filteredTasks = full
+    ? allTasks
+    : allTasks.filter((t) => t.status !== "done" && t.status !== "cancelled");
+
+  const operatingBrief = deriveOperatingBrief({
+    tasks: allTasks.map((t) => ({ id: t.id, title: t.title, status: t.status, planId: t.planId, priority: t.priority })),
+    plans: planIndex.plans.map((p) => ({ id: p.id, title: p.title, status: p.status })),
+  });
 
   return success({
     slug,
     name,
     description,
     overview,
-    tasks: allTasks,
-    plans: planIndex.plans,
+    audience,
+    operatingBrief,
+    tasks: filteredTasks,
+    plans: filteredPlans,
     knowledge: filteredKnowledge,
   });
 }

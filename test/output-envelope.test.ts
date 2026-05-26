@@ -62,10 +62,10 @@ describe("output-envelope", () => {
       expect(errorSpy).toHaveBeenCalledWith("Error: bad thing\nHint: try this\nUsage: cmd --flag");
     });
 
-    it("lean mode applies timestamp stripping", () => {
-      render(success({ id: "a", createdAt: "2024-01-01", nested: { updatedAt: "x" } }), { json: true, lean: true });
+    it("lean mode applies leanify (strips timestamps, empty objects, normalizedId)", () => {
+      render(success({ id: "a", normalizedId: "a", createdAt: "2024-01-01", nested: { updatedAt: "x" } }), { json: true, lean: true });
       const output = JSON.parse(logSpy.mock.calls[0][0] as string);
-      expect(output.data).toEqual({ id: "a", nested: {} });
+      expect(output.data).toEqual({ id: "a" });
     });
   });
 

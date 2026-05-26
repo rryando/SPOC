@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { CLIResult } from "./command-registry.js";
+import { leanify } from "./lean-output.js";
 
 export { ERROR_CODES } from "./command-registry.js";
 
@@ -21,7 +22,7 @@ export function failure(
 export function render(result: CLIResult, flags: { json: boolean; lean: boolean }): void {
   if (flags.json) {
     const output =
-      flags.lean && result.ok ? { ...result, data: stripTimestamps(result.data) } : result;
+      flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
     if (result.ok) {
       console.log(JSON.stringify(output));
     } else {
