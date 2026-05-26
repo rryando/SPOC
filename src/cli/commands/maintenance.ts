@@ -231,3 +231,65 @@ async function handleSyncAgentsMd(
     return failure("internal_error", err instanceof Error ? err.message : String(err));
   }
 }
+
+// ---------------------------------------------------------------------------
+// graphify-sync
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "graphify-sync",
+  description: "Re-extract codebase graph and ingest new structural knowledge",
+  mutation: true,
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+  },
+  handler: handleGraphifySync,
+});
+
+async function handleGraphifySync(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
+  const slug = params.slug as string;
+
+  const projectDir = getProjectDir(slug);
+  const metaPath = join(projectDir, "meta.json");
+  if (!existsSync(metaPath)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found.`);
+  }
+
+  const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+  const workspacePaths: string[] = meta.workspacePaths ?? [];
+  if (workspacePaths.length === 0) {
+    return failure("missing_param", "No workspace paths configured for this project.");
+  }
+
+  const { detectGraphify, runExtraction, ingestGraph } = await import("../../utils/graphify.js");
+  const { persistProposals } = await import("../../utils/graphify-knowledge.js");
+
+  const info = detectGraphify();
+  if (!info.available) {
+    return failure("internal_error", "graphify is not available on PATH.");
+  }
+
+  const workspace = workspacePaths[0];
+  const extraction = runExtraction(workspace);
+  if (!extraction.success) {
+    return failure("internal_error", `Extraction failed: ${extraction.error ?? "unknown error"}`);
+  }
+
+  const { proposals, stats } = ingestGraph(extraction.graphJsonPath, slug);
+  let created = 0;
+  if (proposals.length > 0) {
+    const result = await persistProposals(slug, proposals);
+    created = result.created;
+  }
+
+  return success({
+    workspace,
+    graphJsonPath: extraction.graphJsonPath,
+    stats,
+    proposed: proposals.length,
+    created,
+  });
+}

@@ -370,6 +370,7 @@ describe("opencode bundle runtime manifest", () => {
         "dispatching-parallel-agents": ["SKILL.md"],
         "executing-plans": ["SKILL.md"],
         "finishing-a-development-branch": ["SKILL.md"],
+        "graphify-aware": ["SKILL.md"],
         "knowledge-curation": ["SKILL.md"],
         "onboarding-session": ["SKILL.md"],
         "performance-diagnosis": ["SKILL.md"],

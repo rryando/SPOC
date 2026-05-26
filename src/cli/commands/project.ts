@@ -222,7 +222,41 @@ async function handleProjectInit(
     rootMeta.projects.push({ id: slug, name, status: "draft", dependsOn: [] });
     await writeRootMeta(dataDir, rootMeta);
 
-    return success({ slug, name, status: "draft", dependsOn: [] });
+    // Graphify: extract code graph and seed structural knowledge (non-fatal)
+    // Only attempt if workspace looks like a real codebase (has .git or package.json)
+    let graphify: { proposed: number; created: number; hooksHint?: string } | null = null;
+    const graphifyWorkspace = wsPath ?? process.cwd();
+    const hasGit = existsSync(resolve(graphifyWorkspace, ".git"));
+    const looksLikeCodebase =
+      hasGit || existsSync(resolve(graphifyWorkspace, "package.json"));
+    if (looksLikeCodebase) {
+      try {
+        const { detectGraphify, runExtraction, ingestGraph } = await import("../../utils/graphify.js");
+        const { persistProposals } = await import("../../utils/graphify-knowledge.js");
+        const info = detectGraphify();
+        if (info.available) {
+          const extraction = runExtraction(graphifyWorkspace);
+          if (extraction.success) {
+            const { proposals, stats } = ingestGraph(extraction.graphJsonPath, slug);
+            let created = 0;
+            if (proposals.length > 0) {
+              const result = await persistProposals(slug, proposals);
+              created = result.created;
+            }
+            graphify = { proposed: stats.totalProposals, created };
+            // Offer git hook for auto-refresh on commit
+            if (hasGit) {
+              graphify.hooksHint =
+                "Run `graphify hook install` in the workspace to auto-refresh the code graph on each commit.";
+            }
+          }
+        }
+      } catch {
+        // Graphify failure never blocks project init
+      }
+    }
+
+    return success({ slug, name, status: "draft", dependsOn: [], graphify });
   } catch (err) {
     return failure("init_error", err instanceof Error ? err.message : String(err));
   }
