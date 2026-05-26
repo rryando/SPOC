@@ -4,8 +4,8 @@
 
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { resolve } from "node:path";
 import pc from "picocolors";
 
 export interface InspectNode {
@@ -23,7 +23,10 @@ export interface InspectOutput {
   planId: string;
   nodes: InspectNode[];
   edges: InspectEdge[];
-  metadata?: Record<string, { skill?: string; scope?: string; acceptance?: string; verify?: string; blockedBy?: string }>;
+  metadata?: Record<
+    string,
+    { skill?: string; scope?: string; acceptance?: string; verify?: string; blockedBy?: string }
+  >;
   statusComment?: string;
   ready?: string[];
 }
@@ -37,10 +40,14 @@ const STATUS_ICON: Record<string, string> = {
 
 function colorStatus(text: string, status: string): string {
   switch (status) {
-    case "done": return pc.green(text);
-    case "inProgress": return pc.yellow(text);
-    case "blocked": return pc.red(text);
-    default: return pc.dim(text);
+    case "done":
+      return pc.green(text);
+    case "inProgress":
+      return pc.yellow(text);
+    case "blocked":
+      return pc.red(text);
+    default:
+      return pc.dim(text);
   }
 }
 
@@ -92,7 +99,9 @@ export function renderDiagramTree(inspectJson: InspectOutput): string {
 
   const lines: string[] = [];
   lines.push(`┌${titleLine}${"─".repeat(padRight)}┐`);
-  lines.push(`│ Status: ${status} │ Progress: ${progress}${" ".repeat(Math.max(0, headerWidth - 14 - status.length - 14 - progress.length))}│`);
+  lines.push(
+    `│ Status: ${status} │ Progress: ${progress}${" ".repeat(Math.max(0, headerWidth - 14 - status.length - 14 - progress.length))}│`,
+  );
   lines.push(`└${"─".repeat(headerWidth)}┘`);
   lines.push("");
 
@@ -133,9 +142,19 @@ export function renderDiagramTree(inspectJson: InspectOutput): string {
 }
 
 export function renderDiagramShow(diagramPath: string): string {
-  const localPath = resolve(import.meta.dirname, "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs");
-  const configPath = resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs");
-  const scriptPath = existsSync(localPath) ? localPath : existsSync(configPath) ? configPath : undefined;
+  const localPath = resolve(
+    import.meta.dirname,
+    "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+  );
+  const configPath = resolve(
+    homedir(),
+    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+  );
+  const scriptPath = existsSync(localPath)
+    ? localPath
+    : existsSync(configPath)
+      ? configPath
+      : undefined;
 
   if (!scriptPath) {
     throw new Error("manage-diagram.mjs not found");

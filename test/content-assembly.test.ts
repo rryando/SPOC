@@ -56,10 +56,7 @@ describe("extractOverviewContent — template coupling guardrail", () => {
   });
 
   it("returns null when the template includes a repo block but no real content", () => {
-    const rendered = renderTemplate(
-      getTemplatePath("project.md.tmpl"),
-      INIT_VARIABLES_WITH_REPO,
-    );
+    const rendered = renderTemplate(getTemplatePath("project.md.tmpl"), INIT_VARIABLES_WITH_REPO);
 
     expect(extractOverviewContent(rendered)).toBeNull();
   });
@@ -136,10 +133,7 @@ describe("extractInProgressTasks / extractBacklogTasks / stripTaskCheckbox", () 
   });
 
   it("extracts only `- [ ]` lines for backlog tasks", () => {
-    expect(extractBacklogTasks(sample)).toEqual([
-      "- [ ] Backlog item 1",
-      "- [ ] Backlog item 2",
-    ]);
+    expect(extractBacklogTasks(sample)).toEqual(["- [ ] Backlog item 1", "- [ ] Backlog item 2"]);
   });
 
   it("strips the checkbox prefix from any status", () => {

@@ -104,8 +104,7 @@ export function createBm25Index(
 
             const fieldLen = tokens.length;
             const avgLen = avgFieldLen[field];
-            const tfNorm =
-              (tf * (K1 + 1)) / (tf + K1 * (1 - B + B * (fieldLen / (avgLen || 1))));
+            const tfNorm = (tf * (K1 + 1)) / (tf + K1 * (1 - B + B * (fieldLen / (avgLen || 1))));
             const weight = fieldWeights[field] ?? 1;
 
             docScore += idf * tfNorm * weight;

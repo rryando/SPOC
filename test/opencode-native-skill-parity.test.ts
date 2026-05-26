@@ -20,9 +20,7 @@ function extractPreservedSkillFiles(source: string): string[] {
  * Extract string literals from `const spocNativeSkillFiles = [...]`.
  */
 function extractSpocNativeSkillFiles(source: string): string[] {
-  const arrayMatch = source.match(
-    /const\s+spocNativeSkillFiles\s*=\s*\[([^\]]*)\]/s,
-  );
+  const arrayMatch = source.match(/const\s+spocNativeSkillFiles\s*=\s*\[([^\]]*)\]/s);
   if (!arrayMatch) {
     throw new Error("Could not find spocNativeSkillFiles in source");
   }
@@ -38,12 +36,15 @@ describe("SPOC-native skill parity across sync points", () => {
     const testSource = readFileSync(bundlePruningTestPath, "utf-8");
     const files = extractSpocNativeSkillFiles(testSource);
 
-    expect(files, [
-      "spocNativeSkillFiles in test/opencode-bundle-pruning.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
-      `Expected: ${JSON.stringify(preservedSkillFiles)}`,
-      `Got:      ${JSON.stringify(files)}`,
-    ].join("\n")).toEqual(preservedSkillFiles);
+    expect(
+      files,
+      [
+        "spocNativeSkillFiles in test/opencode-bundle-pruning.test.ts is out of sync",
+        `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
+        `Expected: ${JSON.stringify(preservedSkillFiles)}`,
+        `Got:      ${JSON.stringify(files)}`,
+      ].join("\n"),
+    ).toEqual(preservedSkillFiles);
   });
 
   it("keeps spocNativeSkillFiles in opencode-bundle-installer.test.ts aligned with preservedOutputFiles", () => {
@@ -51,28 +52,36 @@ describe("SPOC-native skill parity across sync points", () => {
 
     // Verify the constant exists with the expected name
     const hasConstant = /const\s+spocNativeSkillFiles\s*=/.test(testSource);
-    expect(hasConstant, [
-      "Could not find `const spocNativeSkillFiles` in test/opencode-bundle-installer.test.ts.",
-      "If it was renamed, update this parity test accordingly.",
-    ].join("\n")).toBe(true);
+    expect(
+      hasConstant,
+      [
+        "Could not find `const spocNativeSkillFiles` in test/opencode-bundle-installer.test.ts.",
+        "If it was renamed, update this parity test accordingly.",
+      ].join("\n"),
+    ).toBe(true);
 
     const files = extractSpocNativeSkillFiles(testSource);
 
-    expect(files, [
-      "spocNativeSkillFiles in test/opencode-bundle-installer.test.ts is out of sync",
-      `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
-      `Expected: ${JSON.stringify(preservedSkillFiles)}`,
-      `Got:      ${JSON.stringify(files)}`,
-    ].join("\n")).toEqual(preservedSkillFiles);
+    expect(
+      files,
+      [
+        "spocNativeSkillFiles in test/opencode-bundle-installer.test.ts is out of sync",
+        `with preservedOutputFiles in scripts/build-opencode-bundle.mjs.`,
+        `Expected: ${JSON.stringify(preservedSkillFiles)}`,
+        `Got:      ${JSON.stringify(files)}`,
+      ].join("\n"),
+    ).toEqual(preservedSkillFiles);
   });
 
   it("has every SPOC-native skill present on disk", () => {
     for (const skillFile of preservedSkillFiles) {
       const diskPath = resolve(root, "opencode/spoc", skillFile);
-      expect(existsSync(diskPath), [
-        `SPOC-native skill file missing on disk: ${skillFile}`,
-        `Expected at: ${diskPath}`,
-      ].join("\n")).toBe(true);
+      expect(
+        existsSync(diskPath),
+        [`SPOC-native skill file missing on disk: ${skillFile}`, `Expected at: ${diskPath}`].join(
+          "\n",
+        ),
+      ).toBe(true);
     }
   });
 });

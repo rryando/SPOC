@@ -1,11 +1,15 @@
 import "./commands/index.js"; // Trigger command registrations
+import { parseArgs } from "./arg-parser.js";
+import { getCommand } from "./command-registry.js";
 import { handleDagCommand } from "./dag-commands.js";
+import {
+  formatCommandsDiscovery,
+  generateCommandHelp,
+  generateCommandsDiscovery,
+} from "./help-generator.js";
+import { render } from "./output-envelope.js";
 import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
-import { getCommand } from "./command-registry.js";
-import { parseArgs } from "./arg-parser.js";
-import { render } from "./output-envelope.js";
-import { generateCommandHelp, generateCommandsDiscovery, formatCommandsDiscovery } from "./help-generator.js";
 
 // ---------------------------------------------------------------------------
 // CLI Subcommand Router
@@ -57,7 +61,10 @@ export async function handleCli(args: string[]): Promise<boolean> {
     const registeredCmd = getCommand(match.path)!;
     const result = parseArgs(registeredCmd, match.remaining);
     if (!result.ok) {
-      const flags = { json: match.remaining.includes("--json"), lean: match.remaining.includes("--lean") };
+      const flags = {
+        json: match.remaining.includes("--json"),
+        lean: match.remaining.includes("--lean"),
+      };
       render(result.error, flags);
       process.exitCode = 1;
       return true;

@@ -2,12 +2,7 @@
 // Lean Output — strips noise from JSON output for LLM token savings
 // ---------------------------------------------------------------------------
 
-const STRIP_FIELDS = new Set([
-  "createdAt",
-  "updatedAt",
-  "consumedAt",
-  "confirmationToken",
-]);
+const STRIP_FIELDS = new Set(["createdAt", "updatedAt", "consumedAt", "confirmationToken"]);
 
 /**
  * Recursively strips noise from an object for leaner JSON output.
@@ -18,9 +13,7 @@ export function leanify(obj: unknown): unknown {
   if (obj === null || obj === undefined) return undefined;
 
   if (Array.isArray(obj)) {
-    const cleaned = obj
-      .map((item) => leanify(item))
-      .filter((item) => item !== undefined);
+    const cleaned = obj.map((item) => leanify(item)).filter((item) => item !== undefined);
     return cleaned.length === 0 ? undefined : cleaned;
   }
 
@@ -42,7 +35,12 @@ export function leanify(obj: unknown): unknown {
       if (cleaned === "") continue;
       // Skip empty arrays (already handled by recursive leanify returning undefined)
       // Skip empty objects
-      if (typeof cleaned === "object" && !Array.isArray(cleaned) && Object.keys(cleaned as object).length === 0) continue;
+      if (
+        typeof cleaned === "object" &&
+        !Array.isArray(cleaned) &&
+        Object.keys(cleaned as object).length === 0
+      )
+        continue;
 
       result[key] = cleaned;
     }

@@ -3,8 +3,8 @@ import {
   chooseCurrentFocus,
   deriveOperatingBrief,
   recommendSurface,
-  type StructuredTask,
   type StructuredPlan,
+  type StructuredTask,
 } from "../src/utils/workflow-policy.js";
 
 describe("workflow policy", () => {
@@ -145,9 +145,7 @@ describe("deriveOperatingBrief (structured)", () => {
     const tasks: StructuredTask[] = [
       { id: "T010", title: "Implement API", status: "backlog", planId: "P001", priority: "medium" },
     ];
-    const plans: StructuredPlan[] = [
-      { id: "P001", title: "API Redesign", status: "in_progress" },
-    ];
+    const plans: StructuredPlan[] = [{ id: "P001", title: "API Redesign", status: "in_progress" }];
     const brief = deriveOperatingBrief({ tasks, plans });
     expect(brief).toEqual({
       currentFocus: "API Redesign",
@@ -159,9 +157,7 @@ describe("deriveOperatingBrief (structured)", () => {
 
   it("returns PLAN when a plan is proposed or planned", () => {
     const tasks: StructuredTask[] = [];
-    const plans: StructuredPlan[] = [
-      { id: "P002", title: "New Feature", status: "proposed" },
-    ];
+    const plans: StructuredPlan[] = [{ id: "P002", title: "New Feature", status: "proposed" }];
     const brief = deriveOperatingBrief({ tasks, plans });
     expect(brief).toEqual({
       currentFocus: "New Feature",
@@ -176,9 +172,7 @@ describe("deriveOperatingBrief (structured)", () => {
       { id: "T020", title: "Low pri", status: "backlog", priority: "low" },
       { id: "T021", title: "High pri", status: "backlog", priority: "high" },
     ];
-    const plans: StructuredPlan[] = [
-      { id: "P003", title: "Done Plan", status: "done" },
-    ];
+    const plans: StructuredPlan[] = [{ id: "P003", title: "Done Plan", status: "done" }];
     const brief = deriveOperatingBrief({ tasks, plans });
     expect(brief).toEqual({
       currentFocus: "High pri",
@@ -189,12 +183,8 @@ describe("deriveOperatingBrief (structured)", () => {
   });
 
   it("returns MEMORY when all work is complete", () => {
-    const tasks: StructuredTask[] = [
-      { id: "T030", title: "Done task", status: "done" },
-    ];
-    const plans: StructuredPlan[] = [
-      { id: "P004", title: "Archived Plan", status: "archived" },
-    ];
+    const tasks: StructuredTask[] = [{ id: "T030", title: "Done task", status: "done" }];
+    const plans: StructuredPlan[] = [{ id: "P004", title: "Archived Plan", status: "archived" }];
     const brief = deriveOperatingBrief({ tasks, plans });
     expect(brief).toEqual({
       currentFocus: "No active work",
@@ -219,9 +209,7 @@ describe("deriveOperatingBrief (structured)", () => {
       { id: "T040", title: "Active task", status: "in_progress" },
       { id: "T041", title: "Ready task", status: "backlog", planId: "P005" },
     ];
-    const plans: StructuredPlan[] = [
-      { id: "P005", title: "Active Plan", status: "in_progress" },
-    ];
+    const plans: StructuredPlan[] = [{ id: "P005", title: "Active Plan", status: "in_progress" }];
     const brief = deriveOperatingBrief({ tasks, plans });
     expect(brief.recommendedSurface).toBe("QUEUE");
     expect(brief.nextAction).toBe("Continue task T040");

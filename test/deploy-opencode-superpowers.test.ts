@@ -102,12 +102,10 @@ describe("deploy-opencode-bundle", () => {
       expect(result.dryRun).toBe(false);
       expect(result.filesAdded.length).toBeGreaterThan(0);
       // Files actually written
-      expect(
-        readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8"),
-      ).toBe("# Planner skill");
-      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe(
-        "// plugin code",
+      expect(readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8")).toBe(
+        "# Planner skill",
       );
+      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe("// plugin code");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }

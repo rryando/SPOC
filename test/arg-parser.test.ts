@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { parseArgs, generateUsage, type ParseResult } from "../src/cli/arg-parser.js";
-import { type CommandDef } from "../src/cli/command-registry.js";
+import { describe, expect, it } from "vitest";
+import { generateUsage, parseArgs } from "../src/cli/arg-parser.js";
+import type { CommandDef } from "../src/cli/command-registry.js";
 
 function makeDef(params: CommandDef["params"] = {}, path = "test cmd"): CommandDef {
   return {
@@ -15,23 +15,45 @@ describe("parseArgs", () => {
   it("parses --flag=value syntax", () => {
     const def = makeDef({ slug: { type: "string", required: true, description: "project slug" } });
     const result = parseArgs(def, ["--slug=myproject"]);
-    expect(result).toEqual({ ok: true, parsed: { params: { slug: "myproject" }, flags: { json: false, lean: false, dryRun: false, help: false } } });
+    expect(result).toEqual({
+      ok: true,
+      parsed: {
+        params: { slug: "myproject" },
+        flags: { json: false, lean: false, dryRun: false, help: false },
+      },
+    });
   });
 
   it("parses --flag value (space-separated) syntax", () => {
     const def = makeDef({ slug: { type: "string", required: true, description: "project slug" } });
     const result = parseArgs(def, ["--slug", "myproject"]);
-    expect(result).toEqual({ ok: true, parsed: { params: { slug: "myproject" }, flags: { json: false, lean: false, dryRun: false, help: false } } });
+    expect(result).toEqual({
+      ok: true,
+      parsed: {
+        params: { slug: "myproject" },
+        flags: { json: false, lean: false, dryRun: false, help: false },
+      },
+    });
   });
 
   it("assigns positional args to params with positional field", () => {
-    const def = makeDef({ summary: { type: "string", required: true, positional: 0, description: "summary" } });
+    const def = makeDef({
+      summary: { type: "string", required: true, positional: 0, description: "summary" },
+    });
     const result = parseArgs(def, ["hello world"]);
-    expect(result).toEqual({ ok: true, parsed: { params: { summary: "hello world" }, flags: { json: false, lean: false, dryRun: false, help: false } } });
+    expect(result).toEqual({
+      ok: true,
+      parsed: {
+        params: { summary: "hello world" },
+        flags: { json: false, lean: false, dryRun: false, help: false },
+      },
+    });
   });
 
   it("returns ambiguous_arg error when both positional and flag provided for same param", () => {
-    const def = makeDef({ summary: { type: "string", required: true, positional: 0, description: "summary" } });
+    const def = makeDef({
+      summary: { type: "string", required: true, positional: 0, description: "summary" },
+    });
     const result = parseArgs(def, ["positional-val", "--summary=flag-val"]);
     expect(result).toMatchObject({ ok: false, error: { code: "ambiguous_arg", param: "summary" } });
   });
@@ -74,7 +96,9 @@ describe("parseArgs", () => {
   });
 
   it("errors on invalid enum value", () => {
-    const def = makeDef({ status: { type: "string", required: true, enum: ["open", "closed"], description: "status" } });
+    const def = makeDef({
+      status: { type: "string", required: true, enum: ["open", "closed"], description: "status" },
+    });
     const result = parseArgs(def, ["--status=pending"]);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -124,10 +148,20 @@ describe("parseArgs", () => {
       ops: { type: "string", required: true, description: "operations" },
       slug: { type: "string", required: true, description: "slug" },
     });
-    const result = parseArgs(def, ["my summary", "--ops=task:create", "--json", "--slug", "myproj"]);
+    const result = parseArgs(def, [
+      "my summary",
+      "--ops=task:create",
+      "--json",
+      "--slug",
+      "myproj",
+    ]);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.parsed.params).toEqual({ summary: "my summary", ops: "task:create", slug: "myproj" });
+      expect(result.parsed.params).toEqual({
+        summary: "my summary",
+        ops: "task:create",
+        slug: "myproj",
+      });
       expect(result.parsed.flags.json).toBe(true);
     }
   });
@@ -135,12 +169,15 @@ describe("parseArgs", () => {
 
 describe("generateUsage", () => {
   it("generates correct usage string", () => {
-    const def = makeDef({
-      summary: { type: "string", required: true, positional: 0, description: "summary" },
-      ops: { type: "string", required: true, description: "operations" },
-      slug: { type: "string", required: true, description: "slug" },
-      ttl: { type: "number", description: "time to live" },
-    }, "write propose");
+    const def = makeDef(
+      {
+        summary: { type: "string", required: true, positional: 0, description: "summary" },
+        ops: { type: "string", required: true, description: "operations" },
+        slug: { type: "string", required: true, description: "slug" },
+        ttl: { type: "number", description: "time to live" },
+      },
+      "write propose",
+    );
     const usage = generateUsage(def);
     expect(usage).toBe("Usage: spoc write propose <summary> --ops=OPS --slug=SLUG [--ttl=TTL]");
   });
@@ -176,11 +213,17 @@ describe("parseArgs — ambiguous arg detection", () => {
 
   it("works with positional only", () => {
     const result = parseArgs(def, ["myslug", "task1"]);
-    expect(result).toMatchObject({ ok: true, parsed: { params: { slug: "myslug", taskId: "task1" } } });
+    expect(result).toMatchObject({
+      ok: true,
+      parsed: { params: { slug: "myslug", taskId: "task1" } },
+    });
   });
 
   it("works with flag only", () => {
     const result = parseArgs(def, ["--slug=myslug", "--taskId=task1"]);
-    expect(result).toMatchObject({ ok: true, parsed: { params: { slug: "myslug", taskId: "task1" } } });
+    expect(result).toMatchObject({
+      ok: true,
+      parsed: { params: { slug: "myslug", taskId: "task1" } },
+    });
   });
 });

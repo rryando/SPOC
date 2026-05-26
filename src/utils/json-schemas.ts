@@ -60,18 +60,20 @@ export const syncStatsSchema = z.object({
 
 export type SyncStats = z.infer<typeof syncStatsSchema>;
 
-export const projectMetaSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  status: z.string().optional(),
-  repoUrl: z.string().optional(),
-  createdAt: z.string(),
-  workspacePaths: z.array(z.string()).optional().default([]),
-  lastSyncedAt: z.string().datetime().optional(),
-  lastSyncGitCommit: z.string().optional(),
-  lastSyncStats: syncStatsSchema.optional(),
-}).passthrough();
+export const projectMetaSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    status: z.string().optional(),
+    repoUrl: z.string().optional(),
+    createdAt: z.string(),
+    workspacePaths: z.array(z.string()).optional().default([]),
+    lastSyncedAt: z.string().datetime().optional(),
+    lastSyncGitCommit: z.string().optional(),
+    lastSyncStats: syncStatsSchema.optional(),
+  })
+  .passthrough();
 
 export type ProjectMetaJson = z.infer<typeof projectMetaSchema>;
 

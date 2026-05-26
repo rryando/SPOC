@@ -2,7 +2,7 @@
 // CLI Envelope Format Tests — validates the new registry-based JSON envelope
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runCommand } from "./helpers/cli-runner.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 

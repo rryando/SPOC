@@ -86,7 +86,9 @@ export function deriveOperatingBrief(input: {
   const backlog = tasks.filter((t) => t.status === "backlog");
   if (backlog.length > 0) {
     const sorted = [...backlog].sort(
-      (a, b) => (PRIORITY_ORDER[a.priority ?? "medium"] ?? 1) - (PRIORITY_ORDER[b.priority ?? "medium"] ?? 1),
+      (a, b) =>
+        (PRIORITY_ORDER[a.priority ?? "medium"] ?? 1) -
+        (PRIORITY_ORDER[b.priority ?? "medium"] ?? 1),
     );
     const task = sorted[0]!;
     return {

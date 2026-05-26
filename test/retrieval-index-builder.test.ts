@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeMeta, PlanMeta } from "../src/utils/project-memory.js";
 
 vi.mock("../src/utils/paths.js", () => ({
@@ -10,14 +10,15 @@ vi.mock("../src/utils/project-memory.js", () => ({
   readPlanIndex: vi.fn(),
 }));
 
-import { readKnowledgeIndex, readPlanIndex } from "../src/utils/project-memory.js";
 import { buildProjectRetrievalIndex } from "../src/retrieval/index-builder.js";
-import type { RetrievalIndex, ScoredEntry } from "../src/retrieval/index-builder.js";
+import { readKnowledgeIndex, readPlanIndex } from "../src/utils/project-memory.js";
 
 const mockReadKnowledge = vi.mocked(readKnowledgeIndex);
 const mockReadPlans = vi.mocked(readPlanIndex);
 
-function makeKnowledge(overrides: Partial<KnowledgeMeta> & { id: string; title: string }): KnowledgeMeta {
+function makeKnowledge(
+  overrides: Partial<KnowledgeMeta> & { id: string; title: string },
+): KnowledgeMeta {
   return {
     normalizedId: overrides.id,
     kind: "reference",
@@ -62,8 +63,18 @@ describe("buildProjectRetrievalIndex", () => {
   it("searchKnowledge returns scored entries matching query", async () => {
     mockReadKnowledge.mockResolvedValue({
       entries: [
-        makeKnowledge({ id: "k1", title: "BM25 search algorithm", keywords: ["search", "bm25"], summary: "Full text search" }),
-        makeKnowledge({ id: "k2", title: "Project setup", keywords: ["setup"], summary: "How to set up" }),
+        makeKnowledge({
+          id: "k1",
+          title: "BM25 search algorithm",
+          keywords: ["search", "bm25"],
+          summary: "Full text search",
+        }),
+        makeKnowledge({
+          id: "k2",
+          title: "Project setup",
+          keywords: ["setup"],
+          summary: "How to set up",
+        }),
       ],
     });
     mockReadPlans.mockResolvedValue({ plans: [] });
@@ -82,8 +93,18 @@ describe("buildProjectRetrievalIndex", () => {
     mockReadKnowledge.mockResolvedValue({ entries: [] });
     mockReadPlans.mockResolvedValue({
       plans: [
-        makePlan({ id: "p1", title: "Implement retrieval", keywords: ["retrieval", "search"], summary: "Add search feature" }),
-        makePlan({ id: "p2", title: "Database migration", keywords: ["database"], summary: "Migrate to postgres" }),
+        makePlan({
+          id: "p1",
+          title: "Implement retrieval",
+          keywords: ["retrieval", "search"],
+          summary: "Add search feature",
+        }),
+        makePlan({
+          id: "p2",
+          title: "Database migration",
+          keywords: ["database"],
+          summary: "Migrate to postgres",
+        }),
       ],
     });
 
@@ -100,12 +121,22 @@ describe("buildProjectRetrievalIndex", () => {
   it("searchAll merges knowledge and plan results sorted by score", async () => {
     mockReadKnowledge.mockResolvedValue({
       entries: [
-        makeKnowledge({ id: "k1", title: "Search patterns", keywords: ["search"], summary: "Search patterns reference" }),
+        makeKnowledge({
+          id: "k1",
+          title: "Search patterns",
+          keywords: ["search"],
+          summary: "Search patterns reference",
+        }),
       ],
     });
     mockReadPlans.mockResolvedValue({
       plans: [
-        makePlan({ id: "p1", title: "Search implementation plan", keywords: ["search"], summary: "Build search" }),
+        makePlan({
+          id: "p1",
+          title: "Search implementation plan",
+          keywords: ["search"],
+          summary: "Build search",
+        }),
       ],
     });
 
@@ -129,9 +160,7 @@ describe("buildProjectRetrievalIndex", () => {
       ],
     });
     mockReadPlans.mockResolvedValue({
-      plans: [
-        makePlan({ id: "p1", title: "Search plan", keywords: ["search"] }),
-      ],
+      plans: [makePlan({ id: "p1", title: "Search plan", keywords: ["search"] })],
     });
 
     const index = await buildProjectRetrievalIndex("test-project");

@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { success, failure, render, formatHuman, stripTimestamps } from "../src/cli/output-envelope.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  failure,
+  formatHuman,
+  render,
+  stripTimestamps,
+  success,
+} from "../src/cli/output-envelope.js";
 
 describe("output-envelope", () => {
   describe("success()", () => {
@@ -54,16 +60,29 @@ describe("output-envelope", () => {
 
     it("JSON mode outputs to stderr for failure", () => {
       render(failure("err", "bad"), { json: true, lean: false });
-      expect(errorSpy).toHaveBeenCalledWith(JSON.stringify({ ok: false, code: "err", message: "bad" }));
+      expect(errorSpy).toHaveBeenCalledWith(
+        JSON.stringify({ ok: false, code: "err", message: "bad" }),
+      );
     });
 
     it("human mode formats error with hint/usage", () => {
-      render(failure("err", "bad thing", { hint: "try this", usage: "cmd --flag" }), { json: false, lean: false });
+      render(failure("err", "bad thing", { hint: "try this", usage: "cmd --flag" }), {
+        json: false,
+        lean: false,
+      });
       expect(errorSpy).toHaveBeenCalledWith("Error: bad thing\nHint: try this\nUsage: cmd --flag");
     });
 
     it("lean mode applies leanify (strips timestamps, empty objects, normalizedId)", () => {
-      render(success({ id: "a", normalizedId: "a", createdAt: "2024-01-01", nested: { updatedAt: "x" } }), { json: true, lean: true });
+      render(
+        success({
+          id: "a",
+          normalizedId: "a",
+          createdAt: "2024-01-01",
+          nested: { updatedAt: "x" },
+        }),
+        { json: true, lean: true },
+      );
       const output = JSON.parse(logSpy.mock.calls[0][0] as string);
       expect(output.data).toEqual({ id: "a" });
     });

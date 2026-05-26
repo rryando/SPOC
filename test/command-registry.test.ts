@@ -1,22 +1,24 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  defineCommand,
-  getCommand,
-  listCommands,
-  suggestCommand,
-  ERROR_CODES,
   type CLIResult,
   type CommandDef,
   type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+  getCommand,
+  listCommands,
+  suggestCommand,
 } from "../src/cli/command-registry.js";
 
 // Since the registry is module-level state, we need to be careful about ordering.
 // We'll rely on the fact that each test adds unique paths.
 
-const makeHandler = () => async (_p: Record<string, unknown>, _f: CommandFlags): Promise<CLIResult> => ({
-  ok: true,
-  data: null,
-});
+const makeHandler =
+  () =>
+  async (_p: Record<string, unknown>, _f: CommandFlags): Promise<CLIResult> => ({
+    ok: true,
+    data: null,
+  });
 
 describe("command-registry", () => {
   it("defineCommand registers and getCommand retrieves", () => {

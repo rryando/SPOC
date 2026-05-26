@@ -6,23 +6,28 @@ import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { defineCommand, type CLIResult, type CommandFlags, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
-import { getDataDir, getProjectDir } from "../../utils/paths.js";
-import { readRootMeta } from "../../utils/dag.js";
+import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
+import { extractOverviewContent } from "../../utils/content-assembly.js";
+import { type RootMeta, readRootMeta } from "../../utils/dag.js";
 import { readJsonSafe, validateJson } from "../../utils/json.js";
 import { projectMetaSchema } from "../../utils/json-schemas.js";
-import { findBestMatch, type WorkspaceProject } from "../../utils/workspace-match.js";
-import { extractOverviewContent } from "../../utils/content-assembly.js";
+import { getDataDir, getProjectDir } from "../../utils/paths.js";
 import {
+  KNOWLEDGE_AUDIENCES,
+  type KnowledgeAudience,
   listTasks,
   readKnowledgeIndex,
   readPlanIndex,
-  type KnowledgeAudience,
-  KNOWLEDGE_AUDIENCES,
 } from "../../utils/project-memory.js";
-import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
+import { findBestMatch, type WorkspaceProject } from "../../utils/workspace-match.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // context
@@ -32,24 +37,41 @@ defineCommand({
   path: "context",
   description: "Resolve project context for a workspace path or slug",
   params: {
-    pathOrSlug: { type: "string", positional: 0, description: "Absolute path or project slug (defaults to cwd)" },
-    audience: { type: "string", description: "Target audience for knowledge filtering (default: orchestrator)", enum: ["orchestrator", "implementer", "designer"] },
+    pathOrSlug: {
+      type: "string",
+      positional: 0,
+      description: "Absolute path or project slug (defaults to cwd)",
+    },
+    audience: {
+      type: "string",
+      description: "Target audience for knowledge filtering (default: orchestrator)",
+      enum: ["orchestrator", "implementer", "designer"],
+    },
     task: { type: "string", description: "Task ID for scoped context" },
-    full: { type: "boolean", description: "Include done/cancelled tasks and done/archived plans (default: false)" },
+    full: {
+      type: "boolean",
+      description: "Include done/cancelled tasks and done/archived plans (default: false)",
+    },
     "no-graph": { type: "boolean", description: "Skip graph-based retrieval" },
   },
   handler: handleContext,
 });
 
-async function handleContext(params: Record<string, unknown>, flags: CommandFlags): Promise<CLIResult> {
+async function handleContext(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const rawArg = params.pathOrSlug as string | undefined;
   const audience = (params.audience as KnowledgeAudience | undefined) ?? "orchestrator";
-  const taskIdFlag = params.task as string | undefined;
+  const _taskIdFlag = params.task as string | undefined;
   const full = params.full as boolean | undefined;
-  const noGraph = params["no-graph"] as boolean | undefined;
+  const _noGraph = params["no-graph"] as boolean | undefined;
 
   if (audience && !(KNOWLEDGE_AUDIENCES as readonly string[]).includes(audience)) {
-    return failure("invalid_enum", `Invalid audience "${audience}". Valid: ${KNOWLEDGE_AUDIENCES.join(", ")}`);
+    return failure(
+      "invalid_enum",
+      `Invalid audience "${audience}". Valid: ${KNOWLEDGE_AUDIENCES.join(", ")}`,
+    );
   }
 
   // Resolve path/slug
@@ -69,25 +91,29 @@ async function handleContext(params: Record<string, unknown>, flags: CommandFlag
       const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
       const paths: string[] = Array.isArray(projMeta.workspacePaths) ? projMeta.workspacePaths : [];
       if (paths.length === 0) {
-        return failure("no_workspace_paths", `Project "${rawArg}" has no workspace paths configured`);
+        return failure(
+          "no_workspace_paths",
+          `Project "${rawArg}" has no workspace paths configured`,
+        );
       }
       const first = paths[0];
-      queryPath = first.startsWith("~")
-        ? resolve(homedir(), first.slice(2))
-        : resolve(first);
+      queryPath = first.startsWith("~") ? resolve(homedir(), first.slice(2)) : resolve(first);
     } catch {
       return failure("read_error", `Could not read project metadata for "${rawArg}"`);
     }
   } else {
     queryPath = resolve(rawArg);
     if (!existsSync(queryPath)) {
-      return failure("path_not_found", `Path "${rawArg}" does not exist. Use an absolute path or a project slug.`);
+      return failure(
+        "path_not_found",
+        `Path "${rawArg}" does not exist. Use an absolute path or a project slug.`,
+      );
     }
   }
 
   // Read root meta
   const dataDir = getDataDir();
-  let rootMeta;
+  let rootMeta: RootMeta;
   try {
     rootMeta = await readRootMeta(dataDir);
   } catch {
@@ -125,7 +151,10 @@ async function handleContext(params: Record<string, unknown>, flags: CommandFlag
     return failure("no_match", `No project found matching path "${queryPath}"`);
   }
   if (matchResult.kind === "ambiguous") {
-    return failure("ambiguous_match", `Ambiguous match for "${queryPath}" — matches: ${matchResult.slugs.join(", ")}`);
+    return failure(
+      "ambiguous_match",
+      `Ambiguous match for "${queryPath}" — matches: ${matchResult.slugs.join(", ")}`,
+    );
   }
 
   const slug = matchResult.slug;
@@ -158,7 +187,13 @@ async function handleContext(params: Record<string, unknown>, flags: CommandFlag
     : allTasks.filter((t) => t.status !== "done" && t.status !== "cancelled");
 
   const operatingBrief = deriveOperatingBrief({
-    tasks: allTasks.map((t) => ({ id: t.id, title: t.title, status: t.status, planId: t.planId, priority: t.priority })),
+    tasks: allTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      planId: t.planId,
+      priority: t.priority,
+    })),
     plans: planIndex.plans.map((p) => ({ id: p.id, title: p.title, status: p.status })),
   });
 
@@ -191,7 +226,10 @@ defineCommand({
   handler: handleSearch,
 });
 
-async function handleSearch(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleSearch(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
   const query = params.query as string;
   const kind = params.kind as string | undefined;
@@ -227,7 +265,10 @@ defineCommand({
   handler: handleAgentsMd,
 });
 
-async function handleAgentsMd(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleAgentsMd(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
 
   const projectDir = getProjectDir(slug);
@@ -270,7 +311,10 @@ interface ValidationIssue {
   safeToAutoRepair?: boolean;
 }
 
-async function handleValidate(params: Record<string, unknown>, _flags: CommandFlags): Promise<CLIResult> {
+async function handleValidate(
+  params: Record<string, unknown>,
+  _flags: CommandFlags,
+): Promise<CLIResult> {
   const slug = params.slug as string;
 
   const projectDir = getProjectDir(slug);

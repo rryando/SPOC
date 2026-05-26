@@ -8,7 +8,7 @@
 import { readRootMeta } from "../utils/dag.js";
 import { getDataDir, getProjectDir } from "../utils/paths.js";
 import { readKnowledgeIndex } from "../utils/project-memory.js";
-import { buildProjectRetrievalIndex } from "./index-builder.js";
+import { buildProjectRetrievalIndex, type RetrievalIndex } from "./index-builder.js";
 
 export interface CrossProjectSearchOptions {
   query: string;
@@ -34,7 +34,9 @@ export interface CrossProjectResult {
  * Search knowledge and/or plan entries across all (or a subset of) projects.
  * Results are sorted by BM25 score descending and capped at the specified limit.
  */
-export async function searchAcrossProjects(options: CrossProjectSearchOptions): Promise<CrossProjectResult[]> {
+export async function searchAcrossProjects(
+  options: CrossProjectSearchOptions,
+): Promise<CrossProjectResult[]> {
   const {
     query,
     limit = 10,
@@ -49,9 +51,10 @@ export async function searchAcrossProjects(options: CrossProjectSearchOptions): 
   const rootMeta = await readRootMeta(dataDir);
 
   // Determine which projects to search
-  const slugs = projectSlugs && projectSlugs.length > 0
-    ? projectSlugs.filter((s) => rootMeta.projects.some((p) => p.id === s))
-    : rootMeta.projects.map((p) => p.id);
+  const slugs =
+    projectSlugs && projectSlugs.length > 0
+      ? projectSlugs.filter((s) => rootMeta.projects.some((p) => p.id === s))
+      : rootMeta.projects.map((p) => p.id);
 
   // Collect results across all projects
   const allResults: CrossProjectResult[] = [];
@@ -60,7 +63,7 @@ export async function searchAcrossProjects(options: CrossProjectSearchOptions): 
   const perProjectLimit = limit * 3;
 
   for (const slug of slugs) {
-    let index;
+    let index: RetrievalIndex;
     try {
       index = await buildProjectRetrievalIndex(slug);
     } catch {
@@ -120,11 +123,16 @@ export async function searchAcrossProjects(options: CrossProjectSearchOptions): 
 /**
  * Post-filter results by knowledge kind. Plan entries pass through unfiltered.
  */
-async function filterByKind(results: CrossProjectResult[], kind: string): Promise<CrossProjectResult[]> {
+async function filterByKind(
+  results: CrossProjectResult[],
+  kind: string,
+): Promise<CrossProjectResult[]> {
   // Build a map of project -> Set<entryId> that match the kind
   const kindCache = new Map<string, Set<string>>();
 
-  const projectSlugs = [...new Set(results.filter((r) => r.entryType === "knowledge").map((r) => r.projectSlug))];
+  const projectSlugs = [
+    ...new Set(results.filter((r) => r.entryType === "knowledge").map((r) => r.projectSlug)),
+  ];
 
   for (const slug of projectSlugs) {
     try {

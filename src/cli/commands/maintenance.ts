@@ -42,7 +42,7 @@ defineCommand({
 
 async function handleGitLog(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const since = params.since as string | undefined;

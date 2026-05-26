@@ -3,19 +3,19 @@
  * and result hydration into a single call.
  */
 
-import type { AdjacencyIndex, NodeType, ScoredNode } from "./graph-types.js";
-import { traverseFrom } from "./graph-traverse.js";
-import { createGraphCache } from "./graph-cache.js";
-import { registerGraphCacheInvalidator } from "./graph-invalidate.js";
 import { getProjectDir } from "../utils/paths.js";
 import {
+  type KnowledgeMeta,
+  listTasks,
+  type PlanMeta,
   readKnowledgeIndex,
   readPlanIndex,
-  listTasks,
-  type KnowledgeMeta,
-  type PlanMeta,
   type TaskMeta,
 } from "../utils/project-memory.js";
+import { createGraphCache } from "./graph-cache.js";
+import { registerGraphCacheInvalidator } from "./graph-invalidate.js";
+import { traverseFrom } from "./graph-traverse.js";
+import type { AdjacencyIndex, NodeType, ScoredNode } from "./graph-types.js";
 
 // Module-level singleton cache
 const graphCache = createGraphCache();
@@ -122,9 +122,9 @@ export async function retrieveRelated(
   // 4. Hydrate — load metadata indexes
   const projectDir = getProjectDir(slug);
 
-  let knowledgeMap = new Map<string, KnowledgeMeta>();
-  let planMap = new Map<string, PlanMeta>();
-  let taskMap = new Map<string, TaskMeta>();
+  const knowledgeMap = new Map<string, KnowledgeMeta>();
+  const planMap = new Map<string, PlanMeta>();
+  const taskMap = new Map<string, TaskMeta>();
 
   try {
     const kIdx = await readKnowledgeIndex(projectDir);
@@ -165,7 +165,12 @@ export async function retrieveRelated(
         title = meta.title;
         summary = meta.summary || undefined;
         // Audience filter
-        if (audience && meta.audience && meta.audience !== audience && meta.audience !== "universal") {
+        if (
+          audience &&
+          meta.audience &&
+          meta.audience !== audience &&
+          meta.audience !== "universal"
+        ) {
           continue;
         }
       }

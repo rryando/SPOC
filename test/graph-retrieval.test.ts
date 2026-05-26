@@ -8,8 +8,8 @@ vi.mock("../src/utils/paths.js", () => ({
   getDataDir: vi.fn(() => "/tmp/spoc-data"),
 }));
 
-import { getProjectDir } from "../src/utils/paths.js";
 import { retrieveRelated } from "../src/retrieval/graph-retrieval.js";
+import { getProjectDir } from "../src/utils/paths.js";
 
 const mockedGetProjectDir = vi.mocked(getProjectDir);
 

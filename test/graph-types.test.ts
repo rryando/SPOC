@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   EDGE_WEIGHTS,
-  type AdjacencyIndex,
   type EdgeRelation,
   type GraphEdge,
   type GraphNode,

@@ -44,7 +44,7 @@ defineCommand({
 
 async function handlePlanList(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const status = params.status as PlanStatus | undefined;
@@ -89,7 +89,7 @@ defineCommand({
 
 async function handlePlanGet(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const planId = params.planId as string;

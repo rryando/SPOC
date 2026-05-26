@@ -187,9 +187,7 @@ describe("opencode SPOC bundle install detection", () => {
         "utf-8",
       );
 
-      expect(detectSpocBundleInstall(sourceManifestWithConfigOnly).state).toBe(
-        "foreign-existing",
-      );
+      expect(detectSpocBundleInstall(sourceManifestWithConfigOnly).state).toBe("foreign-existing");
     });
   });
 
@@ -276,13 +274,7 @@ describe("opencode SPOC bundle installer", () => {
 
   it("replaces a foreign install when auto-confirmed and installs the curated runtime payload", async () => {
     await withTempHomeDir(async (homeDir) => {
-      const foreignPluginPath = resolve(
-        homeDir,
-        ".config",
-        "opencode",
-        "plugins",
-        "spoc.js",
-      );
+      const foreignPluginPath = resolve(homeDir, ".config", "opencode", "plugins", "spoc.js");
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(foreignPluginPath, "foreign plugin", "utf-8");
 
@@ -337,9 +329,7 @@ describe("opencode SPOC bundle installer", () => {
         },
       });
       expect(opencodeConfig).not.toHaveProperty("plugin");
-      expect(readInstalledSpocBundleManifest()?.ownedPaths).toContain(
-        "skills/spoc",
-      );
+      expect(readInstalledSpocBundleManifest()?.ownedPaths).toContain("skills/spoc");
     });
   });
 

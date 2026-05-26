@@ -20,11 +20,7 @@ import {
   updateTask,
 } from "../../utils/project-memory.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
-import {
-  type CLIResult,
-  type CommandFlags,
-  defineCommand,
-} from "../command-registry.js";
+import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 import { attemptDiagramUpdate } from "./task.js";
 

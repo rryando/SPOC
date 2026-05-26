@@ -43,7 +43,7 @@ defineCommand({
 
 async function handleKnowledgeList(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const kind = params.kind as KnowledgeKind | undefined;
@@ -81,7 +81,7 @@ defineCommand({
 
 async function handleKnowledgeGet(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const entryId = params.entryId as string;
@@ -335,7 +335,7 @@ defineCommand({
 
 async function handleKnowledgeSearch(
   params: Record<string, unknown>,
-  flags: CommandFlags,
+  _flags: CommandFlags,
 ): Promise<CLIResult> {
   const slug = params.slug as string;
   const query = params.query as string;

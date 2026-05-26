@@ -1,13 +1,13 @@
-import * as p from "@clack/prompts";
 import { execSync } from "node:child_process";
+import * as p from "@clack/prompts";
 import color from "picocolors";
+import { detectGraphify } from "../utils/graphify.js";
+import { detectSpocBundleInstall, installSpocBundle } from "./bundle-installer.js";
 import {
-  configExists,
   extractModelPreFills,
   getAvailableModels,
   type ModelTierConfig,
   type ProviderModels,
-  readConfig,
   readOpenCodeConfig,
   type SpocConfig,
   writeConfig,
@@ -18,11 +18,6 @@ import {
   opencodeHasAgent,
   writeOpencodeAgent,
 } from "./instructions.js";
-import {
-  detectSpocBundleInstall,
-  installSpocBundle,
-} from "./bundle-installer.js";
-import { detectGraphify } from "../utils/graphify.js";
 
 // ---------------------------------------------------------------------------
 // TUI Wizard
@@ -44,34 +39,9 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   }
 
   const isInit = mode === "init";
-  const existing = configExists() ? readConfig() : null;
 
   console.clear();
   p.intro(color.bgCyan(color.black(isInit ? " SPOC setup " : " SPOC config ")));
-
-  if (isInit && existing) {
-    const overwrite = await p.confirm({
-      message: "An existing configuration was found. Overwrite it?",
-      initialValue: false,
-    });
-    if (p.isCancel(overwrite) || !overwrite) {
-      p.cancel("Setup cancelled. Existing config preserved.");
-      process.exit(0);
-    }
-  }
-
-  // ── Single upfront confirm ─────────────────────────────────────────────────
-  const proceed = await p.confirm({
-    message: isInit
-      ? "Set up SPOC for OpenCode with all agents enabled?"
-      : "Re-configure SPOC for OpenCode?",
-    initialValue: true,
-  });
-
-  if (p.isCancel(proceed) || !proceed) {
-    p.cancel("Setup cancelled.");
-    process.exit(0);
-  }
 
   // ── Model configuration ───────────────────────────────────────────────────
   const openCodeConfig = await readOpenCodeConfig();
@@ -169,10 +139,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       { name: "qa-analyst", tier: "light" },
     ];
 
-    p.note(
-      "Select a model for each agent, or keep the tier default.",
-      "Per-Agent Customization",
-    );
+    p.note("Select a model for each agent, or keep the tier default.", "Per-Agent Customization");
 
     const perAgent: Record<string, string> = {};
 
@@ -543,9 +510,7 @@ export async function promptGraphifyInstall(): Promise<void> {
   });
 
   if (p.isCancel(shouldInstall) || !shouldInstall) {
-    p.log.info(
-      color.dim(`Install later:  uv tool install graphifyy  |  ${GRAPHIFY_URL}`),
-    );
+    p.log.info(color.dim(`Install later:  uv tool install graphifyy  |  ${GRAPHIFY_URL}`));
     return;
   }
 

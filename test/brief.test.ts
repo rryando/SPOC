@@ -2,21 +2,34 @@
 // Tests for `spoc brief` command
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { withTempDataDir } from "./helpers/temp-data-dir.js";
+import { describe, expect, it } from "vitest";
 import { runCommand } from "./helpers/cli-runner.js";
+import { withTempDataDir } from "./helpers/temp-data-dir.js";
 
-function seedProject(dir: string, slug: string, opts?: { tasks?: unknown[]; plans?: unknown[]; knowledge?: unknown[]; overview?: string }) {
-  const rootMeta = { version: "1.0", projects: [{ id: slug, name: "Test Project", status: "active", dependsOn: [] }] };
+function seedProject(
+  dir: string,
+  slug: string,
+  opts?: { tasks?: unknown[]; plans?: unknown[]; knowledge?: unknown[]; overview?: string },
+) {
+  const rootMeta = {
+    version: "1.0",
+    projects: [{ id: slug, name: "Test Project", status: "active", dependsOn: [] }],
+  };
   writeFileSync(resolve(dir, "meta.json"), JSON.stringify(rootMeta), "utf-8");
 
   const projDir = resolve(dir, "projects", slug);
   mkdirSync(projDir, { recursive: true });
 
   const cwd = process.cwd();
-  const projectMeta = { id: slug, name: "Test Project", description: "A test project", createdAt: "2025-01-01T00:00:00Z", workspacePaths: [cwd] };
+  const projectMeta = {
+    id: slug,
+    name: "Test Project",
+    description: "A test project",
+    createdAt: "2025-01-01T00:00:00Z",
+    workspacePaths: [cwd],
+  };
   writeFileSync(resolve(projDir, "meta.json"), JSON.stringify(projectMeta), "utf-8");
 
   // Overview
@@ -27,9 +40,36 @@ function seedProject(dir: string, slug: string, opts?: { tasks?: unknown[]; plan
   const tasksDir = resolve(projDir, "tasks");
   mkdirSync(tasksDir, { recursive: true });
   const tasks = opts?.tasks ?? [
-    { id: "t1", normalizedId: "t1", title: "Open task", status: "in_progress", priority: "high", planId: "p1", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
-    { id: "t2", normalizedId: "t2", title: "Done task", status: "done", priority: "medium", planId: "p1", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
-    { id: "t3", normalizedId: "t3", title: "Cancelled task", status: "cancelled", priority: "low", planId: "p1", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
+    {
+      id: "t1",
+      normalizedId: "t1",
+      title: "Open task",
+      status: "in_progress",
+      priority: "high",
+      planId: "p1",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
+    {
+      id: "t2",
+      normalizedId: "t2",
+      title: "Done task",
+      status: "done",
+      priority: "medium",
+      planId: "p1",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
+    {
+      id: "t3",
+      normalizedId: "t3",
+      title: "Cancelled task",
+      status: "cancelled",
+      priority: "low",
+      planId: "p1",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
   ];
   writeFileSync(resolve(tasksDir, "index.json"), JSON.stringify({ tasks }), "utf-8");
 
@@ -37,8 +77,28 @@ function seedProject(dir: string, slug: string, opts?: { tasks?: unknown[]; plan
   const plansDir = resolve(projDir, "plans");
   mkdirSync(plansDir, { recursive: true });
   const plans = opts?.plans ?? [
-    { id: "p1", normalizedId: "p1", title: "Active plan", status: "in_progress", keywords: [], summary: "s", file: "plans/p1.md", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
-    { id: "p2", normalizedId: "p2", title: "Done plan", status: "done", keywords: [], summary: "s", file: "plans/p2.md", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
+    {
+      id: "p1",
+      normalizedId: "p1",
+      title: "Active plan",
+      status: "in_progress",
+      keywords: [],
+      summary: "s",
+      file: "plans/p1.md",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
+    {
+      id: "p2",
+      normalizedId: "p2",
+      title: "Done plan",
+      status: "done",
+      keywords: [],
+      summary: "s",
+      file: "plans/p2.md",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
   ];
   writeFileSync(resolve(plansDir, "index.json"), JSON.stringify({ plans }), "utf-8");
   for (const p of plans as Array<{ normalizedId: string } & Record<string, unknown>>) {
@@ -49,14 +109,84 @@ function seedProject(dir: string, slug: string, opts?: { tasks?: unknown[]; plan
   const knowledgeDir = resolve(projDir, "knowledge");
   mkdirSync(knowledgeDir, { recursive: true });
   const knowledge = opts?.knowledge ?? [
-    { id: "k1", normalizedId: "k1", title: "K1", kind: "pattern", audience: "orchestrator", keywords: [], summary: "s", file: "knowledge/k1.md", createdAt: "2025-01-05T00:00:00Z", updatedAt: "2025-01-05T00:00:00Z" },
-    { id: "k2", normalizedId: "k2", title: "K2", kind: "lesson", audience: "implementer", keywords: [], summary: "s", file: "knowledge/k2.md", createdAt: "2025-01-04T00:00:00Z", updatedAt: "2025-01-04T00:00:00Z" },
-    { id: "k3", normalizedId: "k3", title: "K3", kind: "gotcha", audience: "orchestrator", keywords: [], summary: "s", file: "knowledge/k3.md", createdAt: "2025-01-03T00:00:00Z", updatedAt: "2025-01-03T00:00:00Z" },
-    { id: "k4", normalizedId: "k4", title: "K4", kind: "architecture", audience: "universal", keywords: [], summary: "s", file: "knowledge/k4.md", createdAt: "2025-01-02T00:00:00Z", updatedAt: "2025-01-02T00:00:00Z" },
-    { id: "k5", normalizedId: "k5", title: "K5", kind: "reference", audience: "orchestrator", keywords: [], summary: "s", file: "knowledge/k5.md", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" },
-    { id: "k6", normalizedId: "k6", title: "K6", kind: "feature", audience: "designer", keywords: [], summary: "s", file: "knowledge/k6.md", createdAt: "2025-01-06T00:00:00Z", updatedAt: "2025-01-06T00:00:00Z" },
+    {
+      id: "k1",
+      normalizedId: "k1",
+      title: "K1",
+      kind: "pattern",
+      audience: "orchestrator",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k1.md",
+      createdAt: "2025-01-05T00:00:00Z",
+      updatedAt: "2025-01-05T00:00:00Z",
+    },
+    {
+      id: "k2",
+      normalizedId: "k2",
+      title: "K2",
+      kind: "lesson",
+      audience: "implementer",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k2.md",
+      createdAt: "2025-01-04T00:00:00Z",
+      updatedAt: "2025-01-04T00:00:00Z",
+    },
+    {
+      id: "k3",
+      normalizedId: "k3",
+      title: "K3",
+      kind: "gotcha",
+      audience: "orchestrator",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k3.md",
+      createdAt: "2025-01-03T00:00:00Z",
+      updatedAt: "2025-01-03T00:00:00Z",
+    },
+    {
+      id: "k4",
+      normalizedId: "k4",
+      title: "K4",
+      kind: "architecture",
+      audience: "universal",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k4.md",
+      createdAt: "2025-01-02T00:00:00Z",
+      updatedAt: "2025-01-02T00:00:00Z",
+    },
+    {
+      id: "k5",
+      normalizedId: "k5",
+      title: "K5",
+      kind: "reference",
+      audience: "orchestrator",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k5.md",
+      createdAt: "2025-01-01T00:00:00Z",
+      updatedAt: "2025-01-01T00:00:00Z",
+    },
+    {
+      id: "k6",
+      normalizedId: "k6",
+      title: "K6",
+      kind: "feature",
+      audience: "designer",
+      keywords: [],
+      summary: "s",
+      file: "knowledge/k6.md",
+      createdAt: "2025-01-06T00:00:00Z",
+      updatedAt: "2025-01-06T00:00:00Z",
+    },
   ];
-  writeFileSync(resolve(knowledgeDir, "index.json"), JSON.stringify({ entries: knowledge }), "utf-8");
+  writeFileSync(
+    resolve(knowledgeDir, "index.json"),
+    JSON.stringify({ entries: knowledge }),
+    "utf-8",
+  );
   for (const k of knowledge as Array<{ normalizedId: string } & Record<string, unknown>>) {
     writeFileSync(resolve(knowledgeDir, `${k.normalizedId}.meta.json`), JSON.stringify(k), "utf-8");
   }
@@ -159,7 +289,9 @@ describe("spoc brief", () => {
       const result = await runCommand("brief", ["test-proj", "--json"]);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
-      const data = result.data as { topKnowledge: Array<{ id: string; title: string; kind: string }> };
+      const data = result.data as {
+        topKnowledge: Array<{ id: string; title: string; kind: string }>;
+      };
       expect(data.topKnowledge.length).toBeLessThanOrEqual(5);
       // Each entry has id, title, kind only
       for (const k of data.topKnowledge) {
@@ -233,7 +365,7 @@ describe("spoc brief", () => {
 
   it("summary is truncated to 200 chars", async () => {
     await withTempDataDir(async (dir) => {
-      const longOverview = "A".repeat(300) + "\n\nSecond paragraph.";
+      const longOverview = `${"A".repeat(300)}\n\nSecond paragraph.`;
       seedProject(dir, "test-proj", { overview: longOverview });
       const result = await runCommand("brief", ["test-proj", "--json"]);
       expect(result.ok).toBe(true);
@@ -247,7 +379,8 @@ describe("spoc brief", () => {
     // Regression: spoc's own overview.md starts with `## Summary` which the
     // brief was rendering verbatim instead of skipping to the actual prose.
     await withTempDataDir(async (dir) => {
-      const overview = "## Summary\n\nThis is the actual project description prose.\n\n## Goals\n\n- something";
+      const overview =
+        "## Summary\n\nThis is the actual project description prose.\n\n## Goals\n\n- something";
       seedProject(dir, "test-proj", { overview });
       const result = await runCommand("brief", ["test-proj", "--json"]);
       expect(result.ok).toBe(true);
@@ -284,7 +417,8 @@ describe("spoc brief", () => {
       expect(md).toContain("## Open Tasks (1)");
       expect(md).toContain("- [/] Open task");
       expect(md).toContain("## Top Knowledge");
-      expect(md).not.toMatch(/\x1b\[/);
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape detection
+      expect(md).not.toMatch(/\u001b\[/);
     });
   });
 });
@@ -337,7 +471,10 @@ describe("spoc context", () => {
       const result = await runCommand("context", ["test-proj", "--full"]);
       expect(result.ok).toBe(true);
       if (!result.ok) return;
-      const data = result.data as { tasks: Array<{ status: string }>; plans: Array<{ status: string }> };
+      const data = result.data as {
+        tasks: Array<{ status: string }>;
+        plans: Array<{ status: string }>;
+      };
       expect(data.tasks.length).toBe(3);
       expect(data.plans.length).toBe(2);
     });

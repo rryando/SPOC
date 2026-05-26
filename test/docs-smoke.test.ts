@@ -47,9 +47,9 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README mentions Queue / Plan / Memory", () => {
-    expect(readme).toContain('Queue  (tasks.md + tasks/index.json)');
-    expect(readme).toContain('Plan  (plans/*.md + .diagram.mmd)');
-    expect(readme).toContain('Memory  (knowledge/*.md)');
+    expect(readme).toContain("Queue  (tasks.md + tasks/index.json)");
+    expect(readme).toContain("Plan  (plans/*.md + .diagram.mmd)");
+    expect(readme).toContain("Memory  (knowledge/*.md)");
   });
 
   it("README mentions operating brief", () => {

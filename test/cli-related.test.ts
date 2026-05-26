@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock graph-retrieval
 vi.mock("../src/retrieval/graph-retrieval.js", () => ({
@@ -28,17 +28,27 @@ describe("CLI related command", () => {
 
   it("parses --knowledge flag and calls retrieveRelated with knowledge:<id>", async () => {
     await handleRelated(["my-project", "--knowledge=bm25-search"], true);
-    expect(mockedRetrieveRelated).toHaveBeenCalledWith("my-project", "knowledge:bm25-search", { limit: 10 });
+    expect(mockedRetrieveRelated).toHaveBeenCalledWith("my-project", "knowledge:bm25-search", {
+      limit: 10,
+    });
   });
 
   it("parses --plan flag and calls retrieveRelated with plan:<id>", async () => {
     await handleRelated(["my-project", "--plan=cli-layer"], true);
-    expect(mockedRetrieveRelated).toHaveBeenCalledWith("my-project", "plan:cli-layer", { limit: 10 });
+    expect(mockedRetrieveRelated).toHaveBeenCalledWith("my-project", "plan:cli-layer", {
+      limit: 10,
+    });
   });
 
   it("returns formatted JSON output", async () => {
     mockedRetrieveRelated.mockResolvedValue([
-      { id: "bm25-retrieval", type: "knowledge", title: "BM25 Retrieval", score: 0.85, relation: "shares file src/retrieval/bm25.ts" },
+      {
+        id: "bm25-retrieval",
+        type: "knowledge",
+        title: "BM25 Retrieval",
+        score: 0.85,
+        relation: "shares file src/retrieval/bm25.ts",
+      },
     ]);
 
     await handleRelated(["my-project", "--task=abc", "--json"], true);
@@ -57,7 +67,9 @@ describe("CLI related command", () => {
 
   it("errors when no --task/--knowledge/--plan provided", async () => {
     await handleRelated(["my-project"], false);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("one of --task, --knowledge, or --plan is required"));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("one of --task, --knowledge, or --plan is required"),
+    );
   });
 
   it("respects --limit flag", async () => {

@@ -23,9 +23,7 @@ export async function selectKnowledgeEntries(
 
   if (!taskId) {
     // No task context — pure recency
-    const sorted = [...entries].sort(
-      (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
-    );
+    const sorted = [...entries].sort((a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt));
     return sorted.slice(0, MAX_ENTRIES);
   }
 
@@ -78,9 +76,7 @@ export async function selectKnowledgeEntries(
 
   // Fill remaining slots with recency-sorted entries not already selected
   if (selected.length < MAX_ENTRIES) {
-    const sorted = [...entries].sort(
-      (a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt),
-    );
+    const sorted = [...entries].sort((a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt));
     for (const e of sorted) {
       if (selected.length >= MAX_ENTRIES) break;
       if (!selectedIds.has(e.id)) {

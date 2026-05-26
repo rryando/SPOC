@@ -1,10 +1,4 @@
-import type {
-  AdjacencyIndex,
-  GraphNode,
-  NodeType,
-  ScoredNode,
-  TraversalOptions,
-} from "./graph-types.js";
+import type { AdjacencyIndex, ScoredNode, TraversalOptions } from "./graph-types.js";
 
 export function traverseFrom(
   index: AdjacencyIndex,

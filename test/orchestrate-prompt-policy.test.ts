@@ -2,7 +2,10 @@ import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
-import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/cli/spoc-orchestrate-caveman.js";
+import {
+  CAVEMAN_PREAMBLE,
+  ORCHESTRATE_CAVEMAN_PROMPT_TEXT,
+} from "../src/cli/spoc-orchestrate-caveman.js";
 
 describe("orchestrate prompt policy — lifecycle commands", () => {
   const LIFECYCLE_COMMANDS = [
@@ -86,9 +89,7 @@ describe("orchestrate prompt policy — caveman sub-agent propagation", () => {
   });
 
   it("caveman carve-outs preserve DAG content as full prose", () => {
-    expect(CAVEMAN_PREAMBLE).toMatch(
-      /plans.*knowledge.*overviews.*tasks|SPOC DAG.*full prose/i,
-    );
+    expect(CAVEMAN_PREAMBLE).toMatch(/plans.*knowledge.*overviews.*tasks|SPOC DAG.*full prose/i);
   });
 
   it("caveman carve-outs preserve .mmd diagram files", () => {
@@ -99,7 +100,9 @@ describe("orchestrate prompt policy — caveman sub-agent propagation", () => {
     expect(ORCHESTRATE_CAVEMAN_PROMPT_TEXT).toContain(ORCHESTRATE_PROMPT_TEXT);
     // Preamble comes first
     const preambleIdx = ORCHESTRATE_CAVEMAN_PROMPT_TEXT.indexOf("# Caveman Mode");
-    const orchestrateIdx = ORCHESTRATE_CAVEMAN_PROMPT_TEXT.indexOf("You are the orchestration agent");
+    const orchestrateIdx = ORCHESTRATE_CAVEMAN_PROMPT_TEXT.indexOf(
+      "You are the orchestration agent",
+    );
     expect(preambleIdx).toBeLessThan(orchestrateIdx);
   });
 });
@@ -108,7 +111,10 @@ describe("orchestrate prompt policy — diagram drift types enumeration", () => 
   it("SYNC workflow lists diagram drift audit in surfaces", () => {
     const syncStart = ORCHESTRATE_PROMPT_TEXT.indexOf("### SYNC Workflow");
     const syncEnd = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", syncStart + 1);
-    const syncSection = ORCHESTRATE_PROMPT_TEXT.slice(syncStart, syncEnd > syncStart ? syncEnd : undefined);
+    const syncSection = ORCHESTRATE_PROMPT_TEXT.slice(
+      syncStart,
+      syncEnd > syncStart ? syncEnd : undefined,
+    );
 
     // SYNC delegates to spoc-docs but still lists audit surfaces including diagrams
     expect(syncSection.toLowerCase()).toContain("diagram");
@@ -161,19 +167,19 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
 
   // Skills that are host-specific, formatting-only, or special-purpose (not routed by orchestrator)
   const NON_ROUTED_EXCEPTIONS = [
-    "caveman-commit",    // formatting skill for commit messages
-    "caveman-review",    // formatting skill for code review comments
-    "aesthetic",         // layering skill loaded by sub-agents for UI work
-    "executing-plans",   // session-management skill loaded by sub-agents
-    "writing-skills",    // meta-skill for skill authoring
+    "caveman-commit", // formatting skill for commit messages
+    "caveman-review", // formatting skill for code review comments
+    "aesthetic", // layering skill loaded by sub-agents for UI work
+    "executing-plans", // session-management skill loaded by sub-agents
+    "writing-skills", // meta-skill for skill authoring
     "using-superpowers", // meta-skill for skill discovery
-    "spoc-dashboard",    // optional UI tool
-    "architecture-review",   // agent-loaded skill for system-architect
-    "knowledge-curation",    // agent-loaded skill for spoc-docs
+    "spoc-dashboard", // optional UI tool
+    "architecture-review", // agent-loaded skill for system-architect
+    "knowledge-curation", // agent-loaded skill for spoc-docs
     "performance-diagnosis", // agent-loaded skill for code-doctor
-    "deep-pr-review",        // host-specific skill invoked directly by user PR-review trigger
-    "customize-opencode",    // host-specific meta-skill for editing opencode's own config
-    "confidence-gate",       // universal pre-action gate loaded by every agent before irreversible action
+    "deep-pr-review", // host-specific skill invoked directly by user PR-review trigger
+    "customize-opencode", // host-specific meta-skill for editing opencode's own config
+    "confidence-gate", // universal pre-action gate loaded by every agent before irreversible action
   ];
 
   it("every skill on disk is either routed or listed as non-routed exception", () => {

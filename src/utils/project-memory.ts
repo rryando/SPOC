@@ -7,9 +7,8 @@
 
 import { constants } from "node:fs";
 import { access, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { readJsonSafe } from "./json.js";
-import { planMetaSchema, knowledgeMetaSchema } from "./json-schemas.js";
+import { basename, join } from "node:path";
+import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
 import {
   indexRebuildFailed,
   invalidFileFormat,
@@ -23,9 +22,9 @@ import {
   normalizedIdCollision,
 } from "./errors.js";
 import { withLock } from "./file-lock.js";
+import { readJsonSafe } from "./json.js";
+import { knowledgeMetaSchema, planMetaSchema } from "./json-schemas.js";
 import { normalizeIdentifier } from "./slug.js";
-import { basename } from "node:path";
-import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -54,7 +53,12 @@ export const KNOWLEDGE_KINDS = [
 
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];
 
-export const KNOWLEDGE_AUDIENCES = ["orchestrator", "implementer", "designer", "universal"] as const;
+export const KNOWLEDGE_AUDIENCES = [
+  "orchestrator",
+  "implementer",
+  "designer",
+  "universal",
+] as const;
 
 export type KnowledgeAudience = (typeof KNOWLEDGE_AUDIENCES)[number];
 
@@ -78,7 +82,7 @@ export function sanitizeFileRefs(refs: FileRef[]): FileRef[] {
   return refs.map((ref) => {
     // Normalize backslashes to forward slashes first (Windows path compat)
     const path = ref.path.replace(/\\/g, "/").replace(/\/+$/, "");
-    if (!path || !path.trim()) {
+    if (!path?.trim()) {
       throw invalidFileRef("path must not be empty");
     }
     if (path.startsWith("/")) {
@@ -93,7 +97,7 @@ export function sanitizeFileRefs(refs: FileRef[]): FileRef[] {
     }
     const result: FileRef = { path };
     if (ref.anchor !== undefined) {
-      if (!ref.anchor || !ref.anchor.trim()) {
+      if (!ref.anchor?.trim()) {
         throw invalidFileRef("anchor must not be empty or whitespace-only");
       }
       if (/[#,]/.test(ref.anchor)) {
@@ -243,7 +247,6 @@ async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
 }
 
-
 async function writeJson(filePath: string, data: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
@@ -308,7 +311,10 @@ async function rebuildPlanIndex(plansDir: string): Promise<PlanIndex> {
       }
       const result = planMetaSchema.safeParse(raw);
       if (!result.success) {
-        throw invalidFileFormat(filePath, result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
+        throw invalidFileFormat(
+          filePath,
+          result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "),
+        );
       }
       plans.push(result.data as PlanMeta);
     } catch (e) {
@@ -341,7 +347,10 @@ async function rebuildKnowledgeIndex(knowledgeDir: string): Promise<KnowledgeInd
       }
       const result = knowledgeMetaSchema.safeParse(raw);
       if (!result.success) {
-        throw invalidFileFormat(filePath, result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
+        throw invalidFileFormat(
+          filePath,
+          result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "),
+        );
       }
       entries.push(result.data as KnowledgeMeta);
     } catch (e) {

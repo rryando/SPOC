@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/retrieval/graph-cache.js", () => ({
   createGraphCache: vi.fn(),
@@ -39,14 +39,40 @@ function makeIndex(overrides?: Partial<AdjacencyIndex>): AdjacencyIndex {
   ]);
 
   const edges = new Map([
-    ["task:t1", [
-      { source: "task:t1", target: "file:src/a.ts", relation: "shares_source_file" as const, weight: 1 },
-      { source: "task:t1", target: "knowledge:k1", relation: "shares_keywords" as const, weight: 0.5 },
-    ]],
-    ["task:t2", [
-      { source: "task:t2", target: "file:src/a.ts", relation: "shares_source_file" as const, weight: 1 },
-      { source: "task:t2", target: "file:src/b.ts", relation: "shares_source_file" as const, weight: 1 },
-    ]],
+    [
+      "task:t1",
+      [
+        {
+          source: "task:t1",
+          target: "file:src/a.ts",
+          relation: "shares_source_file" as const,
+          weight: 1,
+        },
+        {
+          source: "task:t1",
+          target: "knowledge:k1",
+          relation: "shares_keywords" as const,
+          weight: 0.5,
+        },
+      ],
+    ],
+    [
+      "task:t2",
+      [
+        {
+          source: "task:t2",
+          target: "file:src/a.ts",
+          relation: "shares_source_file" as const,
+          weight: 1,
+        },
+        {
+          source: "task:t2",
+          target: "file:src/b.ts",
+          relation: "shares_source_file" as const,
+          weight: 1,
+        },
+      ],
+    ],
   ]);
 
   const fileIndex = new Map([

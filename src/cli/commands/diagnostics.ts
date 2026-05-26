@@ -4,16 +4,12 @@
 
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineCommand, ERROR_CODES } from "../command-registry.js";
-import { success, failure } from "../output-envelope.js";
-import { getProjectDir } from "../../utils/paths.js";
 import { readJsonSafe, validateJson } from "../../utils/json.js";
 import { projectMetaSchema } from "../../utils/json-schemas.js";
-import {
-  listTasks,
-  readKnowledgeIndex,
-  readPlanIndex,
-} from "../../utils/project-memory.js";
+import { getProjectDir } from "../../utils/paths.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { defineCommand, ERROR_CODES } from "../command-registry.js";
+import { failure, success } from "../output-envelope.js";
 
 // ---------------------------------------------------------------------------
 // audit

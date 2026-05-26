@@ -1,11 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
-
-import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
-import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 import { readJsonSafeSync } from "../utils/json.js";
 import type { ModelTierConfig } from "./config.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
+import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,7 +25,7 @@ function writeJsonFile(path: string, data: Record<string, unknown>): void {
  * Deep-set a nested key path on an object (mutates in place).
  * E.g. deepSet(obj, ["agent", "SPOC Orchestrator"], value)
  */
-function deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
+function _deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
   let current = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     const k = keys[i];

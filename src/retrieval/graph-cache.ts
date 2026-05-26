@@ -3,8 +3,8 @@
  */
 
 import { stat } from "node:fs/promises";
-import type { AdjacencyIndex } from "./graph-types.js";
 import { buildAdjacencyIndex } from "./graph-builder.js";
+import type { AdjacencyIndex } from "./graph-types.js";
 
 export interface GraphCacheOptions {
   maxAge?: number; // max cache age in ms, default 60000 (1 minute)

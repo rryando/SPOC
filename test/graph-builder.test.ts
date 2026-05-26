@@ -8,8 +8,8 @@ vi.mock("../src/utils/paths.js", () => ({
   getDataDir: vi.fn(() => "/tmp/spoc-data"),
 }));
 
-import { getProjectDir } from "../src/utils/paths.js";
 import { buildAdjacencyIndex } from "../src/retrieval/graph-builder.js";
+import { getProjectDir } from "../src/utils/paths.js";
 
 const mockedGetProjectDir = vi.mocked(getProjectDir);
 
@@ -105,7 +105,11 @@ describe("buildAdjacencyIndex", () => {
   it("builds knowledge nodes and file nodes from knowledge index", async () => {
     const projectDir = makeProjectDir();
     writeKnowledgeIndex(join(projectDir, "knowledge"), [
-      KNOWLEDGE_ENTRY("k1", { title: "Auth Pattern", keywords: ["auth", "jwt"], sourceFiles: [{ path: "src/auth.ts" }] }),
+      KNOWLEDGE_ENTRY("k1", {
+        title: "Auth Pattern",
+        keywords: ["auth", "jwt"],
+        sourceFiles: [{ path: "src/auth.ts" }],
+      }),
     ]);
 
     mockedGetProjectDir.mockReturnValue(projectDir);
@@ -119,13 +123,19 @@ describe("buildAdjacencyIndex", () => {
     expect(graph.nodes.get("file:src/auth.ts")?.type).toBe("file");
 
     const edges = graph.edges.get("knowledge:k1") ?? [];
-    expect(edges.some((e) => e.target === "file:src/auth.ts" && e.relation === "knowledge_touches_file")).toBe(true);
+    expect(
+      edges.some((e) => e.target === "file:src/auth.ts" && e.relation === "knowledge_touches_file"),
+    ).toBe(true);
   });
 
   it("builds task→plan edges when tasks have planId", async () => {
     const projectDir = makeProjectDir();
-    writePlanIndex(join(projectDir, "plans"), [PLAN_ENTRY("p1", { title: "Migration Plan", keywords: ["migration"] })]);
-    writeTaskIndex(join(projectDir, "tasks"), [TASK_ENTRY("t1", { title: "Do migration step", planId: "p1" })]);
+    writePlanIndex(join(projectDir, "plans"), [
+      PLAN_ENTRY("p1", { title: "Migration Plan", keywords: ["migration"] }),
+    ]);
+    writeTaskIndex(join(projectDir, "tasks"), [
+      TASK_ENTRY("t1", { title: "Do migration step", planId: "p1" }),
+    ]);
 
     mockedGetProjectDir.mockReturnValue(projectDir);
     const graph = await buildAdjacencyIndex("test-slug");
@@ -134,10 +144,14 @@ describe("buildAdjacencyIndex", () => {
     expect(graph.nodes.has("plan:p1")).toBe(true);
 
     const taskEdges = graph.edges.get("task:t1") ?? [];
-    expect(taskEdges.some((e) => e.target === "plan:p1" && e.relation === "task_belongs_to_plan")).toBe(true);
+    expect(
+      taskEdges.some((e) => e.target === "plan:p1" && e.relation === "task_belongs_to_plan"),
+    ).toBe(true);
 
     const planEdges = graph.edges.get("plan:p1") ?? [];
-    expect(planEdges.some((e) => e.target === "task:t1" && e.relation === "plan_contains_task")).toBe(true);
+    expect(
+      planEdges.some((e) => e.target === "task:t1" && e.relation === "plan_contains_task"),
+    ).toBe(true);
   });
 
   it("creates shares_source_file edges when 2+ entities reference same file", async () => {
@@ -152,8 +166,12 @@ describe("buildAdjacencyIndex", () => {
 
     const k1Edges = graph.edges.get("knowledge:k1") ?? [];
     const k2Edges = graph.edges.get("knowledge:k2") ?? [];
-    expect(k1Edges.some((e) => e.target === "knowledge:k2" && e.relation === "shares_source_file")).toBe(true);
-    expect(k2Edges.some((e) => e.target === "knowledge:k1" && e.relation === "shares_source_file")).toBe(true);
+    expect(
+      k1Edges.some((e) => e.target === "knowledge:k2" && e.relation === "shares_source_file"),
+    ).toBe(true);
+    expect(
+      k2Edges.some((e) => e.target === "knowledge:k1" && e.relation === "shares_source_file"),
+    ).toBe(true);
   });
 
   it("creates shares_keywords edges for knowledge entries with keyword overlap", async () => {
@@ -168,7 +186,9 @@ describe("buildAdjacencyIndex", () => {
     const graph = await buildAdjacencyIndex("test-slug");
 
     const k1Edges = graph.edges.get("knowledge:k1") ?? [];
-    expect(k1Edges.some((e) => e.target === "knowledge:k2" && e.relation === "shares_keywords")).toBe(true);
+    expect(
+      k1Edges.some((e) => e.target === "knowledge:k2" && e.relation === "shares_keywords"),
+    ).toBe(true);
 
     const k3Edges = graph.edges.get("knowledge:k3") ?? [];
     expect(k3Edges.some((e) => e.relation === "shares_keywords")).toBe(false);
@@ -201,8 +221,8 @@ describe("buildAdjacencyIndex", () => {
     mockedGetProjectDir.mockReturnValue(projectDir);
     const graph = await buildAdjacencyIndex("test-slug");
 
-    expect(graph.sourceHashes["knowledge"]).toBeGreaterThan(0);
-    expect(graph.sourceHashes["plans"]).toBeGreaterThan(0);
-    expect(graph.sourceHashes["tasks"]).toBeGreaterThan(0);
+    expect(graph.sourceHashes.knowledge).toBeGreaterThan(0);
+    expect(graph.sourceHashes.plans).toBeGreaterThan(0);
+    expect(graph.sourceHashes.tasks).toBeGreaterThan(0);
   });
 });

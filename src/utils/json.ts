@@ -28,11 +28,7 @@ export function readJsonSafeSync<T>(filePath: string): T | undefined {
  * Validate a parsed value against a Zod schema.
  * Returns the typed value on success; throws with file path context on failure.
  */
-export function validateJson<T>(
-  data: unknown,
-  schema: ZodType<T>,
-  filePath: string,
-): T {
+export function validateJson<T>(data: unknown, schema: ZodType<T>, filePath: string): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     const issues = result.error.issues

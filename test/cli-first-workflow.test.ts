@@ -1,8 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 
 import { handleDagCommand } from "../src/cli/dag-commands.js";
 
@@ -16,7 +15,9 @@ function createTempDataDir(): string {
     join(dir, "meta.json"),
     JSON.stringify({
       version: "1.0",
-      projects: [{ id: "workflow-proj", name: "Workflow Project", status: "active", dependsOn: [] }],
+      projects: [
+        { id: "workflow-proj", name: "Workflow Project", status: "active", dependsOn: [] },
+      ],
     }),
   );
   const projDir = join(dir, "projects", "workflow-proj");
@@ -31,7 +32,10 @@ function createTempDataDir(): string {
       workspacePaths: ["/tmp/workflow-workspace"],
     }),
   );
-  writeFileSync(join(projDir, "overview.md"), "# Workflow Project\n\n> Integration test\n\n## Goals\n\nTest CLI workflow.\n");
+  writeFileSync(
+    join(projDir, "overview.md"),
+    "# Workflow Project\n\n> Integration test\n\n## Goals\n\nTest CLI workflow.\n",
+  );
   // tasks
   const tasksDir = join(projDir, "tasks");
   mkdirSync(tasksDir, { recursive: true });
@@ -51,7 +55,10 @@ function createTempDataDir(): string {
       ],
     }),
   );
-  writeFileSync(join(projDir, "tasks.md"), "# Tasks — Workflow Project\n\n## Backlog\n\n- [ ] **[high]** Alpha task\n");
+  writeFileSync(
+    join(projDir, "tasks.md"),
+    "# Tasks — Workflow Project\n\n## Backlog\n\n- [ ] **[high]** Alpha task\n",
+  );
   // knowledge
   const knowledgeDir = join(projDir, "knowledge");
   mkdirSync(knowledgeDir, { recursive: true });
@@ -73,7 +80,10 @@ function createTempDataDir(): string {
       ],
     }),
   );
-  writeFileSync(join(knowledgeDir, "deploy-pattern.md"), "# Deploy Pattern\n\nUse blue-green deployments.\n");
+  writeFileSync(
+    join(knowledgeDir, "deploy-pattern.md"),
+    "# Deploy Pattern\n\nUse blue-green deployments.\n",
+  );
   writeFileSync(
     join(knowledgeDir, "deploy-pattern.meta.json"),
     JSON.stringify({
@@ -123,7 +133,10 @@ function createTempDataDir(): string {
       updatedAt: "2025-01-01T00:00:00.000Z",
     }),
   );
-  writeFileSync(join(plansDir, "migration-plan.md"), "# Migration Plan\n\nMigrate to PostgreSQL.\n");
+  writeFileSync(
+    join(plansDir, "migration-plan.md"),
+    "# Migration Plan\n\nMigrate to PostgreSQL.\n",
+  );
 
   return dir;
 }
@@ -216,8 +229,19 @@ describe("batch operations", () => {
     writeFileSync(
       batchFile,
       JSON.stringify([
-        { op: "task-transition", slug: "workflow-proj", taskId: "task-alpha", status: "in_progress" },
-        { op: "knowledge-create", slug: "workflow-proj", title: "Batch Lesson", kind: "gotcha", body: "Be careful!" },
+        {
+          op: "task-transition",
+          slug: "workflow-proj",
+          taskId: "task-alpha",
+          status: "in_progress",
+        },
+        {
+          op: "knowledge-create",
+          slug: "workflow-proj",
+          title: "Batch Lesson",
+          kind: "gotcha",
+          body: "Be careful!",
+        },
       ]),
     );
 

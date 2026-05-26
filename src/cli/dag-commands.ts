@@ -7,12 +7,12 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
-import { getProjectDir } from "../utils/paths.js";
-import { retrieveRelated } from "../retrieval/graph-retrieval.js";
 import { createGraphCache } from "../retrieval/graph-cache.js";
-import { isLeanMode, formatJsonOutput } from "./lean-output.js";
-import { getCommand } from "./command-registry.js";
+import { retrieveRelated } from "../retrieval/graph-retrieval.js";
+import { getProjectDir } from "../utils/paths.js";
 import { parseArgs } from "./arg-parser.js";
+import { type CommandDef, getCommand } from "./command-registry.js";
+import { formatJsonOutput, isLeanMode } from "./lean-output.js";
 import { render, stripTimestamps } from "./output-envelope.js";
 import "./commands/index.js";
 
@@ -66,7 +66,9 @@ function printUsage(): void {
 export async function handleRelated(args: string[], json: boolean): Promise<void> {
   const slug = args[0];
   if (!slug) {
-    cliError("Error: usage: spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]");
+    cliError(
+      "Error: usage: spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
+    );
     return;
   }
 
@@ -215,10 +217,7 @@ export async function handleGraph(args: string[], json: boolean): Promise<void> 
  * Dispatches DAG CLI subcommands via the registry. Returns true if handled.
  * Kept as export for backward compatibility with src/cli/index.ts and tests.
  */
-export async function handleDagCommand(
-  command: string,
-  args: string[],
-): Promise<boolean> {
+export async function handleDagCommand(command: string, args: string[]): Promise<boolean> {
   // Extract global flags
   const rest: string[] = [];
   let json = false;
@@ -227,8 +226,9 @@ export async function handleDagCommand(
   for (const arg of args) {
     if (arg === "--json") json = true;
     else if (arg === "--lean") lean = true;
-    else if (arg === "--dry-run") { /* consumed */ }
-    else rest.push(arg);
+    else if (arg === "--dry-run") {
+      /* consumed */
+    } else rest.push(arg);
   }
 
   if (!lean && isLeanMode([])) lean = true;
@@ -245,8 +245,8 @@ export async function handleDagCommand(
   }
 
   // Delegate to registry
-  const firstPositional = rest.find(a => !a.startsWith("-"));
-  let registeredCmd;
+  const firstPositional = rest.find((a) => !a.startsWith("-"));
+  let registeredCmd: CommandDef | undefined;
   let remaining: string[];
 
   if (firstPositional) {
@@ -257,7 +257,10 @@ export async function handleDagCommand(
       remaining = [];
       let removed = false;
       for (const a of rest) {
-        if (!removed && a === firstPositional) { removed = true; continue; }
+        if (!removed && a === firstPositional) {
+          removed = true;
+          continue;
+        }
         remaining.push(a);
       }
     }
@@ -271,7 +274,29 @@ export async function handleDagCommand(
   }
   if (!registeredCmd) {
     // Known DAG commands without a matching registry entry
-    const knownCommands = ["task", "plan", "knowledge", "diagram", "doc", "dependency", "paths", "loop", "lint-bundle", "deploy-superpowers", "sync-agents-md", "audit", "diff", "git-log", "batch", "validate", "project", "write", "context", "search", "agents-md"];
+    const knownCommands = [
+      "task",
+      "plan",
+      "knowledge",
+      "diagram",
+      "doc",
+      "dependency",
+      "paths",
+      "loop",
+      "lint-bundle",
+      "deploy-superpowers",
+      "sync-agents-md",
+      "audit",
+      "diff",
+      "git-log",
+      "batch",
+      "validate",
+      "project",
+      "write",
+      "context",
+      "search",
+      "agents-md",
+    ];
     if (knownCommands.includes(command)) {
       if (rest.includes("--help")) {
         printUsage();
@@ -295,10 +320,16 @@ export async function handleDagCommand(
   const result = parseArgs(registeredCmd, fullArgs);
   if (!result.ok) {
     // Format error in legacy style for backward compatibility
-    const err = result.error as { ok: false; code: string; message: string; hint?: string; param?: string };
+    const err = result.error as {
+      ok: false;
+      code: string;
+      message: string;
+      hint?: string;
+      param?: string;
+    };
     let errMsg: string;
     if (err.code === "invalid_enum" && err.param) {
-      errMsg = `Error: invalid ${err.param} "${(fullArgs.find(a => a.startsWith(`--${err.param}=`)) || "").split("=")[1] || ""}"`;
+      errMsg = `Error: invalid ${err.param} "${(fullArgs.find((a) => a.startsWith(`--${err.param}=`)) || "").split("=")[1] || ""}"`;
       if (err.hint) errMsg += `. ${err.hint}`;
     } else {
       const hint = err.hint ? err.hint.replace(/^Usage:/, "usage:") : undefined;

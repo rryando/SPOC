@@ -80,10 +80,7 @@ export function itemNotFound(kind: "plan" | "knowledge entry" | "task", id: stri
 }
 
 export function planNotFound(slug: string, planId: string): DagError {
-  return new DagError(
-    "PLAN_NOT_FOUND",
-    `Plan "${planId}" does not exist in project "${slug}".`,
-  );
+  return new DagError("PLAN_NOT_FOUND", `Plan "${planId}" does not exist in project "${slug}".`);
 }
 
 export function invalidFileFormat(filePath: string, details: string): DagError {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tokenize, createBm25Index } from "../src/retrieval/bm25.js";
+import { createBm25Index, tokenize } from "../src/retrieval/bm25.js";
 
 describe("tokenize", () => {
   it("lowercases input", () => {

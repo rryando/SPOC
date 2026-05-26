@@ -21,8 +21,7 @@ export function failure(
 
 export function render(result: CLIResult, flags: { json: boolean; lean: boolean }): void {
   if (flags.json) {
-    const output =
-      flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
+    const output = flags.lean && result.ok ? { ...result, data: leanify(result.data) } : result;
     if (result.ok) {
       console.log(JSON.stringify(output));
     } else {
