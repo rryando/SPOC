@@ -45,8 +45,8 @@ For all DAG operations, use the SPOC CLI. Reads are direct; writes require a wri
 
 **Write-gate flow (required for all DAG writes):**
 ```bash
-# Step 1: Propose (get token — TTL 10min, single-use)
-TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .data.token)
+# Step 1: Propose (get token — TTL 10min, one consumption per --ops slot)
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
 
 # Step 2: Execute write with token
 spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
@@ -54,4 +54,4 @@ spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
 # or: spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
-Re-propose if the token expires (TTL 10min, single-use). Tokens are consumed only on actual mutation — validation failures don't consume.
+Re-propose if the token expires (TTL 10min, one consumption per --ops slot). Tokens are consumed only on actual mutation — validation failures don't consume.

@@ -80,7 +80,7 @@ A plan diagram MUST be generated and presented before proceeding to storage. Dra
 ## Storage
 
 ```bash
-TOKEN=$(spoc write propose "Create design spec" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+TOKEN=$(spoc write propose "Create design spec" --ops=plan-create --slug=<slug> --json | jq -r .data.token)
 spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="..." --status=proposed --keywords='["spec","design"]' --body="<markdown>" --token=$TOKEN --json
 ```
 

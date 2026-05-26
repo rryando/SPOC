@@ -40,6 +40,30 @@ flowchart TD
 
 **Cardinal rule:** Orchestrator reads T0 + writes. Sub-agents read everything else.
 
+### T0 envelope shape
+
+`spoc brief --json` returns a tight ~1 KB envelope:
+
+```json
+{
+  "slug": "...", "name": "...", "summary": "...",
+  "operatingBrief": {
+    "currentFocus":       "<task or plan title to anchor on>",
+    "recommendedSurface": "QUEUE | PLAN | MEMORY",
+    "why":                "<one-line rationale>",
+    "nextAction":         "<concrete next step the orchestrator should take>"
+  },
+  "activePlansCount": N, "activePlanTitles": [...],
+  "openTasksCount":   N, "topOpenTasks": [{ id, title, status }],
+  "topKnowledge":     [{ id, title, kind }]
+}
+```
+
+Use `recommendedSurface` to pick the routing branch:
+- `QUEUE` → execute the active task (EXECUTE workflow)
+- `PLAN`  → decompose or plan work (BRAINSTORM workflow)
+- `MEMORY` → no active work; review knowledge or propose a new plan
+
 ## CLI Primer
 
 All ops: `spoc <group> <action> [args] --json`. Writes need token:

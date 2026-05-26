@@ -244,5 +244,15 @@ describe("write-gate token model", () => {
       expect(normalizeOpName("tool:create_project_plan")).toBe(normalizeOpName("plan-create"));
       expect(normalizeOpName("tool:create_project_plan")).toBe("plan-create");
     });
+
+    it("resolves colon-separated short forms (plan:create, loop:start) to canonical", () => {
+      // Regression: skill examples used 'plan:create' / 'loop:start' which
+      // never normalized to anything meaningful. Add explicit aliases so
+      // agents copy-pasting old skill text still get a valid proposal.
+      expect(normalizeOpName("plan:create")).toBe("plan-create");
+      expect(normalizeOpName("loop:start")).toBe("loop-start");
+      expect(normalizeOpName("task:create")).toBe("task-create");
+      expect(normalizeOpName("knowledge:create")).toBe("knowledge-create");
+    });
   });
 });

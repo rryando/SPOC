@@ -27,7 +27,7 @@ flowchart TD
 ## Starting
 
 ```bash
-TOKEN=$(spoc write propose "Start loop" --ops=loop:start --slug=<slug> --json | jq -r .data.token)
+TOKEN=$(spoc write propose "Start loop" --ops=loop-start --slug=<slug> --json | jq -r .data.token)
 spoc loop start <slug> --prompt="<task>" --max-iterations=50 --strategy=continue --token=$TOKEN --json
 ```
 

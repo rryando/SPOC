@@ -157,7 +157,7 @@ flowchart TD
 ## Storage
 
 ```bash
-TOKEN=$(spoc write propose "Create implementation plan" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+TOKEN=$(spoc write propose "Create implementation plan" --ops=plan-create --slug=<slug> --json | jq -r .data.token)
 spoc plan create <slug> --title="YYYY-MM-DD <feature> Implementation Plan" --summary="..." --status=planned --keywords='["implementation-plan"]' --body="<markdown>" --token=$TOKEN --json
 ```
 

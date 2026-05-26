@@ -113,6 +113,27 @@ flowchart TD
 
 **Cardinal rule:** Orchestrator orients (T0) and writes. Sub-agents read. No exceptions.
 
+### T0 envelope shape
+
+\`spoc brief --json\` returns a tight ~1 KB envelope:
+
+\`\`\`json
+{
+  "slug": "...", "name": "...", "summary": "...",
+  "operatingBrief": {
+    "currentFocus":       "<task or plan title to anchor on>",
+    "recommendedSurface": "QUEUE | PLAN | MEMORY",
+    "why":                "<one-line rationale>",
+    "nextAction":         "<concrete next step the orchestrator should take>"
+  },
+  "activePlansCount": N, "activePlanTitles": [...],
+  "openTasksCount":   N, "topOpenTasks": [{ id, title, status }],
+  "topKnowledge":     [{ id, title, kind }]
+}
+\`\`\`
+
+Use \`recommendedSurface\` to pick the routing branch: \`QUEUE\` → EXECUTE, \`PLAN\` → BRAINSTORM, \`MEMORY\` → review knowledge or propose a new plan.
+
 ## Delegation
 
 \`\`\`mermaid

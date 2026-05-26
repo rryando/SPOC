@@ -77,6 +77,15 @@ export function resolveOpName(op: string): string {
   const normalizedHit = aliasIndex.get(normalized);
   if (normalizedHit) return normalizedHit;
 
+  // Colon-form short alias: e.g. "plan:create" → "plan-create"
+  // Only when the resulting kebab-case form is in the canonical set —
+  // protects against false matches on host:port or URL-like strings.
+  if (op.includes(":")) {
+    const colonAsHyphen = op.toLowerCase().replace(/:/g, "-").replace(/[\s_]+/g, "-");
+    const colonHit = aliasIndex.get(colonAsHyphen);
+    if (colonHit) return colonHit;
+  }
+
   // Unknown — return as-is
   return op;
 }

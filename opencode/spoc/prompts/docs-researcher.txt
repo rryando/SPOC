@@ -39,8 +39,8 @@ MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowle
 
 **Write-gate flow (required for all DAG writes):**
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=tool:<op> --slug=<slug> --json | jq -r .data.token)
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
 spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
 # or: spoc batch --file=ops.json --token=$TOKEN
 ```
-Re-propose if token expires (TTL 10min, single-use). Tokens are consumed only on actual mutation.
+Re-propose if token expires (TTL 10min, one consumption per --ops slot). Tokens are consumed only on actual mutation.
