@@ -5,7 +5,12 @@ import { existsSync } from "node:fs";
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 import { getProjectDir } from "../../utils/paths.js";
 import { type KnowledgeKind, readKnowledgeIndex } from "../../utils/project-memory.js";
-import { type CLIResult, type CommandFlags, defineCommand, ERROR_CODES } from "../command-registry.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 
 defineCommand({

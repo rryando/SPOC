@@ -38,9 +38,7 @@ export type ResolveResult = ResolveSuccess | ResolveFailure;
  * Returns `{ ok: true, slug, name, projectDir }` on success,
  * or `{ ok: false, result: CLIResult }` with a failure envelope.
  */
-export async function resolveProject(
-  pathOrSlug: string | undefined,
-): Promise<ResolveResult> {
+export async function resolveProject(pathOrSlug: string | undefined): Promise<ResolveResult> {
   let queryPath: string;
 
   if (!pathOrSlug) {

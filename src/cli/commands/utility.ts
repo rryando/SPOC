@@ -240,10 +240,7 @@ function parseChecks(raw: string | undefined): Set<CheckName> {
 /**
  * Core validation logic — exported for reuse by the `audit` alias command.
  */
-export async function runValidation(
-  slug: string,
-  checks: Set<CheckName>,
-): Promise<CLIResult> {
+export async function runValidation(slug: string, checks: Set<CheckName>): Promise<CLIResult> {
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {

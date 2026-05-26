@@ -2,19 +2,17 @@
  * SPOC plugin for OpenCode.ai
  *
  * Injects SPOC bootstrap context via system prompt transform.
+ * Drives loop continuation via CLI delegation (no direct file I/O on DAG).
  * Skills are discovered via OpenCode's native skill tool from symlinked directory.
  */
 
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const LOOP_STATE_FILE = "loop-state.json";
-const COMPLETION_TAG_PATTERN = /<promise>(.*?)<\/promise>/is;
-const DEFAULT_COMPLETION_PROMISE = "DONE";
 
 // Simple frontmatter extraction (avoid dependency on skills-core for bootstrap)
 const extractAndStripFrontmatter = (content) => {
@@ -53,65 +51,33 @@ const normalizePath = (p, homeDir) => {
   return path.resolve(normalized);
 };
 
-// Get SPOC data dir (matches src/utils/paths.ts logic)
-const getSpocDataDir = () => {
-  const envDir = process.env.SPOC_DATA_DIR;
-  if (envDir) return path.resolve(envDir);
-  return path.join(os.homedir(), ".spoc");
-};
+// ---------------------------------------------------------------------------
+// CLI delegation — single writer pattern (no direct DAG file I/O)
+// ---------------------------------------------------------------------------
 
-
-
-// Read loop state from a project directory
-const readLoopState = (projectDir) => {
-  const stateFile = path.join(projectDir, LOOP_STATE_FILE);
-  if (!fs.existsSync(stateFile)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(stateFile, "utf-8"));
-  } catch {
-    return null;
-  }
-};
-
-// Write loop state
-const writeLoopState = (projectDir, state) => {
-  const stateFile = path.join(projectDir, LOOP_STATE_FILE);
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf-8");
-};
-
-// Clear loop state
-const clearLoopState = (projectDir) => {
-  const stateFile = path.join(projectDir, LOOP_STATE_FILE);
-  try {
-    if (fs.existsSync(stateFile)) fs.unlinkSync(stateFile);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-// Find active loop across all SPOC projects
-const findActiveLoop = () => {
-  const dataDir = getSpocDataDir();
-  const metaPath = path.join(dataDir, "meta.json");
-  if (!fs.existsSync(metaPath)) return null;
-
-  try {
-    const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
-    if (!meta.projects) return null;
-
-    for (const project of meta.projects) {
-      const projectDir = path.join(dataDir, "projects", project.id);
-      const state = readLoopState(projectDir);
-      if (state && state.active) {
-        return { slug: project.id, projectDir, state };
+const spocExec = (args) =>
+  new Promise((resolve) => {
+    execFile("spoc", args, { timeout: 5000 }, (err, stdout) => {
+      if (err) return resolve(null);
+      try {
+        const result = JSON.parse(stdout);
+        return resolve(result?.ok ? result.data : null);
+      } catch {
+        return resolve(null);
       }
-    }
-  } catch {}
-  return null;
-};
+    });
+  });
 
-// Build continuation prompt based on strategy
+const loopStatus = () => spocExec(["loop", "status", "--json"]);
+const loopTick = (slug, session) =>
+  spocExec(["loop", "tick", slug, `--session=${session}`, "--json"]);
+const loopCancel = (slug, session) =>
+  spocExec(["loop", "cancel", slug, `--session=${session}`, "--json"]);
+
+// ---------------------------------------------------------------------------
+// Continuation prompt builder
+// ---------------------------------------------------------------------------
+
 const buildContinuationPrompt = (state) => {
   const maxLabel =
     typeof state.maxIterations === "number" ? String(state.maxIterations) : "unbounded";
@@ -144,6 +110,10 @@ IMPORTANT:
 Original task:
 ${state.prompt}`;
 };
+
+// ---------------------------------------------------------------------------
+// Plugin entry
+// ---------------------------------------------------------------------------
 
 export const SpocPlugin = async ({ client, directory }) => {
   const inFlightSessions = new Set();
@@ -182,11 +152,26 @@ ${toolMapping}
 </EXTREMELY_IMPORTANT>`;
   })();
 
+  // Cache T0 brief at plugin load — gives every session the operating context
+  // without requiring agents to run `spoc brief` manually.
+  // NOTE: Stale after long sessions (hours). Agents can call `spoc brief --lean --json`
+  // for fresh data when needed. Stale T0 > no T0 for session start orientation.
+  const cachedBrief = await (async () => {
+    const data = await spocExec(["brief", "--lean", "--json"]);
+    if (!data) return null;
+    return `<spoc_context>\n${JSON.stringify(data, null, 2)}\n</spoc_context>`;
+  })();
+
   return {
     // Use system prompt transform to inject bootstrap (fixes #226 agent reset bug)
     "experimental.chat.system.transform": async (_input, output) => {
       if (cachedBootstrap) {
         (output.system ||= []).push(cachedBootstrap);
+      }
+
+      // Inject T0 operating context so agents start with current focus + next action
+      if (cachedBrief) {
+        (output.system ||= []).push(cachedBrief);
       }
 
       // Inject the workspace directory so SPOC and other agents always know
@@ -195,8 +180,6 @@ ${toolMapping}
       if (directory) {
         (output.system ||= []).push(`<env>\n  Working directory: ${directory}\n</env>`);
       }
-
-
     },
 
     event: async ({ event, client }) => {
@@ -209,10 +192,11 @@ ${toolMapping}
 
         inFlightSessions.add(sessionID);
         try {
-          const loop = findActiveLoop();
-          if (!loop || !loop.state.active) return;
+          const status = await loopStatus();
+          if (!status?.state?.active) return;
 
-          const { state, projectDir } = loop;
+          const { state } = status;
+          const slug = status.slug;
 
           // Only handle the loop's session
           if (state.sessionId && state.sessionId !== sessionID) return;
@@ -255,7 +239,7 @@ ${toolMapping}
           } catch {}
 
           if (completionDetected) {
-            clearLoopState(projectDir);
+            await loopCancel(slug, sessionID);
             await client.tui
               ?.showToast?.({
                 body: {
@@ -269,9 +253,11 @@ ${toolMapping}
             return;
           }
 
-          // Check max iterations
-          if (typeof state.maxIterations === "number" && state.iteration >= state.maxIterations) {
-            clearLoopState(projectDir);
+          // Tick — CLI handles max-iteration check and state mutation atomically
+          const tickResult = await loopTick(slug, sessionID);
+          if (!tickResult) return; // CLI unreachable or session mismatch
+
+          if (tickResult.maxReached) {
             await client.tui
               ?.showToast?.({
                 body: {
@@ -285,16 +271,14 @@ ${toolMapping}
             return;
           }
 
-          // Increment iteration
-          state.iteration += 1;
-          writeLoopState(projectDir, state);
+          const updatedState = tickResult.state;
 
           // Show toast
           await client.tui
             ?.showToast?.({
               body: {
                 title: "SPOC Loop",
-                message: `Iteration ${state.iteration}/${typeof state.maxIterations === "number" ? state.maxIterations : "unbounded"}`,
+                message: `Iteration ${updatedState.iteration}/${typeof updatedState.maxIterations === "number" ? updatedState.maxIterations : "unbounded"}`,
                 variant: "info",
                 duration: 2000,
               },
@@ -302,7 +286,7 @@ ${toolMapping}
             .catch(() => {});
 
           // Inject continuation prompt
-          const continuationPrompt = buildContinuationPrompt(state);
+          const continuationPrompt = buildContinuationPrompt(updatedState);
 
           // Inherit agent/model from last message
           let agent, model, tools;
@@ -344,9 +328,9 @@ ${toolMapping}
       if (event.type === "session.deleted") {
         const sessionID = props?.sessionID;
         if (!sessionID) return;
-        const loop = findActiveLoop();
-        if (loop && loop.state.sessionId === sessionID) {
-          clearLoopState(loop.projectDir);
+        const status = await loopStatus();
+        if (status?.state?.active && status.state.sessionId === sessionID) {
+          await loopCancel(status.slug, sessionID);
         }
       }
 
@@ -354,9 +338,9 @@ ${toolMapping}
       if (event.type === "session.error") {
         const sessionID = props?.sessionID;
         if (!sessionID) return;
-        const loop = findActiveLoop();
-        if (loop && loop.state.sessionId === sessionID) {
-          clearLoopState(loop.projectDir);
+        const status = await loopStatus();
+        if (status?.state?.active && status.state.sessionId === sessionID) {
+          await loopCancel(status.slug, sessionID);
         }
       }
     },

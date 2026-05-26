@@ -5,7 +5,9 @@ describe("renderMarkdown", () => {
   describe("Single entity", () => {
     it("task get renders title and status", () => {
       const md = renderMarkdown("task get", {
-        title: "Fix the bug", status: "in_progress", priority: "high",
+        title: "Fix the bug",
+        status: "in_progress",
+        priority: "high",
       });
       expect(md).toContain("**Fix the bug**");
       expect(md).toContain("Status: in_progress");
@@ -14,7 +16,9 @@ describe("renderMarkdown", () => {
 
     it("task get includes planId when present", () => {
       const md = renderMarkdown("task get", {
-        title: "T", status: "backlog", planId: "plan-123",
+        title: "T",
+        status: "backlog",
+        planId: "plan-123",
       });
       expect(md).toContain("Plan: plan-123");
     });
@@ -28,7 +32,9 @@ describe("renderMarkdown", () => {
   describe("Task transition", () => {
     it("renders id: prev → new", () => {
       const md = renderMarkdown("task transition", {
-        taskId: "abc-123", previousStatus: "backlog", newStatus: "in_progress",
+        taskId: "abc-123",
+        previousStatus: "backlog",
+        newStatus: "in_progress",
       });
       expect(md).toBe("abc-123: backlog → in_progress");
     });
@@ -60,9 +66,7 @@ describe("renderMarkdown", () => {
     });
 
     it("knowledge list with kind", () => {
-      const md = renderMarkdown("knowledge list", [
-        { title: "Pattern X", kind: "pattern" },
-      ]);
+      const md = renderMarkdown("knowledge list", [{ title: "Pattern X", kind: "pattern" }]);
       expect(md).toContain("## Knowledge (1)");
       expect(md).toContain("- Pattern X (pattern)");
     });
@@ -79,7 +83,9 @@ describe("renderMarkdown", () => {
   describe("Body responses", () => {
     it("plan get with body renders meta + --- + body", () => {
       const md = renderMarkdown("plan get", {
-        title: "My Plan", status: "active", body: "# Details\nSome content",
+        title: "My Plan",
+        status: "active",
+        body: "# Details\nSome content",
       });
       expect(md).toContain("**My Plan**");
       expect(md).toContain("Status: active");
@@ -89,7 +95,10 @@ describe("renderMarkdown", () => {
 
     it("plan get without body renders summary and tags", () => {
       const md = renderMarkdown("plan get", {
-        title: "P", status: "planned", summary: "A summary", keywords: ["a", "b"],
+        title: "P",
+        status: "planned",
+        summary: "A summary",
+        keywords: ["a", "b"],
       });
       expect(md).toContain("A summary");
       expect(md).toContain("Tags: a, b");
@@ -97,7 +106,9 @@ describe("renderMarkdown", () => {
 
     it("knowledge get with body renders title + --- + body", () => {
       const md = renderMarkdown("knowledge get", {
-        title: "K Entry", kind: "pattern", body: "Body text here",
+        title: "K Entry",
+        kind: "pattern",
+        body: "Body text here",
       });
       expect(md).toContain("**K Entry** (pattern)");
       expect(md).toContain("---");
@@ -106,7 +117,9 @@ describe("renderMarkdown", () => {
 
     it("knowledge get without body renders summary", () => {
       const md = renderMarkdown("knowledge get", {
-        title: "K", kind: "gotcha", summary: "Watch out",
+        title: "K",
+        kind: "gotcha",
+        summary: "Watch out",
       });
       expect(md).toContain("**K** (gotcha)");
       expect(md).toContain("Watch out");

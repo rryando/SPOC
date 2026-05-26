@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Loop commands — start, cancel, status (registry-based)
+// Loop commands — start, cancel, status, tick (registry-based)
 // ---------------------------------------------------------------------------
 
 import { existsSync } from "node:fs";
@@ -168,4 +168,75 @@ async function handleLoopStatus(
   } catch (err) {
     return failure("loop_error", err instanceof Error ? err.message : String(err));
   }
+}
+
+// ---------------------------------------------------------------------------
+// loop tick
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "loop tick",
+  description: "Atomically increment loop iteration and return updated state",
+  mutation: true,
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    session: { type: "string", required: true, description: "Session ID (must match active loop)" },
+  },
+  handler: handleLoopTick,
+});
+
+async function handleLoopTick(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const session = params.session as string;
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`);
+  }
+
+  const state = await readLoopState(projectDir);
+  if (!state?.active) {
+    return failure("loop_error", `No active loop for project "${slug}"`);
+  }
+  if (state.sessionId !== session) {
+    return failure(
+      "loop_error",
+      `Session mismatch: loop owns "${state.sessionId}", got "${session}"`,
+    );
+  }
+
+  // Check max iterations before incrementing
+  if (typeof state.maxIterations === "number" && state.iteration >= state.maxIterations) {
+    if (flags.dryRun) {
+      return success({
+        dryRun: true,
+        wouldClear: { slug, session, reason: "max_iterations_reached" },
+      });
+    }
+    await clearLoopState(projectDir);
+    return success({ slug, session, maxReached: true, iteration: state.iteration, state: null });
+  }
+
+  if (flags.dryRun) {
+    return success({
+      dryRun: true,
+      wouldTick: { slug, session, nextIteration: state.iteration + 1 },
+    });
+  }
+
+  const updated = await incrementLoopIteration(projectDir);
+  if (!updated) {
+    return failure("loop_error", "Failed to increment loop iteration");
+  }
+
+  return success({
+    slug,
+    session,
+    iteration: updated.iteration,
+    maxReached: false,
+    state: updated,
+  });
 }

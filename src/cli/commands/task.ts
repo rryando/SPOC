@@ -44,7 +44,11 @@ defineCommand({
       enum: ["low", "medium", "high", "critical"],
     },
     planId: { type: "string", description: "Filter by plan ID" },
-    fields: { type: "string", required: false, description: "Comma-separated field names to include in output" },
+    fields: {
+      type: "string",
+      required: false,
+      description: "Comma-separated field names to include in output",
+    },
   },
   handler: handleTaskList,
 });
@@ -342,7 +346,11 @@ defineCommand({
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     taskId: { type: "string", required: true, positional: 1, description: "Task ID" },
     title: { type: "string", description: "New title" },
-    priority: { type: "string", description: "New priority", enum: ["critical", "high", "medium", "low"] },
+    priority: {
+      type: "string",
+      description: "New priority",
+      enum: ["critical", "high", "medium", "low"],
+    },
     planId: { type: "string", description: "Associated plan ID" },
   },
   handler: handleTaskUpdate,

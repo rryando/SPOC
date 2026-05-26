@@ -42,7 +42,11 @@ defineCommand({
   description: "Show what changed in a project since a given timestamp",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-    since: { type: "string", required: true, description: "ISO timestamp or relative time (e.g. 30m, 2h, 7d)" },
+    since: {
+      type: "string",
+      required: true,
+      description: "ISO timestamp or relative time (e.g. 30m, 2h, 7d)",
+    },
   },
   handler: async (params) => {
     const slug = params.slug as string;

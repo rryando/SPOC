@@ -10,7 +10,11 @@ export async function readStdin(timeoutMs = 5000): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out reading from stdin (${timeoutMs / 1000}s). Ensure data is piped to the command.`));
+      reject(
+        new Error(
+          `Timed out reading from stdin (${timeoutMs / 1000}s). Ensure data is piped to the command.`,
+        ),
+      );
     }, timeoutMs);
     process.stdin.on("data", (chunk) => chunks.push(chunk));
     process.stdin.on("end", () => {

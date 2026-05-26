@@ -42,7 +42,11 @@ defineCommand({
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     kind: { type: "string", description: "Filter by kind", enum: KIND_ENUM },
     keywords: { type: "string", description: "Comma-separated keywords to filter by" },
-    fields: { type: "string", required: false, description: "Comma-separated field names to include in output" },
+    fields: {
+      type: "string",
+      required: false,
+      description: "Comma-separated field names to include in output",
+    },
   },
   handler: handleKnowledgeList,
 });
@@ -156,12 +160,27 @@ async function handleKnowledgeCreate(
   if (flags.dryRun) {
     const id = normalizeIdentifier(title);
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
-    return success({ dryRun: true, wouldCreate: { id, title, kind, summary, keywords, slug, hasBody: !!(bodyInline || bodyFile) } });
+    return success({
+      dryRun: true,
+      wouldCreate: {
+        id,
+        title,
+        kind,
+        summary,
+        keywords,
+        slug,
+        hasBody: !!(bodyInline || bodyFile),
+      },
+    });
   }
   const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
   const id = normalizeIdentifier(title);
 
-  const content = bodyInline ? bodyInline : bodyFile ? await readFile(bodyFile, "utf-8") : undefined;
+  const content = bodyInline
+    ? bodyInline
+    : bodyFile
+      ? await readFile(bodyFile, "utf-8")
+      : undefined;
   try {
     const entry = await createKnowledgeEntry(projectDir, {
       id,
@@ -251,9 +270,13 @@ async function handleKnowledgeUpdateBody(
   const bodyFile = params["body-file"] as string | undefined;
   const bodyStdin = params["body-stdin"] as boolean | undefined;
   if (!bodyInline && !bodyFile && !bodyStdin) {
-    return failure(ERROR_CODES.MISSING_PARAM, "Either --body, --body-file, or --body-stdin is required", {
-      hint: "Provide --body=<content>, --body-file=<path>, or --body-stdin to read from stdin.",
-    });
+    return failure(
+      ERROR_CODES.MISSING_PARAM,
+      "Either --body, --body-file, or --body-stdin is required",
+      {
+        hint: "Provide --body=<content>, --body-file=<path>, or --body-stdin to read from stdin.",
+      },
+    );
   }
   if (bodyFile && !existsSync(bodyFile)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Body file not found: ${bodyFile}`);
@@ -267,7 +290,10 @@ async function handleKnowledgeUpdateBody(
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Knowledge entry "${entryId}" not found`);
   }
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldUpdate: { slug, entryId, bodyInline: !!bodyInline, bodyFile, bodyStdin } });
+    return success({
+      dryRun: true,
+      wouldUpdate: { slug, entryId, bodyInline: !!bodyInline, bodyFile, bodyStdin },
+    });
   }
   const rawMeta = await readJsonSafe<unknown>(metaPath);
   if (rawMeta === undefined) {
@@ -326,7 +352,11 @@ async function handleKnowledgeUpsert(
   const metaPath = resolve(projectDir, "knowledge", `${id}.meta.json`);
   const exists = existsSync(metaPath);
 
-  const content = bodyInline ? bodyInline : bodyFile ? await readFile(bodyFile, "utf-8") : undefined;
+  const content = bodyInline
+    ? bodyInline
+    : bodyFile
+      ? await readFile(bodyFile, "utf-8")
+      : undefined;
   try {
     if (exists) {
       const meta = await updateKnowledgeEntry(projectDir, {
@@ -397,4 +427,3 @@ async function handleKnowledgeDelete(
     return failure("knowledge_delete_error", err instanceof Error ? err.message : String(err));
   }
 }
-
