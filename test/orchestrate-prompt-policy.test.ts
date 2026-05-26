@@ -6,8 +6,6 @@ import { CAVEMAN_PREAMBLE, ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "../src/cli/sp
 
 describe("orchestrate prompt policy — lifecycle commands", () => {
   const LIFECYCLE_COMMANDS = [
-    "spoc write propose",
-    "spoc write apply",
     "spoc validate",
     "spoc task transition",
     "spoc lint-bundle",
@@ -43,38 +41,12 @@ describe("orchestrate prompt policy — lifecycle commands", () => {
     expect(executeSection).toMatch(/atomically/i);
   });
 
-  it("write-gates use spoc write propose in all workflows", () => {
-    // All four workflow write-gates should reference the CLI write-gate flow
-    const workflows = ["INIT Workflow", "BRAINSTORM Workflow", "EXECUTE Workflow", "SYNC Workflow"];
-    for (const workflow of workflows) {
-      const start = ORCHESTRATE_PROMPT_TEXT.indexOf(`### ${workflow}`);
-      const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
-      const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
-      expect(section).toContain("spoc write propose");
-      expect(section).toContain("--token");
-    }
-  });
-
-  it("spoc write propose and --token both appear in each workflow", () => {
-    const workflows = ["INIT Workflow", "BRAINSTORM Workflow", "EXECUTE Workflow", "SYNC Workflow"];
-    for (const workflow of workflows) {
-      const start = ORCHESTRATE_PROMPT_TEXT.indexOf(`### ${workflow}`);
-      const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
-      const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
-      expect(section).toContain("spoc write propose");
-      expect(section).toContain("--token");
-    }
-  });
-
-  it("BRAINSTORM mentions silent to-diagram skill loading before write-gate", () => {
+  it("BRAINSTORM mentions to-diagram skill load", () => {
     const start = ORCHESTRATE_PROMPT_TEXT.indexOf("### BRAINSTORM Workflow");
     const end = ORCHESTRATE_PROMPT_TEXT.indexOf("### ", start + 1);
     const section = ORCHESTRATE_PROMPT_TEXT.slice(start, end > start ? end : undefined);
     const diagramIdx = section.indexOf("to-diagram");
-    const writeGateIdx = section.indexOf("spoc write propose");
     expect(diagramIdx).toBeGreaterThan(-1);
-    expect(writeGateIdx).toBeGreaterThan(-1);
-    expect(diagramIdx).toBeLessThan(writeGateIdx);
     // Should mention silent loading
     expect(section).toMatch(/[Ss]ilently.*load.*to-diagram/);
   });
@@ -86,11 +58,6 @@ describe("orchestrate prompt policy — lifecycle commands", () => {
     expect(section).toContain("spoc task transition");
     // Must clarify agents should not manually patch diagrams for status transitions
     expect(section).toMatch(/must NOT manually patch.*diagram|agents must NOT.*patch.*\.mmd/i);
-  });
-
-  it("expired write tokens require re-proposal", () => {
-    // Token TTL and re-proposal guidance
-    expect(ORCHESTRATE_PROMPT_TEXT).toMatch(/TTL|token.*expire|re-propose/i);
   });
 
   it("bundle release requires lint-bundle before deploy-superpowers", () => {

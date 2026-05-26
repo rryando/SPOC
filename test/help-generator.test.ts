@@ -14,7 +14,7 @@ const noop = async (_p: Record<string, unknown>, _f: CommandFlags): Promise<CLIR
 beforeAll(() => {
   defineCommand({
     path: "help-test propose",
-    description: "Create a write-gate proposal token",
+    description: "Test command for help generator",
     mutation: false,
     params: {
       summary: { type: "string", required: true, positional: 0, description: "Human-readable summary" },
@@ -33,26 +33,13 @@ beforeAll(() => {
     },
     handler: noop,
   });
-
-  defineCommand({
-    path: "help-test gated",
-    description: "A gated command",
-    gated: true,
-    gateName: "help-test-gated",
-    mutation: true,
-    params: {
-      slug: { type: "string", required: true, positional: 0, description: "Project slug" },
-      token: { type: "string", description: "Write-gate token" },
-    },
-    handler: noop,
-  });
 });
 
 describe("generateCommandHelp", () => {
   it("produces correct title and usage line", () => {
     const help = generateCommandHelp({
       path: "help-test propose",
-      description: "Create a write-gate proposal token",
+      description: "Test command for help generator",
       params: {
         summary: { type: "string", required: true, positional: 0, description: "Human-readable summary" },
         ops: { type: "string", required: true, description: "Comma-separated operation names" },
@@ -61,7 +48,7 @@ describe("generateCommandHelp", () => {
       },
       handler: noop,
     });
-    expect(help).toContain("spoc help-test propose — Create a write-gate proposal token");
+    expect(help).toContain("spoc help-test propose — Test command for help generator");
     expect(help).toContain("Usage: spoc help-test propose <summary> --ops=STRING --slug=STRING [--ttl=NUMBER]");
   });
 
@@ -142,25 +129,7 @@ describe("generateCommandsDiscovery", () => {
     expect(discovery.errorCodes).toBeInstanceOf(Array);
     expect(discovery.errorCodes).toContain("missing_param");
     expect(discovery.errorCodes).toContain("project_not_found");
-    expect(discovery.errorCodes.length).toBeGreaterThanOrEqual(9);
-  });
-
-  it("includes gated and gateName for gated commands", () => {
-    const discovery = generateCommandsDiscovery();
-    const gatedCmd = discovery.commands.find((c) => c.path === "help-test gated");
-    expect(gatedCmd).toBeDefined();
-    expect(gatedCmd!.gated).toBe(true);
-    expect(gatedCmd!.gateName).toBe("help-test-gated");
-    expect(gatedCmd!.mutation).toBe(true);
-  });
-
-  it("omits gated and gateName for non-gated commands", () => {
-    const discovery = generateCommandsDiscovery();
-    const helpList = discovery.commands.find((c) => c.path === "help-test list");
-    expect(helpList).toBeDefined();
-    expect(helpList!.gated).toBeUndefined();
-    expect(helpList!.gateName).toBeUndefined();
-    expect(helpList!.mutation).toBeUndefined();
+    expect(discovery.errorCodes.length).toBeGreaterThanOrEqual(7);
   });
 
   it("includes mutation: false for read-only commands that declare it", () => {

@@ -7,9 +7,6 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 import { runCommand } from "./helpers/cli-runner.js";
-import { enableWriteGateBypass } from "../src/utils/write-gate.js";
-
-enableWriteGateBypass();
 
 async function createTestProject(dir: string, slug = "test-proj"): Promise<void> {
   await runCommand("project init", [slug, "--description=Test project"]);
