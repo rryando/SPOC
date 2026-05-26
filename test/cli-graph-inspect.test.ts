@@ -21,9 +21,9 @@ vi.mock("node:fs", async (importOriginal) => {
 });
 
 import { existsSync } from "node:fs";
-import { handleGraph } from "../src/cli/dag-commands.js";
 import { createGraphCache } from "../src/retrieval/graph-cache.js";
 import type { AdjacencyIndex } from "../src/retrieval/graph-types.js";
+import { runCommand } from "./helpers/cli-runner.js";
 
 const mockedExistsSync = vi.mocked(existsSync);
 const mockedCreateGraphCache = vi.mocked(createGraphCache);
@@ -91,12 +91,7 @@ function makeIndex(overrides?: Partial<AdjacencyIndex>): AdjacencyIndex {
 }
 
 describe("CLI graph inspect command", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errorSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockedExistsSync.mockReturnValue(true);
     mockedCreateGraphCache.mockReturnValue({
       get: vi.fn(),
@@ -107,32 +102,34 @@ describe("CLI graph inspect command", () => {
   });
 
   it("returns correct node and edge counts", async () => {
-    await handleGraph(["inspect", "my-project", "--json"], true);
-    const output = JSON.parse(logSpy.mock.calls[0][0]);
-    expect(output.nodeCount).toBe(6);
-    expect(output.edgeCount).toBe(4);
+    const result = await runCommand("graph inspect", ["my-project"]);
+    expect(result.ok).toBe(true);
+    const data = (result as { ok: true; data: Record<string, unknown> }).data;
+    expect(data.nodeCount).toBe(6);
+    expect(data.edgeCount).toBe(4);
   });
 
   it("mostConnectedFiles sorted correctly", async () => {
-    await handleGraph(["inspect", "my-project", "--json"], true);
-    const output = JSON.parse(logSpy.mock.calls[0][0]);
-    expect(output.mostConnectedFiles[0]).toEqual({ path: "src/a.ts", refs: 3 });
-    expect(output.mostConnectedFiles[1]).toEqual({ path: "src/b.ts", refs: 1 });
+    const result = await runCommand("graph inspect", ["my-project"]);
+    const data = (
+      result as { ok: true; data: { mostConnectedFiles: { path: string; refs: number }[] } }
+    ).data;
+    expect(data.mostConnectedFiles[0]).toEqual({ path: "src/a.ts", refs: 3 });
+    expect(data.mostConnectedFiles[1]).toEqual({ path: "src/b.ts", refs: 1 });
   });
 
   it("identifies orphan nodes", async () => {
-    await handleGraph(["inspect", "my-project", "--json"], true);
-    const output = JSON.parse(logSpy.mock.calls[0][0]);
-    // plan:p1 has no edges in or out
-    expect(output.orphanNodes).toContain("plan:p1");
-    // Nodes with edges should not be orphans
-    expect(output.orphanNodes).not.toContain("task:t1");
-    expect(output.orphanNodes).not.toContain("file:src/a.ts");
+    const result = await runCommand("graph inspect", ["my-project"]);
+    const data = (result as { ok: true; data: { orphanNodes: string[] } }).data;
+    expect(data.orphanNodes).toContain("plan:p1");
+    expect(data.orphanNodes).not.toContain("task:t1");
+    expect(data.orphanNodes).not.toContain("file:src/a.ts");
   });
 
   it("handles non-existent project gracefully", async () => {
     mockedExistsSync.mockReturnValue(false);
-    await handleGraph(["inspect", "nonexistent"], false);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    const result = await runCommand("graph inspect", ["nonexistent"]);
+    expect(result.ok).toBe(false);
+    expect((result as { ok: false; code: string }).code).toBe("project_not_found");
   });
 });

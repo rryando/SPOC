@@ -38,8 +38,8 @@ vi.mock("../src/utils/project-memory.js", async (importOriginal) => {
   };
 });
 
-import { selectKnowledgeEntries } from "../src/cli/dag-commands.js";
 import { retrieveRelated } from "../src/retrieval/graph-retrieval.js";
+import { selectKnowledgeEntries } from "../src/retrieval/knowledge-selection.js";
 import { retrieveForTask } from "../src/retrieval/task-scoped.js";
 
 const mockedRetrieveRelated = vi.mocked(retrieveRelated);

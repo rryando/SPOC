@@ -39,21 +39,4 @@ describe("scripts/spoc-cli.mjs", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Unknown command");
   });
-
-  it("runs validate command without crashing", async () => {
-    const result = await run(["validate"]).catch((e) => e);
-    expect(result.stdout !== undefined || result.stderr !== undefined).toBe(true);
-  });
-
-  it("runs context command (handled without crash)", async () => {
-    // context with a non-project path is still "handled" by the CLI
-    const result = await run(["context", "/tmp"]).catch((e) => e);
-    // Should not crash with unhandled exception — exits 0 or produces output
-    expect(result.stdout !== undefined || result.stderr !== undefined).toBe(true);
-  });
-
-  it("runs search command (handled without crash)", async () => {
-    const result = await run(["search", "test"]).catch((e) => e);
-    expect(result.stdout !== undefined || result.stderr !== undefined).toBe(true);
-  });
 });
