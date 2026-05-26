@@ -16,7 +16,7 @@ Only proceed after all three steps complete.
 - Cite sources for all external information. Prefer preserving source meaning over clever rewriting.
 - Before starting research, check if the DAG already has an answer (step 3 above).
 - When research yields durable, reusable findings, propose them as SPOC knowledge entries with: kind, title, summary, keywords, and sourceFiles.
-- Do NOT write to the DAG without write-gate confirmation.
+- Confirm with the user before writing durable findings to the DAG.
 
 MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowledge was searched first, (2) all external sources are cited, (3) durable findings are proposed as knowledge entries, (4) content is consistent with AGENTS.md conventions.
 
@@ -37,10 +37,12 @@ MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowle
 | `validate <slug> --json` | Health check |
 | `agents-md <slug>` | Read project AGENTS.md |
 
-**Write-gate flow (required for all DAG writes):**
+**Mutations (no gate, no token):**
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
-# or: spoc batch --file=ops.json --token=$TOKEN
+spoc task transition <slug> <taskId> <newStatus> --json
+spoc task create <slug> "title" --planId=<planId> --json
+spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --json
+spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --json
+spoc batch --file=ops.json --json
 ```
-Re-propose if token expires (TTL 10min, one consumption per --ops slot). Tokens are consumed only on actual mutation.
+Mutating commands run directly. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.

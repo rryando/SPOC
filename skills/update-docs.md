@@ -13,19 +13,16 @@ Codebase analyzed and findings need recording, task statuses changed, dependenci
 
 ```mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
-
     A[Read current doc: spoc project get] --> B[Prepare updated content]
-    B --> C[spoc write propose]:::gate
-    C -->|confirmed| D[spoc project update-doc --token]
+    B --> C[Present summary to user]
+    C -->|confirmed| D[spoc project update-doc]
     D --> E[Verify: spoc project get]
 ```
 
 ## CLI Primer
 
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <command> --token=$TOKEN --json
+spoc <command> --json
 ```
 Discovery: `spoc --commands --json`
 
@@ -42,8 +39,8 @@ Discovery: `spoc --commands --json`
 
 Use structured plans for feature work that spans multiple tasks. Create via:
 ```bash
-spoc plan create <slug> "Title" --summary="..." --keywords="implementation-plan" --token=$TOKEN --json
-spoc plan update-body <slug> <planId> --body="..." --token=$TOKEN --json
+spoc plan create <slug> "Title" --summary="..." --keywords="implementation-plan" --json
+spoc plan update-body <slug> <planId> --body="..." --json
 ```
 
 List existing: `spoc plan list <slug> --json`
@@ -52,7 +49,7 @@ List existing: `spoc plan list <slug> --json`
 
 For durable project memory (lessons, gotchas, patterns, architecture):
 ```bash
-spoc knowledge create <slug> "Title" --kind=<kind> --summary="..." --body="..." --token=$TOKEN --json
+spoc knowledge create <slug> "Title" --kind=<kind> --summary="..." --body="..." --json
 ```
 
 List existing: `spoc knowledge list <slug> --json`

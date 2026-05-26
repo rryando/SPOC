@@ -15,7 +15,7 @@ const orchestratePrompt = ORCHESTRATE_PROMPT_TEXT;
 
 describe("docs and skills smoke tests", () => {
   it("README mentions plan create command", () => {
-    expect(readme).toContain("plan list/get/create/update-meta/update-body/delete");
+    expect(readme).toContain("plans/*.md");
   });
 
   it("update-docs skill mentions knowledge entries", () => {

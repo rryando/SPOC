@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: Use when initializing a new SPOC project — bootstrapping a repo into the DAG with metadata, docs, and structural knowledge entries. Covers gather → write-gate → init → graphify ingestion → fan-out analysis across typed sub-agents.
+description: Use when initializing a new SPOC project — bootstrapping a repo into the DAG with metadata, docs, and structural knowledge entries. Covers gather → present summary → init → graphify ingestion → fan-out analysis across typed sub-agents.
 ---
 
 # Skill: init-project
@@ -15,12 +15,11 @@ User wants to track a new project, bootstrap documentation, or connect a repo to
 
 ```mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[Gather: name, description, repoUrl?, dependsOn?] --> B[spoc project list → conflict check]
-    B --> C[spoc write propose → present summary]:::gate
-    C -->|user confirms| D[spoc project init --token]
+    B --> C[Present summary to user]
+    C -->|user confirms| D[spoc project init]
     D --> E[spoc project update-doc × 4]
     E --> F{graphify on PATH?}
     F -->|yes| G[graphify update --force --no-cluster]
@@ -28,17 +27,16 @@ flowchart TD
     G --> G2[ingestGraph → ≤20 proposals]
     G2 --> G3[graphify query / explain for enrichment]:::sub
     H & G3 --> I[Fan out: system-architect + docs-researcher + tech-architect]:::sub
-    I --> J[Collect proposals → dedup → spoc knowledge create × N]:::gate
+    I --> J[Collect proposals → dedup → spoc knowledge create × N]
     J --> K[Done]
 ```
 
 ## CLI Primer
 
 ```bash
-TOKEN=$(spoc write propose "Init project foo" --ops=project:init --slug=foo --json | jq -r .data.token)
-spoc project init "Foo" --description="..." --path="$(pwd)" --token=$TOKEN --json
+spoc project init "Foo" --description="..." --path="$(pwd)" --json
 ```
-Discovery: `spoc --commands --json`. Token TTL 10 min. All mutating commands need `--token`.
+Discovery: `spoc --commands --json`. Mutating commands run directly — no token.
 
 ## Constraints
 
@@ -70,7 +68,7 @@ The orchestrator runs graphify directly during INIT to seed knowledge entries wi
    - `graphify affected "<critical-symbol>" --graph graphify-out/graph.json --depth 2` → reverse-impact map for high-risk modules
    - `graphify path "<A>" "<B>" --graph graphify-out/graph.json` → shortest dependency path for architecture entries
 6. **Hand to typed agents:** the proposals + query results go to the sub-agents listed in **Agent Dispatch** below; they merge graph evidence with code reading and return finalized knowledge entries.
-7. **Write** in one batched cycle: `spoc write propose --ops=knowledge:create --ops=knowledge:create ...` → `--token` → repeated `spoc knowledge create` (or `spoc batch --file=ops.json --token=$TOKEN`).
+7. **Write** the entries directly: `spoc batch --file=ops.json` for one batched invocation, or repeated `spoc knowledge create` per entry.
 
 ## Content Guidelines
 
@@ -81,7 +79,7 @@ The orchestrator runs graphify directly during INIT to seed knowledge entries wi
 | `dependencies.md` | Upstream + downstream sections |
 | `knowledge.md` | High-level context + pointers to structured entries |
 
-Update via `spoc project update-doc <slug> <doc> --content="..." --token=$TOKEN`.
+Update via `spoc project update-doc <slug> <doc> --content="..."`.
 
 ## Agent Dispatch (named typed agents — DO NOT default to a generic analysis agent)
 
@@ -97,7 +95,7 @@ Dispatch in parallel — load `dispatching-parallel-agents`. Each agent receives
 - Targeted graphify queries for evidence (e.g., `graphify explain` output for the modules they own)
 - Explicit scope (which files / which kinds to produce)
 
-Each agent returns finalized proposals: `{title, kind, summary, keywords, sourceFiles, body}`. The orchestrator dedups, then writes under one write-gate token cycle.
+Each agent returns finalized proposals: `{title, kind, summary, keywords, sourceFiles, body}`. The orchestrator dedups, then writes the entries directly via `spoc knowledge create` (or `spoc batch`).
 
 ## Knowledge Categories for Analysis Sub-Agents
 
@@ -120,29 +118,24 @@ Each agent returns finalized proposals: `{title, kind, summary, keywords, source
 # 1. Conflict check
 spoc project list --json
 
-# 2. Propose write-gate
-TOKEN=$(spoc write propose "Init project foo" --ops=project:init --slug=foo --json | jq -r .data.token)
+# 2. Present summary to user; on confirmation, init
+spoc project init "Foo" --description="Foo CLI tool" --path="$(pwd)" --json
 
-# 3. User confirms summary; init
-spoc project init "Foo" --description="Foo CLI tool" --path="$(pwd)" --token=$TOKEN --json
-
-# 4. Update docs (batch via separate token or separate ops)
-TOKEN2=$(spoc write propose "Bootstrap foo docs" --ops=project:update-doc --ops=project:update-doc --ops=project:update-doc --ops=project:update-doc --slug=foo --json | jq -r .data.token)
-spoc project update-doc foo overview --content="..." --token=$TOKEN2 --json
+# 3. Update docs
+spoc project update-doc foo overview --content="..." --json
 # ... repeat for tasks, dependencies, knowledge
 
-# 5. Graphify (if available)
+# 4. Graphify (if available)
 graphify update . --force --no-cluster
 # ingestGraph produces proposals; enrich with graphify query/explain
 
-# 6. Fan out typed agents (parallel)
+# 5. Fan out typed agents (parallel)
 #    system-architect → architecture/module entries
 #    docs-researcher  → reference/feature entries
 #    tech-architect   → gotcha/lesson entries
 
-# 7. Write knowledge entries under one token
-TOKEN3=$(spoc write propose "Seed foo knowledge" --ops=knowledge:create --ops=knowledge:create ... --slug=foo --json | jq -r .data.token)
-spoc knowledge create foo "Tech stack: TypeScript + Node 20" --kind=architecture --summary="..." --body="..." --token=$TOKEN3 --json
+# 6. Write knowledge entries directly
+spoc knowledge create foo "Tech stack: TypeScript + Node 20" --kind=architecture --summary="..." --body="..." --json
 # ... repeat per entry, or use spoc batch
 ```
 
@@ -151,7 +144,7 @@ spoc knowledge create foo "Tech stack: TypeScript + Node 20" --kind=architecture
 | Condition | Action |
 |-----------|--------|
 | Project already in DAG (slug collision) | Stop. Surface conflict; ask user to rename or use existing |
-| User declines write-gate summary | Stop. No mutations performed |
+| User declines summary | Stop. No mutations performed |
 | `graphify` missing | Continue without graph signal; sub-agents run with code reading only |
 | `dependsOn` target missing | Stop. Ask user to init dependencies first or remove the link |
 | Init succeeds but knowledge fan-out fails | Project exists in DAG; rerun knowledge phase later via SYNC |

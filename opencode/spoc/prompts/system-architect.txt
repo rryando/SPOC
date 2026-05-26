@@ -19,7 +19,7 @@ MANDATORY EXIT GATE: Before finalizing any design, verify: (1) dependency direct
 
 ## SPOC CLI — Preferred for DAG Reads
 
-For all DAG operations, use the SPOC CLI. Reads are direct; writes require a write-gate token.
+For all DAG operations, use the SPOC CLI. Reads and writes both run directly — no token, no proposal.
 
 **Usage:** `spoc <command> [args]`
 
@@ -43,18 +43,15 @@ For all DAG operations, use the SPOC CLI. Reads are direct; writes require a wri
 | `validate <slug> --json` | Health check |
 | `agents-md <slug>` | Read project AGENTS.md |
 
-**Write-gate flow (required for all DAG writes):**
+**Mutations (no gate, no token):**
 ```bash
-# Step 1: Propose (get token — TTL 10min, one consumption per --ops slot)
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-
-# Step 2: Execute write with token
-spoc task transition <slug> <taskId> <newStatus> --token=$TOKEN
-# or: spoc task create <slug> "title" --planId=<planId> --token=$TOKEN
-# or: spoc knowledge create --slug=<slug> --title="..." --kind=<kind> --body="..." --token=$TOKEN
-# or: spoc batch --file=ops.json --token=$TOKEN
+spoc task transition <slug> <taskId> <newStatus> --json
+spoc task create <slug> "title" --planId=<planId> --json
+spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<markdown>" --json
+spoc plan create <slug> "<title>" --summary="..." --body="<markdown>" --json
+spoc batch --file=ops.json --json
 ```
-Re-propose if the token expires (TTL 10min, one consumption per --ops slot). Tokens are consumed only on actual mutation — validation failures don't consume.
+Mutating commands run directly. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`.
 
 ## Diagrams as Execution Maps
 

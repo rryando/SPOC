@@ -13,12 +13,11 @@ User wants to track a new project, bootstrap documentation, or connect a repo to
 
 ```mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
     classDef sub fill:#8b5cf6,color:#fff
 
     A[Gather: name, description, repoUrl?, dependsOn?] --> B[spoc project list → conflict check]
-    B --> C[spoc write propose → present summary]:::gate
-    C -->|confirmed| D[spoc project init --token]
+    B --> C[Present summary to user]
+    C -->|confirmed| D[spoc project init]
     D --> E[spoc project update-doc × 4]
     E --> F{graphify on PATH?}
     F -->|yes| G[graphify update --force --no-cluster]
@@ -26,15 +25,14 @@ flowchart TD
     G --> G2[ingestGraph → ≤20 proposals]
     G2 --> G3[graphify query / explain for enrichment]:::sub
     H & G3 --> I[Fan out: system-architect + docs-researcher + tech-architect]:::sub
-    I --> J[Collect proposals → dedup → spoc knowledge create × N]:::gate
+    I --> J[Collect proposals → dedup → spoc knowledge create × N]
     J --> K[Done]
 ```
 
 ## CLI Primer
 
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <command> --token=$TOKEN --json
+spoc <command> --json
 ```
 Discovery: `spoc --commands --json`
 
@@ -67,7 +65,7 @@ The orchestrator runs graphify directly during INIT to seed knowledge entries wi
    - `graphify affected "<critical-symbol>" --graph graphify-out/graph.json --depth 2` → reverse-impact map for high-risk modules
    - `graphify path "<A>" "<B>" --graph graphify-out/graph.json` → shortest dependency path for architecture entries
 6. **Hand to typed agents:** the proposals + query results go to the sub-agents listed in **Agent Dispatch** below; they merge graph evidence with code reading and return finalized knowledge entries.
-7. **Write** in one batched cycle: `spoc write propose --ops=knowledge:create --ops=knowledge:create ...` → `--token` → repeated `spoc knowledge create` (or `spoc batch`).
+7. **Write** the entries directly via `spoc batch --file=ops.json` (one batch invocation for all knowledge entries) or `spoc knowledge create` per entry.
 
 If graphify is missing, log "graphify not on PATH; proceeding without graph signal" and skip steps 3–5. Sub-agents still run; they just lack the graph priors.
 
@@ -89,7 +87,7 @@ If graphify is missing, log "graphify not on PATH; proceeding without graph sign
 | `tech-architect` | Cross-module couplings, structural gotchas, lessons | `gotcha`, `lesson` |
 | `qa-analyst` (optional) | Coding-style + convention scan from existing code | `pattern` |
 
-Dispatch in parallel (load `dispatching-parallel-agents`). Each agent receives the relevant `KnowledgeProposal` records from `ingestGraph` plus targeted graphify queries for evidence. Each agent returns finalized proposals (title, kind, summary, keywords, sourceFiles, body) for the orchestrator to write under one write-gate token cycle.
+Dispatch in parallel (load `dispatching-parallel-agents`). Each agent receives the relevant `KnowledgeProposal` records from `ingestGraph` plus targeted graphify queries for evidence. Each agent returns finalized proposals (title, kind, summary, keywords, sourceFiles, body) for the orchestrator to write directly via `spoc knowledge create` (or `spoc batch`).
 
 ## Knowledge Categories for Analysis Sub-Agents
 

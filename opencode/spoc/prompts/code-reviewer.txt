@@ -42,4 +42,4 @@ MANDATORY EXIT GATE: Before delivering a review, confirm: (1) all changed files 
 | `validate <slug> --json` | Health check |
 | `agents-md <slug>` | Read project AGENTS.md |
 
-Rule: CLI for reads. No writes needed for review-only work. If you must capture a finding as a task or knowledge entry, use the write-gate flow (propose → token → write).
+Rule: CLI for reads. No writes needed for review-only work. If you must capture a finding as a task or knowledge entry, run the mutating CLI command directly.

@@ -9,7 +9,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 
 You have a spec or requirements for a multi-step task and need to create a detailed implementation plan before touching code.
 
-> CLI Primer: `spoc --commands --json` for discovery. All writes: `spoc write propose` → token → command with `--token`.
+> CLI Primer: `spoc --commands --json` for discovery. Mutating commands run directly — no token.
 
 ## Flow
 
@@ -128,7 +128,7 @@ Expected: PASS
 Diagrams are **agentic execution maps** in separate `.mmd` files — never embedded in plan body. Load `to-diagram` skill for conventions.
 
 - File: `plans/<plan-id>.diagram.mmd`
-- Persist ONLY after plan write-gate succeeds (draft in memory or `/tmp` first)
+- Draft the plan in memory or `/tmp` first; persist only after user confirms
 - Node IDs: `T001`, `T002`, ... (stable, never change)
 - If design-phase `.mmd` exists (from brainstorming): EXTEND it, don't regenerate
 - If no prior diagram: generate fresh per `to-diagram` conventions
@@ -157,8 +157,7 @@ flowchart TD
 ## Storage
 
 ```bash
-TOKEN=$(spoc write propose "Create implementation plan" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
-spoc plan create <slug> --title="YYYY-MM-DD <feature> Implementation Plan" --summary="..." --status=planned --keywords='["implementation-plan"]' --body="<markdown>" --token=$TOKEN --json
+spoc plan create <slug> --title="YYYY-MM-DD <feature> Implementation Plan" --summary="..." --status=planned --keywords='["implementation-plan"]' --body="<markdown>" --json
 ```
 
 ## Execution Handoff

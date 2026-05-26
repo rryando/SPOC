@@ -14,8 +14,6 @@ User request maps to multiple workflows, needs routing, or chains INIT → BRAIN
 
 ```mermaid
 flowchart TD
-    classDef gate fill:#f59e0b,color:#fff
-
     A[User Request] --> B[T0: spoc brief --lean --json]
     B --> C[Classify Intent]
     C -->|new project| INIT[INIT]
@@ -24,8 +22,7 @@ flowchart TD
     C -->|reconcile| SYNC[SYNC]
     C -->|discover/report| EXPLORE[EXPLORE]
     C -->|compound| MULTI[MULTI]
-    INIT & BRAINSTORM & EXECUTE & SYNC & EXPLORE & MULTI --> WG[Write-Gate]:::gate
-    WG --> DONE[Completion: what done + state + next steps]
+    INIT & BRAINSTORM & EXECUTE & SYNC & EXPLORE & MULTI --> DONE[Completion: what done + state + next steps]
 ```
 
 ## Context Tiers
@@ -66,10 +63,9 @@ Use `recommendedSurface` to pick the routing branch:
 
 ## CLI Primer
 
-All ops: `spoc <group> <action> [args] --json`. Writes need token:
+All ops: `spoc <group> <action> [args] --json`. Mutating commands run directly — no token:
 ```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <command> --token=$TOKEN --json
+spoc <command> --json
 ```
 Discovery: `spoc --commands --json`
 

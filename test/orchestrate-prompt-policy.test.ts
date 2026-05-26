@@ -205,3 +205,12 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     }
   });
 });
+
+describe("orchestrate prompt policy — post-write-gate invariants", () => {
+  it("orchestrate prompt contains no write-gate references", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).not.toMatch(/write[- ]?gate/i);
+    expect(ORCHESTRATE_PROMPT_TEXT).not.toContain("spoc write propose");
+    expect(ORCHESTRATE_PROMPT_TEXT).not.toContain("spoc write apply");
+    expect(ORCHESTRATE_PROMPT_TEXT).not.toContain("--token");
+  });
+});
