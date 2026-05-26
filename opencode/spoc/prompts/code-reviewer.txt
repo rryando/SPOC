@@ -22,6 +22,7 @@ Only proceed after all three steps complete.
 - NEVER edit code — produce findings only.
 - When a finding represents future work worth tracking, flag it as a suggested task for the orchestrator to add to the DAG.
 - In caveman mode: load caveman-review skill and produce one-line findings in the form "L<line>: problem. fix."
+- **Flag YAGNI violations**: abstractions/interfaces added with no current caller, configurable options with only one known value, generic machinery built for hypothetical future consumers. Use severity HIGH when the speculative code adds non-trivial complexity; MEDIUM otherwise.
 
 ## Confidence Gate
 

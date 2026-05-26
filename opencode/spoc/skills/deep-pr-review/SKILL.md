@@ -17,11 +17,13 @@ User gives a GitHub PR URL plus a "deep review" trigger inside the locally clone
 flowchart TD
     classDef bail fill:#ef4444,color:#fff
 
-    A[User: 'deep review' + PR URL] --> B[gh repo view + gh pr view]
+    A[User: 'deep review' + PR URL] --> B[Gather phase — see Data Gathering section]
     B --> C{cwd repo == PR repo?}
     C -->|no| Z[Halt — wrong checkout]:::bail
-    C -->|yes| D[gh pr diff + files + author + labels]
-    D --> E[spoc context --audience=implementer --lean --json]
+    C -->|yes| D{Label = wip/draft?}
+    D -->|yes| D1[Soften severity — flag as WIP]
+    D -->|no| D2[Standard severity]
+    D1 & D2 --> E[spoc context --audience=implementer --lean --json]
     E -->|found| F[Load AGENTS.md + targeted spoc search]
     E -->|missing| G[Degraded mode — heuristics only]
     F --> H{Prior AI review exists?}
@@ -48,6 +50,25 @@ flowchart TD
     V --> END2
 ```
 
+## Data Gathering (ONE PASS — no repeat `gh` reads)
+
+Run these three commands once at the start. Cache the results. All downstream steps read from cache — never call `gh repo view` or `gh pr view` again.
+
+```
+1. gh repo view --json name,owner                                                         → REPO
+2. gh pr view <number> --json number,title,body,author,labels,reviews,state,files,headRefName,baseRefName  → PR_META
+3. gh pr diff <number>                                                                    → DIFF
+```
+
+| Downstream need | Read from |
+|-----------------|-----------|
+| Repo-match check | `REPO.name`, `REPO.owner` |
+| WIP / draft check | `PR_META.labels`, `PR_META.state` |
+| Author context | `PR_META.author` |
+| Prior review detection | `PR_META.reviews` |
+| File list / LOC delta | `PR_META.files` |
+| Diff text | `DIFF` |
+
 ## Adaptive Rubric
 
 Agent picks dimensions from diff context. **Correctness is always evaluated.** Other dimensions activate when the diff signals them:
@@ -57,6 +78,7 @@ Agent picks dimensions from diff context. **Correctness is always evaluated.** O
 | **Correctness** | Always — bugs, off-by-one, error handling, null safety |
 | **DRY** | New code resembles existing patterns; cross-module grep finds duplicates |
 | **KISS** | New abstraction layers, deep nesting, premature generalization |
+| **YAGNI** | Code written "for later" with no current caller; abstractions with one concrete use; configurable hooks with one known value; generic machinery built for hypothetical consumers |
 | **SOLID** | Module gains responsibilities, dependency direction shifts, large classes touched |
 | **Convention fit** | AGENTS.md or DAG `pattern`/`architecture` knowledge applies to changed files |
 | **Architectural risk** → handoff `architecture-review` | Diff crosses module boundaries, touches god nodes, changes public API |
@@ -88,6 +110,10 @@ User picks one before any `gh` write:
 | 4 | **Summary only** | Single top-level review body, no inline comments |
 | 5 | **Don't post** | Show report only — no `gh` calls |
 
+## Iron Law
+
+**READ ONLY until user picks a posting mode.** No `gh` writes, no SPOC writes, no auto-approve. Approval is only ever produced via explicit user override (`approve it`, `lgtm post approve`) — never inferred from finding count.
+
 ## Citation Rule
 
 Every finding cites a source. No uncited findings:
@@ -95,7 +121,7 @@ Every finding cites a source. No uncited findings:
 - `see knowledge/<id>: <title>` — SPOC knowledge entry
 - `AGENTS.md §<section>` — project convention
 - `graphify: <observation>` — coupling/affected result
-- `principle: <KISS|DRY|SOLID|correctness>` — first-principles label
+- `principle: <KISS|DRY|YAGNI|SOLID|correctness>` — first-principles label
 
 If only first-principles applies, that is sufficient — but it must be stated.
 
@@ -107,25 +133,32 @@ GitHub `​```suggestion` blocks render an "Apply suggestion" button. Use **only
 - Missing block / new file content → top-level review body bullet
 - Cross-file refactor → handoff finding with `architecture-review` recommendation
 
-## Iron Law
+## Posting Protocol (ONE `gh api` call — never per-finding)
 
-**READ ONLY until user picks a posting mode.** No `gh` writes, no SPOC writes, no auto-approve. Approval is only ever produced via explicit user override (`approve it`, `lgtm post approve`) — never inferred from finding count.
+All findings are batched into a **single** GitHub review submission. Never loop through findings and post each one individually.
 
-## Pre-Flight Gates
-
-```mermaid
-flowchart TD
-    classDef bail fill:#ef4444,color:#fff
-
-    A[gh repo view] --> B{cwd matches PR repo?}
-    B -->|no| Z1[Halt — tell user to clone right repo]:::bail
-    B -->|yes| C[gh pr view --json author,labels,reviews]
-    C --> D{Label = wip/draft?}
-    D -->|yes| E[Soften severity language — flag as 'WIP']
-    D -->|no| F[Standard severity language]
-    E --> G[Continue]
-    F --> G
 ```
+gh api POST /repos/{owner}/{repo}/pulls/{number}/reviews \
+  --field commit_id="<PR head SHA from PR_META>" \
+  --field event="COMMENT" \
+  --field body="<top-level summary>" \
+  --field 'comments=[{"path":"...","position":N,"body":"..."},...]'
+```
+
+| Rule | Detail |
+|------|--------|
+| One call per review session | Top-level body + all inline comments in the same `comments[]` array |
+| Never mix `gh pr review` and `gh api` | Pick one entry point — use `gh api` for full control; `gh pr review` for body-only (mode 4) |
+| Never call `gh pr comment` after `gh api reviews` | `gh pr comment` adds a stand-alone comment, not a review — it will duplicate the top-level body |
+| Dry-run before sending | Print the full payload to the user for confirmation; only call `gh api` once user confirms |
+
+### Mode → command mapping
+
+| Mode | Command |
+|------|---------|
+| 1–3 (inline + summary) | `gh api POST .../reviews` with `body` + `comments[]` — **one call** |
+| 4 (summary only) | `gh pr review <number> --comment --body "..."` — **one call, no `comments[]`** |
+| 5 (don't post) | No `gh` writes |
 
 ## Report Structure
 
@@ -143,6 +176,8 @@ flowchart TD
 
 ## Constraints
 
+- **Never repeat `gh repo view` or `gh pr view` after the initial gather pass** — all data is cached upfront
+- **ONE `gh api` call to post the review** — batch all inline comments into the `comments[]` array; never loop and post per-finding; never mix `gh pr review` + `gh api` + `gh pr comment` in the same session
 - Never auto-approve; approval only on explicit user override
 - Never post to GitHub before user picks a posting mode
 - Cite every finding — no uncited claims
