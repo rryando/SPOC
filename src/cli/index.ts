@@ -1,10 +1,35 @@
+import "./commands/index.js"; // Trigger command registrations
 import { handleDagCommand } from "./dag-commands.js";
 import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
+import { getCommand } from "./command-registry.js";
+import { parseArgs } from "./arg-parser.js";
+import { render } from "./output-envelope.js";
+import { generateCommandHelp, generateCommandsDiscovery, formatCommandsDiscovery } from "./help-generator.js";
 
 // ---------------------------------------------------------------------------
 // CLI Subcommand Router
 // ---------------------------------------------------------------------------
+
+/**
+ * Determine the longest-match command path from raw args.
+ * Tries two-word path first (e.g. "write propose"), then single word.
+ */
+function determineCommandPath(args: string[]): { path: string; remaining: string[] } | undefined {
+  if (args.length >= 2) {
+    const twoWord = `${args[0]} ${args[1]}`;
+    if (getCommand(twoWord)) {
+      return { path: twoWord, remaining: args.slice(2) };
+    }
+  }
+  if (args.length >= 1) {
+    const oneWord = args[0];
+    if (getCommand(oneWord)) {
+      return { path: oneWord, remaining: args.slice(1) };
+    }
+  }
+  return undefined;
+}
 
 /**
  * Entry point for `npx spoc init`, `npx spoc config`, `npx spoc preview`.
@@ -13,6 +38,39 @@ import { runSetup } from "./setup.js";
  */
 export async function handleCli(args: string[]): Promise<boolean> {
   const command = args[0];
+
+  // --commands discovery
+  if (args.includes("--commands")) {
+    const json = args.includes("--json");
+    const discovery = generateCommandsDiscovery();
+    if (json) {
+      console.log(JSON.stringify(discovery));
+    } else {
+      console.log(formatCommandsDiscovery(discovery, false));
+    }
+    return true;
+  }
+
+  // Registry-first routing
+  const match = determineCommandPath(args);
+  if (match) {
+    const registeredCmd = getCommand(match.path)!;
+    const result = parseArgs(registeredCmd, match.remaining);
+    if (!result.ok) {
+      const flags = { json: match.remaining.includes("--json"), lean: match.remaining.includes("--lean") };
+      render(result.error, flags);
+      process.exitCode = 1;
+      return true;
+    }
+    if (result.parsed.flags.help) {
+      console.log(generateCommandHelp(registeredCmd));
+      return true;
+    }
+    const cmdResult = await registeredCmd.handler(result.parsed.params, result.parsed.flags);
+    render(cmdResult, result.parsed.flags);
+    if (!cmdResult.ok) process.exitCode = 1;
+    return true;
+  }
 
   switch (command) {
     case "init":
@@ -26,14 +84,10 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "preview":
       return handlePreviewCli(args.slice(1));
 
-    case "context":
     case "task":
     case "plan":
     case "knowledge":
-    case "search":
     case "diagram":
-    case "batch":
-    case "validate":
     case "project":
     case "write":
     case "doc":
@@ -46,7 +100,8 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "lint-bundle":
     case "deploy-superpowers":
     case "sync-agents-md":
-    case "agents-md":
+    case "related":
+    case "graph":
       return handleDagCommand(command, args.slice(1));
 
     default:

@@ -46,14 +46,44 @@ SPOC operations are accessible via **two interfaces:**
 - **CLI** (\`spoc <command>\`) — Preferred for DAG reads. Faster (no MCP protocol overhead), cheaper (subprocess stdout doesn't consume context tokens), composable (pipes, parallel bash calls).
 - **MCP tools** — Required for DAG writes with write-gate enforcement. Also available for reads when CLI is unavailable.
 
+### Output Format (JSON mode)
+
+All commands return a structured envelope when \`--json\` is passed:
+- Success: \`{"ok": true, "data": <command-specific-data>}\`
+- Error: \`{"ok": false, "code": "<error_code>", "message": "...", "hint": "...", "param": "..."}\`
+
+Error codes: \`missing_param\`, \`invalid_type\`, \`invalid_enum\`, \`unknown_flag\`, \`unknown_command\`,
+\`token_expired\`, \`token_consumed\`, \`token_mismatch\`, \`project_not_found\`, \`entity_not_found\`
+
+Unknown flags are rejected immediately (not silently ignored):
+\`\`\`bash
+spoc task list spoc --bogus --json → {"ok": false, "code": "unknown_flag", "message": "Unknown flag: --bogus"}
+\`\`\`
+
+### Global Flags (available on every command)
+
+- \`--json\` — Structured JSON envelope output
+- \`--lean\` — Strip timestamps for token efficiency
+- \`--dry-run\` — Validate params without side effects (no mutation)
+- \`--help\` — Per-command usage and parameter docs
+
+### Command Discovery
+
+\`\`\`bash
+spoc --commands --json
+\`\`\`
+Returns full schema of all registered commands with parameter types, descriptions, defaults, and enums.
+Agents should cache this once per session.
+
 ### Key CLI Commands for Agents
 
 | Operation | CLI Command | Notes |
 |-----------|-------------|-------|
-| T0 orientation | \`spoc context [--path=<dir>] --audience=orchestrator --json\` | Fast project context resolution (orchestrator-scoped) |
+| T0 orientation | \`spoc context <slug-or-path> --audience=orchestrator --json\` | Accepts slug or absolute path (defaults to cwd) |
+| Command discovery | \`spoc --commands --json\` | Cache once per session |
 | List projects | \`spoc project list --json\` | DAG-wide view |
 | Get project meta | \`spoc project get <slug> --json\` | Project metadata |
-| Get project doc | \`spoc project get <slug> --doc=overview\` | Specific document |
+| Get project doc | \`spoc project get <slug> --doc=overview --json\` | Specific document |
 | List tasks | \`spoc task list <slug> --json\` | All tasks for a project |
 | List plans | \`spoc plan list <slug> --json\` | All plans |
 | Search knowledge | \`spoc knowledge search <slug> "<query>" --json\` | BM25 search |
@@ -66,24 +96,33 @@ SPOC operations are accessible via **two interfaces:**
 | Git history | \`spoc git-log <slug> [--since=<commit>] --json\` | Read |
 | Sync AGENTS.md | \`spoc sync-agents-md <slug> --analysis-file=<path> --token=<token>\` | Write-gated |
 | Batch writes | \`spoc batch --file=ops.json --token=$TOKEN --json\` | Write-gated |
+| List batch ops | \`spoc batch --list-ops --json\` | Discover valid op names |
 
 ### CLI Writes (with --token)
 
-CLI writes require a write-gate token:
+CLI writes require a write-gate token (TTL: 10 minutes, single-use, consumed only on actual mutation):
 \`\`\`bash
-# Step 1: Propose (get token)
-TOKEN=$(spoc write propose "summary" --ops=tool:create_project_task --slug=<slug> --json | jq -r .token)
+# Step 1: Propose (positional summary arg)
+TOKEN=$(spoc write propose "summary of changes" --ops=task-create --slug=<slug> --json | jq -r .data.token)
 
 # Step 2: Execute write with token
 spoc task create <slug> "title" --token=$TOKEN --json
 
 # Or batch multiple writes:
 spoc batch --file=ops.json --token=$TOKEN --json
+
+# Dry-run validates without side effects:
+spoc write propose "test" --ops=task-create --slug=<slug> --dry-run --json
 \`\`\`
+
+Token behavior:
+- TTL is 10 minutes (not 2)
+- Tokens survive validation failures (only consumed on actual mutation)
+- Batch accepts both MCP-style (\`create_project_task\`) and CLI-style (\`task-create\`) op names
 
 ### When to Use Which
 
-- **Orchestrator T0:** \`spoc context --audience=orchestrator\` CLI (fast, no MCP overhead)
+- **Orchestrator T0:** \`spoc context <slug> --audience=orchestrator --json\` CLI (fast, no MCP overhead)
 - **Sub-agent DAG reads:** CLI commands in sub-agent prompts with \`--audience=implementer --lean --json\` (e.g. \`spoc context <slug> --audience=implementer --lean --json\`, \`spoc search <slug> '<query>' --lean --json\`)
 - **All writes:** MCP tools with write-gate OR CLI with --token (both work)
 - **Diagram operations:** \`spoc diagram ready/inspect\` CLI for reads, \`transition_project_task\` MCP for status changes
@@ -91,7 +130,7 @@ spoc batch --file=ops.json --token=$TOKEN --json
 ## Project Context Resolution
 
 At the start of every session, if you know the user's working directory, call
-\`resolve_project_context\` MCP tool or run \`spoc context --audience=orchestrator --json\` CLI (CLI preferred for speed). If a project is found, use the
+\`resolve_project_context\` MCP tool or run \`spoc context <slug-or-path> --audience=orchestrator --json\` CLI (CLI preferred for speed). If a project is found, use the
 returned context to inform your work — it contains the project overview,
 an operating brief, current focus, relevant knowledge, and active plans.
 
@@ -134,7 +173,7 @@ Load only what each workflow step needs. Do NOT front-load all docs for every re
 
 | Tier | What | Who loads it | When to use |
 |------|------|--------------|-------------|
-| **T0** | \`resolve_project_context\` output (or \`spoc context --audience=orchestrator\` CLI) | Orchestrator | Always — session start. Contains overview, operating brief, current focus, top knowledge, active plans. This is your primary (and usually only) orientation. |
+| **T0** | \`resolve_project_context\` output (or \`spoc context <slug> --audience=orchestrator --json\` CLI) | Orchestrator | Always — session start. Contains overview, operating brief, current focus, top knowledge, active plans. This is your primary (and usually only) orientation. |
 | **T1** | Single doc fetch (\`get_project\` with specific \`doc\`) | **Sub-agent** (default). Orchestrator may call only for a single targeted doc directly feeding an imminent write. | When a workflow step needs one specific doc. If the read is exploratory, comparative, or feeds further reasoning — delegate. |
 | **T2** | Index listings (\`list_project_plans\`, \`list_project_knowledge_entries\`, \`list_projects\`) | **Sub-agent** (default). Orchestrator may call \`list_projects\` once for conflict-check in INIT or DAG-wide routing in EXPLORE/MULTI. | When you need to discover what plans/knowledge/projects exist. Any audit/filter/scan across entries → sub-agent. |
 | **T3** | Full doc body (\`get_project_plan(includeBody)\`, \`get_project_knowledge_entry(includeBody)\`) | **Sub-agent always.** | Only when actively working with a specific plan or entry. Orchestrator never loads bodies. |
@@ -151,7 +190,7 @@ project-wide scans) are exploration too, and exploration belongs in sub-agents.
 
 Follow this strict information resolution order:
 
-1. **T0 first** — \`resolve_project_context\` output (or \`spoc context --audience=orchestrator --json\` CLI) is your primary orientation.
+1. **T0 first** — \`resolve_project_context\` output (or \`spoc context <slug> --audience=orchestrator --json\` CLI) is your primary orientation.
    It already contains overview, operating brief, current focus, top knowledge,
    and active plans. For most routing and task selection this is enough.
 2. **Dispatch an explore sub-agent for anything deeper** — When you need a
@@ -315,16 +354,30 @@ the sub-agent prompt must specify what command(s) to run for verification. The
 sub-agent must not claim completion without running them and reporting the
 results.
 
-### CLI access for sub-agents
+### CLI Access for Sub-Agents (Mandatory)
 
-Sub-agent prompts should suggest CLI commands for DAG reads where applicable,
-using \`--audience=implementer --lean --json\` for implementation sub-agents and
-\`--audience=designer --lean --json\` for brainstorming sub-agents. The \`--audience\`
-flag scopes knowledge to what's relevant for each agent type, and \`--lean\`
-produces token-efficient output.
-For example: "Use \`spoc search <slug> '<query>' --audience=implementer --lean --json\` for knowledge lookup"
-or "Run \`spoc task list <slug> --lean --json\` to check current task state." This
-avoids MCP overhead for reads and keeps sub-agent context lean.
+Every sub-agent prompt MUST include explicit SPOC CLI instructions with these flags:
+- For implementation/debugging sub-agents: \`--audience=implementer --lean --json\`
+- For design/planning sub-agents: \`--audience=designer --lean --json\`
+
+**Required instructions in every sub-agent dispatch:**
+
+\`\`\`bash
+# Project orientation (mandatory first step)
+spoc context <slug> --audience=<role> --lean --json
+
+# Pattern/knowledge search (when task relates to known patterns)
+spoc search <slug> "<keywords>" --audience=<role> --lean --json
+\`\`\`
+
+Omitting these flags results in:
+- No \`--lean\` → unnecessary token consumption (~40% waste)
+- No \`--audience\` → unscoped knowledge results (noise)
+- No CLI commands at all → sub-agents scan from scratch (slow, expensive)
+
+The \`--lean\` and \`--json\` flags are non-negotiable on every SPOC CLI call
+within sub-agent prompts. This avoids MCP overhead for reads and keeps
+sub-agent context lean.
 
 ### DAG write discipline
 

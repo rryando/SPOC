@@ -1,481 +1,475 @@
 # SPOC
 
-CLI-based DAG for agentic project management. Tracks projects, documentation, tasks, plans, and knowledge as a directed acyclic graph — designed for AI agents to read structured context instead of scanning codebases from scratch each session.
+> Give AI agents durable memory — so they start from context, not a blank slate.
 
-## Quick Start
+SPOC tracks projects, tasks, plans, and knowledge as a directed acyclic graph (DAG) stored in `~/.spoc/`. AI agents call `spoc <command>` to read structured project context instead of scanning codebases from scratch each session.
 
-```bash
-npm install
-npm run build
+---
 
-# Interactive setup wizard — configures OpenCode agents and deploys the SPOC bundle
-spoc init
+## What Is SPOC
+
+Every AI coding session starts fresh. SPOC fixes that by maintaining three persistent surfaces per project:
+
+```mermaid
+graph LR
+    CTX["spoc context\n──────────\noperating brief\ncurrent focus\nnext action"]
+
+    subgraph Q["Queue  (tasks.md + tasks/index.json)"]
+        QD["backlog → in_progress → done\nimmediate work items"]
+    end
+    subgraph P["Plan  (plans/*.md + .diagram.mmd)"]
+        PD["proposed → in_progress → done\nmulti-step feature work"]
+    end
+    subgraph M["Memory  (knowledge/*.md)"]
+        MD["lessons · patterns · gotchas · architecture\ndurable, searchable, BM25-indexed"]
+    end
+
+    CTX --> Q
+    CTX --> P
+    CTX --> M
 ```
 
-On first run, SPOC creates `~/.spoc/` to store project data and `~/.config/opencode/` for agent configuration.
-
-### OpenCode Managed SPOC Bundle
-
-Running `spoc init` installs the SPOC-customized bundle distribution for OpenCode — selecting OpenCode in `spoc init` installs the curated OpenCode runtime bundle. SPOC becomes the manager of the active SPOC bundle for OpenCode.
-
-- Registers **SPOC Orchestrator** and **SPOC Caveman** as primary agents
-- Deploys bundled skills, agent prompts, and plugins to `~/.config/opencode/`
-- Existing generic SPOC Bundle installs may be replaced after confirmation
-- `spoc config` re-syncs SPOC-owned files automatically
-- Bundled install is skipped when the SPOC orchestrator agent is disabled or not registered
-- All SPOC Bundle skills remain available in OpenCode
-- All shipped SPOC agent definitions are bundled
-- Non-runtime support files are intentionally excluded to keep the package lean
-- `opencode/spoc/bundle-runtime.json` defines the curated runtime payload
-
-## CLI Commands
-
-SPOC is CLI-only. All operations are available through the `spoc` binary:
-
-### Setup
-
-| Command | Description |
-|---|---|
-| `spoc init` | Interactive setup wizard — configure agents, deploy bundle |
-| `spoc config` | Reconfigure an existing installation |
-
-### DAG Operations
-
-| Command | Description |
-|---|---|
-| `spoc context [--path=<dir>]` | Resolve project context from workspace directory |
-| `spoc project list` | List all projects and dependency edges |
-| `spoc project get <slug>` | Get project metadata or a specific doc (`--doc=overview`) |
-| `spoc project init <name>` | Create a new project in the DAG |
-| `spoc project delete <slug>` | Remove a project from the DAG |
-| `spoc project status <slug> <status>` | Change project lifecycle status |
-| `spoc doc update <slug> <docType>` | Update a project document |
-| `spoc dependency add <slug> <target>` | Add a dependency edge |
-| `spoc dependency remove <slug> <target>` | Remove a dependency edge |
-| `spoc paths update <slug>` | Manage workspace directory paths |
-
-### Tasks
-
-| Command | Description |
-|---|---|
-| `spoc task list <slug>` | List tasks (filterable by status/priority) |
-| `spoc task get <slug> <taskId>` | Get task metadata |
-| `spoc task create <slug> <title>` | Create a structured task |
-| `spoc task update <slug> <taskId>` | Update task fields |
-| `spoc task transition <slug> <taskId> <status>` | Transition task status with guard-rails |
-| `spoc task delete <slug> <taskId>` | Remove a task |
-
-### Plans
-
-| Command | Description |
-|---|---|
-| `spoc plan list <slug>` | List plans with status and metadata |
-| `spoc plan get <slug> <planId> [--body]` | Get plan metadata/body |
-| `spoc plan create <slug> <title>` | Create a structured plan |
-| `spoc plan update-meta <slug> <planId>` | Update plan metadata |
-| `spoc plan update-body <slug> <planId>` | Replace plan body |
-| `spoc plan delete <slug> <planId>` | Delete a plan |
-
-### Knowledge
-
-| Command | Description |
-|---|---|
-| `spoc knowledge list <slug>` | List knowledge entries |
-| `spoc knowledge get <slug> <entryId> [--body]` | Get entry metadata/body |
-| `spoc knowledge create <slug> <title>` | Create a knowledge entry |
-| `spoc knowledge update-meta <slug> <entryId>` | Update entry metadata |
-| `spoc knowledge update-body <slug> <entryId>` | Replace entry body |
-| `spoc knowledge search <slug> "<query>"` | BM25 search over knowledge |
-| `spoc knowledge delete <slug> <entryId>` | Delete a knowledge entry |
-
-### Search & Diagnostics
-
-| Command | Description |
-|---|---|
-| `spoc search <slug> "<query>"` | Cross-type search (plans + knowledge + tasks) |
-| `spoc validate <slug>` | Structural health check |
-| `spoc diagram ready <slug> <planId>` | Show next executable diagram nodes |
-| `spoc audit <slug>` | Project state audit |
-| `spoc diff <slug>` | Show DAG changes |
-| `spoc git-log <slug>` | Query git history for a project |
-
-### Bundle & Deployment
-
-| Command | Description |
-|---|---|
-| `spoc lint-bundle` | Validate bundle manifest integrity |
-| `spoc deploy-superpowers` | Deploy validated bundle to OpenCode config |
-| `spoc sync-agents-md <slug>` | Generate AGENTS.md for workspace directories |
-
-### Write-Gate
-
-| Command | Description |
-|---|---|
-| `spoc write propose "<summary>" --ops=<op> --slug=<slug>` | Propose a DAG mutation, get a token |
-| `spoc write apply <token>` | Execute a proposed write |
-
-All mutating commands require `--token=<token>` from a prior `spoc write propose`.
-
-All commands support `--json` for structured agent-consumable output.
-
-## Data Directory
-
-All project data is stored in `~/.spoc/` by default.
-
-Override with the `SPOC_DATA_DIR` environment variable:
-
-```bash
-SPOC_DATA_DIR=/path/to/custom/dir spoc context
-```
-
-## Write-Gate Token Model
-
-Mutating DAG operations use a two-step confirmation protocol to prevent accidental state changes:
-
-1. **`spoc write propose`** — Describe intended mutation. Returns a single-use `token` scoped to the specific project + operation. Accepts optional `--ttl` to override the default expiry.
-2. **`spoc write apply`** — Consume the token to authorize the write. Token is consumed on use; replays are rejected.
-3. **Pass `--token` to write commands** — The consumed token authorizes the mutation.
-
-### TTL Semantics
-
-- Default TTL is **120 seconds** from proposal creation.
-- Override with `--ttl` parameter at proposal time.
-- Expired tokens require a fresh `spoc write propose` call.
-- Tokens persist to `$SPOC_DATA_DIR/tokens/` as JSON files for cross-process CLI usage.
-
-### Gated Mutating Commands
-
-All of the following require a valid `--token` (from `spoc write propose` → `spoc write apply`):
-
-| Command | Category |
-|---|---|
-| `spoc doc update` | Project |
-| `spoc project status` | Project |
-| `spoc project delete` | Project |
-| `spoc dependency add/remove` | Project |
-| `spoc plan create/update-meta/update-body/delete` | Plans |
-| `spoc knowledge create/update-meta/update-body/delete` | Knowledge |
-| `spoc task create/update/delete/transition` | Tasks |
-
-## Development
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) v18+
-
-### Setup
-
-```bash
-npm install
-```
-
-### Build & Run
-
-```bash
-# Build TypeScript
-npm run build
-
-# Run CLI directly
-node dist/index.js <command>
-
-# Or via npm link / npx
-spoc <command>
-
-# Watch mode during development
-npm run dev
-
-# Run tests
-npm run test
-```
-
-### Code Quality
-
-```bash
-# Lint and format check (Biome)
-npm run lint
-
-# Auto-fix lint and format issues
-npm run lint:fix
-
-# Format only
-npm run format
-
-# Type check (no emit)
-npm run typecheck
-
-# Full quality gate (tests + types + lint)
-npm test && npm run typecheck && npm run lint
-```
-
-SPOC uses [Biome](https://biomejs.dev/) for linting and formatting (not ESLint/Prettier). Configuration is in `biome.json`.
-
-## Concepts
-
-### Projects and the DAG
-
-A **project** is the top-level unit in SPOC. Each project has a unique slug, a lifecycle status, and four summary documents. Projects can declare **dependency edges** to other projects, forming a directed acyclic graph (DAG) with automatic cycle detection.
-
-```
-Project A ──depends on──▶ Project B ──depends on──▶ Project C
-```
-
-Project lifecycle: `draft` → `active` → `completed` → `archived`
-
-### Summary Docs vs Structured Stores
-
-Each project has two layers of documentation:
-
-| Layer | What | Purpose |
-|---|---|---|
-| **Summary docs** | `overview.md`, `tasks.md`, `dependencies.md`, `knowledge.md` | Quick-orientation landing pages. Short, scannable, always current. |
-| **Structured stores** | `plans/{planId}.md`, `knowledge/{entryId}.md` | Full-length documents with indexed metadata. Durable, searchable, detailed. |
-
-`tasks.md` is the **execution queue** — a flat checklist of actionable items. Complex multi-step feature work goes in `plans/`.
-
-`knowledge.md` is a **pointer page** — a summary that links to detailed knowledge entries in `knowledge/`.
-
-### Task Status
-
-Tasks in `tasks.md` use checkbox syntax:
-
-| Syntax | Meaning |
-|---|---|
-| `- [ ] Task` | Backlog (not started) |
-| `- [/] Task` | In progress |
-| `- [x] Task` | Done |
-
-### Structured Tasks
-
-For programmatic task management, SPOC provides a structured task API alongside the markdown `tasks.md` surface. Structured tasks are stored in `tasks/index.json` and provide typed status and priority fields.
-
-**Task statuses:** `backlog` → `in_progress` → `done` → `cancelled`
-
-**Task priorities:** `high`, `medium`, `low`
-
-When structured tasks exist, `tasks.md` is auto-rendered from the structured data as a backward-compatible view.
-
-### Knowledge Entry Kinds
-
-Each knowledge entry is tagged with a `kind` that describes what type of information it captures:
-
-| Kind | Use For |
-|---|---|
-| `architecture` | System design, tech stack, high-level structure |
-| `pattern` | Recurring code patterns, conventions, idioms |
-| `module` | Module or service documentation |
-| `feature` | Feature descriptions and behavior |
-| `reference` | Key files, dependencies, external links |
-| `lesson` | Insights learned during development |
-| `gotcha` | Pitfalls, surprises, things that break unexpectedly |
-
-### Plan Statuses
-
-Plans track the lifecycle of feature work:
-
-`proposed` → `planned` → `in_progress` → `done` → `archived`
-
-### Plan Diagrams
-
-Each plan can have an associated `.diagram.mmd` file (Mermaid) that serves as an **agentic execution map**. Agents read the diagram first for task selection and sub-agent dispatch before loading plan prose. Diagrams encode task status via `classDef` and include rich per-node metadata for automated execution.
-
-### Concurrency
-
-SPOC uses advisory file locking to prevent data corruption when multiple CLI processes write simultaneously. Lock files are created alongside protected resources (e.g., `meta.json.lock`) and automatically expire after 10 seconds if the holding process crashes.
+An agent calls `spoc context` at session start and receives an **operating brief** — current focus, recommended next action, relevant knowledge — without reading a single source file.
 
 ---
 
 ## How It Works
 
-### Workflow Diagram
+### Orchestrator → Workflow → DAG
 
 ```mermaid
 flowchart TD
-    User([User Request])
-    Orch{"SPOC Orchestrator\n(intent classification)"}
-    Init["INIT\nCreate project, scan codebase,\npopulate docs & knowledge"]
-    Brain["BRAINSTORM\nExplore approaches, create\nplans & task breakdowns"]
-    Exec["EXECUTE\nPick highest-priority task,\nimplement, update docs"]
-    Sync["SYNC\nRe-scan codebase, audit docs,\nreconcile with reality"]
-    Explore["EXPLORE\n(read-only)\nList projects, inspect\nstatus & dependencies"]
-    Multi["MULTI\nChain workflows\nin sequence"]
+    User(["User / Agent Request"])
+    Orch{"SPOC Orchestrator\nClassify intent"}
 
-    DAG[("~/.spoc/\nProjects, Docs,\nPlans, Knowledge")]
+    Init["INIT\nCreate project\nScan codebase\nPopulate docs & knowledge"]
+    Brain["BRAINSTORM\nExplore state\nCreate plans + tasks\nGenerate diagram"]
+    Exec["EXECUTE\nSelect unblocked task\nDispatch implementer\nUpdate DAG"]
+    Sync["SYNC\nRe-scan codebase\nAudit docs\nReconcile drift"]
+    Explore["EXPLORE\nList projects\nInspect status\n(read-only)"]
+    Multi["MULTI\nChain workflows\nin parallel or sequence"]
+
+    DAG[("~/.spoc/\nProjects · Tasks · Plans\nKnowledge · Diagrams")]
 
     User --> Orch
     Orch -- "new project" --> Init
     Orch -- "plan features" --> Brain
     Orch -- "do work" --> Exec
     Orch -- "update docs" --> Sync
-    Orch -- "inspect state" --> Explore
-    Orch -- "compound request" --> Multi
+    Orch -- "inspect" --> Explore
+    Orch -- "compound" --> Multi
 
-    Multi -.-> Init
-    Multi -.-> Brain
-    Multi -.-> Exec
-    Multi -.-> Sync
-    Multi -.-> Explore
+    Multi -.-> Init & Brain & Exec & Sync & Explore
 
-    Init --> DAG
-    Brain --> DAG
-    Exec --> DAG
-    Sync --> DAG
-    Explore --> DAG
+    Init & Brain & Exec & Sync & Explore --> DAG
 ```
 
-### Orchestrator Flow
+### Write-Gate Protocol (All Mutations)
 
-The SPOC Orchestrator is the recommended entry point (registered as a primary agent in OpenCode). Every request goes through three phases:
+Every DAG write goes through a two-step confirmation to prevent accidents:
 
-1. **Classify** — detect intent as one of six types (INIT, BRAINSTORM, EXECUTE, SYNC, EXPLORE, MULTI)
-2. **Route** — delegate to the appropriate specialist workflow with sub-agents
-3. **Complete** — summarize what was done, current project state, and recommended next steps
+```
+spoc write propose "summary" --ops=<op> --slug=<slug>
+           │
+           └─► returns { token }
+                           │
+           confirmed? ──── └─► spoc <mutating-command> --token=<token>
+```
 
-If intent is ambiguous, the orchestrator asks exactly one clarifying question before proceeding.
+Token is single-use, scoped to the project + operation, and expires after **10 minutes**.
 
-## Agent Operating Model
+---
 
-SPOC presents three main surfaces to agents: **Queue / Plan / Memory**.
+## Prerequisites
 
-- **Queue** — immediate execution state in `tasks.md`
-- **Plan** — multi-step work tracked in structured plans
-- **Memory** — durable reusable knowledge tracked in structured knowledge entries
+| Requirement | Version | Notes |
+|---|---|---|
+| [Node.js](https://nodejs.org/) | v18+ | Required |
+| [OpenCode](https://opencode.ai/) | latest | Required for agent integration |
+| [graphify](https://github.com/safishamsi/graphify) | any | Optional — AST code-graph analysis |
 
-`spoc context` returns an **operating brief** with:
-- current focus
-- recommended surface
-- why
-- next action
+---
 
-### Specialist Workflows
+## Quick Start
 
-The orchestrator routes to these workflows internally:
+```bash
+# Install SPOC globally
+npm install -g spoc
 
-| Workflow | What It Does |
+# Navigate into your project
+cd /path/to/your-project
+
+# One-time setup: deploys agents + skills to ~/.config/opencode/
+# and registers the current directory as a SPOC project
+spoc init
+```
+
+`spoc init` runs an interactive wizard that:
+1. Creates `~/.spoc/` (project data store)
+2. Registers the current directory as the workspace path
+3. Deploys bundled agents + skills into `~/.config/opencode/`
+
+From then on, any AI agent starting in that directory gets an **operating brief** automatically:
+
+```bash
+spoc context
+# → project overview, current focus, active plans, relevant knowledge
+```
+
+---
+
+## CLI Reference
+
+> All commands support `--json` (machine-readable) and `--lean` (reduce token cost).
+
+### Workflow commands (what you actually use day-to-day)
+
+| Command | When |
 |---|---|
-| INIT | Creates a new project, performs codebase scan, populates docs and knowledge entries |
-| BRAINSTORM | Reviews existing state, explores approaches, creates plans and task breakdowns |
-| EXECUTE | Selects highest-priority unblocked task, implements it, updates docs and knowledge |
-| SYNC | Re-scans codebase, audits all docs against reality, reconciles differences |
-| EXPLORE | Lists projects, inspects status and dependencies (read-only) |
-| MULTI | Chains multiple workflows in sequence for compound requests |
+| `spoc context [--path=<dir>]` | Start of every session — get operating brief |
+| `spoc search <slug> "<query>"` | Find anything across plans, knowledge, tasks |
+| `spoc validate <slug>` | Check DAG health before or after a big change |
+| `spoc sync-agents-md <slug>` | Refresh AGENTS.md after codebase changes |
+| `spoc diagram ready <slug> <planId>` | See what tasks are unblocked in a plan |
 
-### Workspace Integration
+### Write-Gate (required for all mutations)
 
-Workspace paths connect local directories to SPOC projects, enabling two features:
+```bash
+# 1. Propose → get a token (10 min TTL)
+spoc write propose "summary" --ops=<op> --slug=<slug>
 
-**Context resolution** — When an agent starts a session in a directory, `spoc context` matches it against registered workspace paths and returns the project's overview, operating brief, current focus, recent knowledge, and active plans.
+# 2. Pass token to the mutating command
+spoc <command> --token=<token>
 
-**AGENTS.md generation** — `spoc sync-agents-md` assembles a guardrail document from three sources and symlinks it into each workspace directory:
+# Or batch multiple writes in one token
+spoc batch --file=ops.json --token=<token>
+```
 
-1. **Coding discipline rules** — 7 non-negotiable principles (DRY, Single Responsibility, etc.)
-2. **Codebase analysis** — provided by the calling LLM after scanning the project
-3. **Project context** — pulled from SPOC (overview, current focus, dependencies, active plans)
+### All commands
 
-### SPOC Caveman
+| Namespace | Commands |
+|---|---|
+| **Setup** | `init` · `config` |
+| **Project** | `project list/get/init/delete/status` · `doc update` · `dependency add/remove` · `paths update` |
+| **Tasks** | `task list/get/create/update/transition/delete` |
+| **Plans** | `plan list/get/create/update-meta/update-body/delete` |
+| **Knowledge** | `knowledge list/get/create/update-meta/update-body/search/delete` |
+| **Diagnostics** | `validate` · `audit` · `diff` · `git-log` · `agents-md` |
+| **Bundle** | `lint-bundle` · `deploy-superpowers` |
 
-SPOC ships a second primary agent, **SPOC Caveman**, that layers [caveman-speak](https://github.com/JuliusBrussee/caveman) (MIT) on top of the standard orchestrator for ~65% fewer tokens on chat-facing narration. Tab in the OpenCode agent switcher to cycle between `SPOC Orchestrator` (default) and `SPOC Caveman`.
+---
 
-- **Same capabilities** — identical workflow routing, tool access, and sub-agent delegation
-- **Intensity levels** — `lite`, `full` (default), `ultra`
-- **Strict carve-outs** — caveman-speak applies only to chat narration. Tool arguments, DAG content, code, commit messages, and structured output stay in full prose.
-- **Companion skills** — `caveman-commit` and `caveman-review` are bundled with the SPOC bundle
+## Agents
+
+### Primary Agents
+
+These are registered as selectable agents in OpenCode. You interact with them directly.
+
+| Agent | Token Mode | Description |
+|---|---|---|
+| **SPOC Orchestrator** | Full prose | Classifies intent, routes to workflows, delegates to sub-agents, writes DAG |
+| **SPOC Caveman** | ~65% fewer tokens | Identical capabilities; caveman-speak for chat narration only |
+
+The orchestrator follows three phases on every request:
+1. **Classify** — detect intent (INIT / BRAINSTORM / EXECUTE / SYNC / EXPLORE / MULTI)
+2. **Route** — delegate to the right workflow and specialist sub-agents
+3. **Complete** — summarize what was done, current state, and next steps
+
+SPOC Caveman supports three intensity levels: `lite`, `full` (default), `ultra`. Code, tool arguments, DAG content, and commit messages are always full prose regardless of mode.
+
+### Sub-Agents
+
+Dispatched automatically by the orchestrator. You do not interact with them directly.
+
+| Sub-Agent | Role | Model Tier |
+|---|---|---|
+| **software-engineer** | Implements code, runs tests, ships features | Sonnet |
+| **tech-architect** | Design decisions, architecture analysis, refactor guidance | Opus |
+| **qa-analyst** | Proactive audits, convention enforcement, quality verification | Sonnet |
+| **oncall-ops** | Systematic debugging, incident triage, root cause analysis | Sonnet |
+| **spoc-docs** | Manages DAG — plans, knowledge entries, diagrams, tasks | Sonnet |
+| **system-architect** | Module boundaries, dependency graphs, migration strategies | Opus |
+| **code-reviewer** | Code review for correctness, maintainability, testing | Haiku |
+| **docs-researcher** | Documentation writing, research synthesis, document analysis | Opus |
+
+---
+
+## Skills
+
+Skills are instruction sets loaded on demand. The orchestrator auto-layers them based on context; sub-agents load them at dispatch time.
+
+### Work Mode (select exactly one per code-change dispatch)
+
+| Skill | Load When |
+|---|---|
+| `quick-dev` | Fully bounded — rename, refactor, config nudge, trivial bugfix |
+| `code-agent` | 50–90% clear, 1–2 open decisions resolvable from the repo |
+| `test-driven-development` | New feature or bugfix — test-first discipline adds value |
+| `brainstorming` | Design open, product direction genuinely unclear |
+
+### Lifecycle Support (layer on top of work mode)
+
+| Skill | Load When |
+|---|---|
+| `verification-before-completion` | Before claiming "done" on any non-trivial change |
+| `requesting-code-review` | Major feature complete, before merging |
+| `receiving-code-review` | Acting on review feedback (verify before blindly implementing) |
+| `finishing-a-development-branch` | Implementation done, deciding how to integrate |
+
+### SPOC Orchestration
+
+| Skill | Load When |
+|---|---|
+| `writing-plans` | Have requirements, about to create a structured plan |
+| `executing-plans` | Have a plan, executing it in a separate session with checkpoints |
+| `subagent-driven-development` | Multi-task plan with independent leaf nodes |
+| `dispatching-parallel-agents` | 2+ independent sub-problems detected at routing time |
+| `loop` | Self-referential dev loop that continues until task completion |
+| `using-superpowers` | Session start orientation |
+
+### Diagnosis & Quality
+
+| Skill | Load When |
+|---|---|
+| `systematic-debugging` | Any bug, test failure, or unexpected behavior |
+| `performance-diagnosis` | Profiling data, benchmarks, optimization guidance |
+| `architecture-review` | Evaluating module boundaries, coupling, API surface |
+| `auditing-a-feature` | Pre-refactor or pre-merge quality guard |
+
+### SPOC Tooling
+
+| Skill | Load When |
+|---|---|
+| `to-diagram` | Creating or updating a Mermaid plan diagram |
+| `knowledge-curation` | Auditing knowledge entries for staleness or drift |
+| `spoc-dashboard` | Browsing multi-plan status across projects |
+| `writing-skills` | Creating, editing, or testing SPOC skills |
+| `customize-opencode` | Editing `opencode.json` or SPOC bundle config |
+
+### Communication
+
+| Skill | Load When |
+|---|---|
+| `caveman-commit` | Writing git commit messages in SPOC Caveman mode |
+| `caveman-review` | Writing code review comments in SPOC Caveman mode |
+| `aesthetic` | Any frontend/UI work — components, styles, animations |
+
+---
+
+## Data Model
+
+```
+~/.spoc/
+├── meta.json                    # Global registry — all project slugs
+├── tokens/                      # Write-gate token files (10 min TTL)
+└── projects/
+    └── {slug}/
+        ├── meta.json            # name · description · status · workspacePaths · lastSyncedAt
+        ├── overview.md          # 2-3 sentence summary + goals     ← summary docs
+        ├── tasks.md             # Execution queue (auto-rendered from structured tasks)
+        ├── dependencies.md      # Upstream / downstream project edges
+        ├── knowledge.md         # Pointer page → knowledge/ entries
+        ├── AGENTS.md            # Auto-generated guardrail doc (symlinked into workspace)
+        ├── tasks/
+        │   └── index.json       # Structured task records (status, priority, planId)
+        ├── plans/
+        │   ├── {planId}.meta.json
+        │   ├── {planId}.md      # Plan body (prose)       ← structured stores
+        │   └── {planId}.diagram.mmd  # Mermaid execution map (agents read this first)
+        └── knowledge/
+            ├── index.json
+            ├── {entryId}.meta.json
+            └── {entryId}.md     # Knowledge entry body
+```
+
+### Summary Docs vs Structured Stores
+
+| Layer | Files | Purpose |
+|---|---|---|
+| **Summary docs** | `overview.md`, `tasks.md`, `dependencies.md`, `knowledge.md` | Quick-orientation landing pages — short, scannable, always current |
+| **Structured stores** | `plans/*.md`, `knowledge/*.md`, `tasks/index.json` | Full documents with indexed metadata — durable, searchable, detailed |
+
+### Project Lifecycle
+
+```
+draft → active → completed → archived
+```
+
+### Plan Diagrams
+
+Each plan has an associated `.diagram.mmd` file — a Mermaid flowchart that serves as the **agent execution map**. Agents read the diagram first for task selection before loading plan prose.
+
+Node status is encoded via `classDef`:
+
+| Class | Meaning |
+|---|---|
+| `:::backlog` | Not started |
+| `:::in_progress` | Active |
+| `:::done` | Complete |
+| `:::blocked` | Waiting on dependency |
+
+---
+
+## Write-Gate Token Model
+
+| Property | Value |
+|---|---|
+| Default TTL | 10 minutes |
+| Scope | Single project + operation |
+| Single-use | Yes — replays rejected |
+| Storage | `$SPOC_DATA_DIR/tokens/` |
+
+### Which commands require a token
+
+| Category | Gated Commands |
+|---|---|
+| **Project** | `doc update`, `project status`, `project delete`, `dependency add/remove` |
+| **Tasks** | `task create`, `task update`, `task delete`, `task transition` |
+| **Plans** | `plan create`, `plan update-meta`, `plan update-body`, `plan delete` |
+| **Knowledge** | `knowledge create`, `knowledge update-meta`, `knowledge update-body`, `knowledge delete` |
+| **Bundle** | `deploy-superpowers`, `sync-agents-md` |
+
+Override TTL at proposal time: `spoc write propose "..." --ttl=<ms>`
+
+---
+
+## Workspace Integration
+
+Registering a workspace path enables two features:
+
+**1. Context resolution** — `spoc context --path=/path/to/repo` matches the directory to its SPOC project and returns the operating brief, current focus, active plans, and relevant knowledge.
+
+**2. AGENTS.md generation** — `spoc sync-agents-md <slug>` assembles a coding guardrail document from three sources and symlinks it into each workspace:
+
+| Source | Content |
+|---|---|
+| Coding discipline | Non-negotiable rules (DRY, single responsibility, etc.) |
+| Codebase analysis | LLM-provided scan of tech stack, patterns, file structure |
+| Project context | SPOC overview, current focus, dependencies, active plans |
+
+---
+
+## Development
+
+### Setup
+
+```bash
+npm install
+npm run build
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `npm run build` | Compile TypeScript → `dist/` |
+| `npm run dev` | Watch mode (rebuild on change) |
+| `npm test` | Run Vitest test suite |
+| `npm run typecheck` | Type check without emit |
+| `npm run lint` | Biome lint + format check |
+| `npm run lint:fix` | Auto-fix lint and format issues |
+| `npm run format` | Format only |
+
+Full quality gate before committing:
+```bash
+npm test && npm run typecheck && npm run lint
+```
+
+### Testing Patterns
+
+| Pattern | Detail |
+|---|---|
+| Framework | Vitest |
+| DAG isolation | `withTempDataDir()` — each test gets a fresh `~/.spoc/` |
+| Write-gate | Bypassed globally via `enableWriteGateBypass()` in test setup |
+| No mocks | Core DAG I/O tests operate on real (temp) filesystem |
+| Test location | All tests in `test/` (not co-located with source) |
+
+### Environment
+
+```bash
+# Override data directory (default: ~/.spoc/)
+SPOC_DATA_DIR=/path/to/custom/dir spoc context
+```
+
+---
+
+## Bundle Release Playbook
+
+> **Rule:** repo → config only. Never overwrite repo files from config.
+
+| Step | Command | Notes |
+|---|---|---|
+| 1. Edit | Modify `opencode/spoc/skills/` or `opencode/spoc/prompts/` | Source of truth is the repo |
+| 2. Build | `npm run build:bundle` | Produces hashes, runtime JSON |
+| 3. Lint | `spoc lint-bundle` | Must pass with zero errors |
+| 4. Dry-run | `spoc deploy-superpowers` | Review `filesAdded / filesChanged / filesRemoved` |
+| 5. Deploy | `spoc deploy-superpowers --no-dry-run` | Writes to `~/.config/opencode/` |
+| 6. Restart | Restart OpenCode / IDE | Skills load at startup |
+
+---
+
+## Graphify Integration (Optional)
+
+Graphify performs AST-based static analysis of your codebase and ingests the results as SPOC knowledge entries — without any LLM API calls.
+
+See installation instructions at **https://github.com/safishamsi/graphify**.
+
+### What gets extracted
+
+| Category | Cap | Description |
+|---|---|---|
+| God nodes | 8 | Highest-connectivity modules — likely architectural hubs |
+| Architecture clusters | 8 | Directory-based groupings revealing module boundaries |
+| Cross-module couplings | 5 | Links between high-degree nodes across top-level directories |
+
+### When it runs
+
+| Trigger | Action |
+|---|---|
+| `spoc init` | Full extraction → up to 20 knowledge proposals → creates DAG entries |
+| SYNC workflow | Re-extracts, compares against existing entries, surfaces stale / new / drifted |
+| Ad-hoc | `queryGraph()`, `pathBetween()` answer structural questions from cached graph |
+
+Output: `graphify-out/graph.json` in workspace (auto-added to `.gitignore`).
+
+If graphify is not installed, SPOC operates normally — all graphify features are gated behind availability checks.
+
+---
 
 ## Project Structure
 
 ```
+spoc/
 ├── src/
-│   ├── index.ts          # CLI entrypoint
-│   ├── cli/              # CLI commands, TUI setup wizard, bundle installer
-│   └── utils/            # DAG logic, paths, templates, errors, workspace matching
-├── opencode/spoc/        # SPOC bundle source (skills, prompts, plugins, manifests)
-│   ├── skills/           # Agent skill markdown guides
-│   ├── prompts/          # Agent prompt text files
-│   ├── manifest.json     # Bundle install manifest
-│   └── bundle-runtime.json  # Curated runtime payload definition
-├── scripts/              # Build, lint, deploy helpers, spoc-cli.mjs entry point
-├── templates/            # Doc templates rendered on project init
-├── test/                 # Vitest test suite
-└── ~/.spoc/              # Runtime data (created on first run)
-    ├── config.json       # Agent/IDE configuration
-    ├── tokens/           # Write-gate token persistence
-    └── projects/         # Per-project directories
-        └── {slug}/
-            ├── meta.json       # Project metadata (name, description, workspace paths)
-            ├── overview.md
-            ├── tasks.md
-            ├── dependencies.md
-            ├── knowledge.md
-            ├── AGENTS.md       # Generated guardrail doc (via sync-agents-md)
-            ├── tasks/          # Structured task queue
-            │   └── index.json
-            ├── plans/          # Structured plans + diagrams
-            │   ├── {planId}.md
-            │   └── {planId}.diagram.mmd
-            └── knowledge/      # Structured knowledge entries
-                └── {entryId}.md
+│   ├── index.ts                    # CLI entry point
+│   ├── cli/
+│   │   ├── dag-commands.ts         # All CLI command implementations (~3800 lines)
+│   │   ├── bundle-installer.ts     # OpenCode bundle installer
+│   │   ├── setup.ts                # Interactive setup wizard
+│   │   ├── lean-output.ts          # --lean flag for token-efficient output
+│   │   └── spoc-orchestrate.ts     # Orchestrator prompt content
+│   ├── retrieval/
+│   │   ├── bm25.ts                 # BM25 full-text scoring
+│   │   ├── graph-retrieval.ts      # Graph-based related-entity retrieval
+│   │   └── graph-cache.ts          # Graph index caching + invalidation
+│   └── utils/
+│       ├── dag.ts                  # Core DAG I/O
+│       ├── project-memory.ts       # CRUD for plans, knowledge, tasks
+│       ├── write-gate.ts           # Write-gate token enforcement
+│       ├── workflow-policy.ts      # Operating brief derivation
+│       ├── graphify.ts             # Graphify integration
+│       └── schemas.ts              # Zod schemas
+├── opencode/spoc/
+│   ├── skills/                     # Agent skill markdown guides (25 skills)
+│   ├── prompts/                    # Sub-agent prompt definitions (8 agents)
+│   ├── manifest.json               # Bundle install manifest
+│   └── bundle-runtime.json         # Curated runtime payload
+├── scripts/
+│   ├── spoc-cli.mjs                # CLI entry wrapper (bin)
+│   └── build-opencode-bundle.mjs   # Build bundle
+└── test/                           # Vitest test suite
+    └── helpers/
+        ├── temp-data-dir.ts        # withTempDataDir() — isolated DAG state
+        └── setup-write-gate-bypass.ts
 ```
-
-## Bundle Release Playbook
-
-The SPOC bundle flows **repo → config only**. Never overwrite repo files from config.
-
-### Workflow
-
-1. **Edit** skills/agents/plugins in `opencode/spoc/` (repo source of truth).
-2. **Build bundle** — `npm run build:bundle` (produces `bundle-runtime.json`, hashes, etc.).
-3. **Lint** — `spoc lint-bundle`. Must pass with zero errors before deploying.
-4. **Deploy dry-run** — `spoc deploy-superpowers` (default: dry-run). Review `filesAdded`/`filesChanged`/`filesRemoved`.
-5. **Deploy actual** — `spoc deploy-superpowers --no-dry-run`.
-6. **Restart** IDE/agent host — deployed skills are loaded at startup; changes require a process restart.
-
-### Key rules
-
-- **No config → repo**: deployed config is ephemeral output. Manual config edits are overwritten on next deploy.
-- **Lint before deploy**: bundle integrity is binary. Skipping lint for "small changes" risks manifest/file mismatch.
-- **Write-gate**: all DAG mutations require a `spoc write propose` token consumed via `spoc write apply` before the write proceeds. Expired tokens require fresh re-proposal.
-
-## Graphify Integration (Optional)
-
-SPOC optionally integrates with [graphify](https://github.com/safishamsi/graphify) to enrich the DAG with structural knowledge derived from AST-based code graph extraction. No LLM API key is needed — graphify uses tree-sitter for pure AST parsing.
-
-### What It Does
-
-When graphify is available on PATH, SPOC can:
-
-1. **Extract** a code graph via `graphify update <workspace> --force --no-cluster`
-2. **Ingest** the graph into SPOC knowledge proposals (god nodes, architecture clusters, cross-module couplings)
-3. **Persist** proposals as durable knowledge entries in the DAG
-4. **Query** the graph for structural questions (`queryGraph`, `pathBetween`)
-
-### When It Runs
-
-| Trigger | What Happens |
-|---|---|
-| `spoc init` (new project) | TUI offers to install graphify if not found. If available, runs full extraction → produces up to 20 knowledge proposals → creates entries in the DAG. |
-| SYNC workflow | Re-extracts the graph, compares proposals against existing knowledge entries, surfaces stale/new/drifted entries. |
-| Ad-hoc queries | `queryGraph()` and `pathBetween()` answer structural questions from the cached graph. |
-
-### Output
-
-Extraction produces `graphify-out/graph.json` in the workspace directory (automatically added to `.gitignore`). This file contains nodes (functions, classes, exports) and links (imports, calls, references) derived purely from AST analysis.
-
-Knowledge proposals are capped at 20 per extraction:
-- **God nodes** (max 8) — highest-connectivity modules that are likely architectural hubs
-- **Architecture clusters** (max 8) — directory-based groupings revealing module boundaries
-- **Cross-module couplings** (max 5) — links between high-degree nodes in different top-level directories
-
-### Installation
-
-Graphify is a Python package. SPOC's `spoc init` wizard offers to install it automatically:
-
-```bash
-# Manual install
-pip install graphify-ts
-
-# Verify
-graphify --version
-```
-
-### Graceful Degradation
-
-If graphify is not installed, SPOC operates normally without code-graph analysis. All graphify-related features are optional and gated behind `detectGraphify()` availability checks.

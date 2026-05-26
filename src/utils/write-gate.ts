@@ -37,9 +37,14 @@ export interface WriteProposalInput {
 // ---------------------------------------------------------------------------
 
 export class WriteGateError extends Error {
-  constructor(message: string) {
+  code: string;
+  hint?: string;
+
+  constructor(message: string, code?: string, hint?: string) {
     super(message);
     this.name = "WriteGateError";
+    this.code = code ?? "write_gate_error";
+    this.hint = hint;
   }
 }
 
@@ -100,6 +105,29 @@ export function disableWriteGateBypass(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem > 0 ? `${hours}h${rem}m` : `${hours}h`;
+}
+
+function formatExpiryMessage(proposal: WriteProposal, nowMs: number, expiresAtMs: number): string {
+  const createdAtMs = new Date(proposal.createdAt).getTime();
+  const ttlMs = expiresAtMs - createdAtMs;
+  const createdAgo = formatDuration(nowMs - createdAtMs);
+  const ttl = formatDuration(ttlMs);
+  const expiredAgo = formatDuration(nowMs - expiresAtMs);
+  return `Proposal expired (created ${createdAgo} ago, TTL was ${ttl}, expired ${expiredAgo} ago). Re-propose to get a fresh token.`;
+}
+
+// ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
 
@@ -109,6 +137,20 @@ export function disableWriteGateBypass(): void {
  * @param nowMs Current time in epoch ms (injectable for tests).
  */
 export function createWriteProposal(input: WriteProposalInput, nowMs: number = Date.now()): WriteProposal {
+  // Idempotent: return existing active proposal with same slug+operations+summary
+  const sortedOps = [...input.operations].sort();
+  for (const existing of store.values()) {
+    if (
+      existing.slug === input.slug &&
+      existing.summary === input.summary &&
+      existing.consumedAt === null &&
+      new Date(existing.expiresAt).getTime() > nowMs &&
+      JSON.stringify([...existing.operations].sort()) === JSON.stringify(sortedOps)
+    ) {
+      return existing;
+    }
+  }
+
   const token = `wp_${randomBytes(16).toString("hex")}`;
   const proposal: WriteProposal = {
     token,
@@ -143,12 +185,20 @@ export function consumeWriteProposal(
   nowMs: number = Date.now(),
 ): WriteProposal {
   if (proposal.consumedAt !== null) {
-    throw new WriteGateError("Proposal already consumed");
+    throw new WriteGateError(
+      "Proposal already consumed",
+      "token_consumed",
+      "Each token is single-use. Propose a new token for this operation.",
+    );
   }
 
   const expiresAtMs = new Date(proposal.expiresAt).getTime();
   if (nowMs > expiresAtMs) {
-    throw new WriteGateError("Proposal expired");
+    throw new WriteGateError(
+      formatExpiryMessage(proposal, nowMs, expiresAtMs),
+      "token_expired",
+      `Run: spoc write propose --summary="..." --ops="..." --slug=${proposal.slug}`,
+    );
   }
 
   if (proposal.slug !== targetSlug) {
@@ -216,19 +266,32 @@ export function requireWriteGate(
   }
 
   if (proposal.consumedAt !== null) {
-    throw new WriteGateError("Proposal already consumed");
+    throw new WriteGateError(
+      "Proposal already consumed",
+      "token_consumed",
+      "Each token is single-use. Propose a new token for this operation.",
+    );
   }
 
   const expiresAtMs = new Date(proposal.expiresAt).getTime();
   if (nowMs > expiresAtMs) {
-    throw new WriteGateError("Proposal expired");
+    throw new WriteGateError(
+      formatExpiryMessage(proposal, nowMs, expiresAtMs),
+      "token_expired",
+      `Run: spoc write propose --summary="..." --ops="..." --slug=${proposal.slug}`,
+    );
   }
 
   if (proposal.slug !== slug) {
     throw new WriteGateError(`Project scope mismatch: proposal for "${proposal.slug}", target "${slug}"`);
   }
 
-  if (!proposal.operations.includes(operation)) {
+  // Normalize: strip "tool:" prefix for comparison so both "tool:create_project_plan"
+  // and "create_project_plan" match against proposals using either format.
+  const normalize = (op: string) => op.replace(/^tool:/, "");
+  const normalizedOp = normalize(operation);
+  const matches = proposal.operations.some((op) => normalize(op) === normalizedOp);
+  if (!matches) {
     throw new WriteGateError(
       `Operation mismatch: proposal authorizes [${proposal.operations.join(", ")}], requested "${operation}"`,
     );

@@ -3,6 +3,7 @@ import {
   createWriteProposal,
   consumeWriteProposal,
   getWriteProposal,
+  clearWriteProposals,
   type WriteProposal,
   type WriteProposalInput,
   WriteGateError,
@@ -30,6 +31,7 @@ describe("write-gate token model", () => {
   let now: number;
 
   beforeEach(() => {
+    clearWriteProposals();
     now = Date.now();
   });
 
@@ -47,10 +49,16 @@ describe("write-gate token model", () => {
       expect(proposal.consumedAt).toBeNull();
     });
 
-    it("generates unique tokens across calls", () => {
+    it("generates unique tokens across calls with different summaries", () => {
+      const a = createWriteProposal(makeInput(), now);
+      const b = createWriteProposal(makeInput({ summary: "different summary" }), now + 1);
+      expect(a.token).not.toBe(b.token);
+    });
+
+    it("returns existing proposal for idempotent calls with same slug+ops+summary", () => {
       const a = createWriteProposal(makeInput(), now);
       const b = createWriteProposal(makeInput(), now + 1);
-      expect(a.token).not.toBe(b.token);
+      expect(a.token).toBe(b.token);
     });
   });
 

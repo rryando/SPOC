@@ -64,6 +64,7 @@ import { cancelLoop, findActiveLoop, readLoopState, startLoop } from "../utils/l
 
 // Module-level lean mode flag, set by handleDagCommand
 let _leanMode = false;
+let _dryRun = false;
 
 /** Stringify with optional lean transform */
 function jsonOut(data: unknown): string {
@@ -101,7 +102,7 @@ type DagCommand = (typeof DAG_COMMANDS)[number];
 function printUsage(): void {
   console.log("Usage: spoc <command> [options]\n");
   console.log("DAG Commands:");
-  console.log("  context [<path>]                    Resolve project context");
+  console.log("  context [<path|slug>]               Resolve project context");
   console.log("  task <slug> [--status=<s>]          List tasks (positional slug)");
   console.log("  task list --slug=<slug>             List tasks (flag syntax)");
   console.log("  task get <slug> <taskId>            Get task details");
@@ -116,18 +117,26 @@ function printUsage(): void {
   console.log("  search <slug> <query>               BM25 search across all");
   console.log("  related <slug> --task=<id>          Graph-based related entities");
   console.log("  graph inspect <slug>                Inspect graph index stats");
-  console.log("  diagram <action> <path>             Inspect/ready diagram");
+  console.log("  diagram inspect <slug> <planId>     Inspect diagram structure");
+  console.log("  diagram ready <slug> <planId>       Show ready-to-execute nodes");
+  console.log("  diagram validate <slug> <planId>    Validate diagram integrity");
+  console.log("  diagram status <slug> <plan> <node> <s>  Update node status");
+  console.log("  diagram sort-metadata <slug> <plan> Sort metadata blocks");
+  console.log("  diagram show <path>                 Render diagram in terminal");
   console.log("  batch --file=<path>                 Batch operations");
   console.log("  validate <slug>                     Validate project state");
   console.log("  agents-md <slug>                    Read project AGENTS.md");
   console.log("\nOptions:");
-  console.log("  --json    Output as JSON");
-  console.log("  --help    Show command usage");
+  console.log("  --json      Output as JSON");
+  console.log("  --lean      Strip timestamps for token efficiency");
+  console.log("  --dry-run   Validate params without side effects");
+  console.log("  --help      Show command usage");
 }
 
 interface ParsedArgs {
   json: boolean;
   lean: boolean;
+  dryRun: boolean;
   rest: string[];
 }
 
@@ -135,12 +144,15 @@ function parseFlags(args: string[]): ParsedArgs {
   const rest: string[] = [];
   let json = false;
   let lean = false;
+  let dryRun = false;
 
   for (const arg of args) {
     if (arg === "--json") {
       json = true;
     } else if (arg === "--lean") {
       lean = true;
+    } else if (arg === "--dry-run") {
+      dryRun = true;
     } else {
       rest.push(arg);
     }
@@ -149,7 +161,7 @@ function parseFlags(args: string[]): ParsedArgs {
   // Also check environment variable
   if (!lean && isLeanMode([])) lean = true;
 
-  return { json, lean, rest };
+  return { json, lean, dryRun, rest };
 }
 
 function extractFlag(args: string[], flag: string): string | undefined {
@@ -158,8 +170,40 @@ function extractFlag(args: string[], flag: string): string | undefined {
   return found.split("=")[1];
 }
 
+async function readStdin(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const timeout = setTimeout(() => {
+      reject(new Error("Timed out reading from stdin (5s). Ensure data is piped to the command."));
+    }, 5000);
+    process.stdin.on("data", (chunk) => chunks.push(chunk));
+    process.stdin.on("end", () => {
+      clearTimeout(timeout);
+      resolve(Buffer.concat(chunks).toString("utf-8"));
+    });
+    process.stdin.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+    process.stdin.resume();
+  });
+}
+
 function cliError(msg: string): void {
   console.error(msg);
+}
+
+function renderWriteGateError(err: WriteGateError, json: boolean): void {
+  if (json) {
+    const out: Record<string, unknown> = { ok: false, code: err.code, message: err.message };
+    if (err.hint) out.hint = err.hint;
+    console.error(JSON.stringify(out));
+  } else {
+    const lines = [`Error: ${err.message}`];
+    if (err.hint) lines.push(`Hint: ${err.hint}`);
+    console.error(lines.join("\n"));
+  }
+  process.exitCode = 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -270,11 +314,48 @@ async function handleContext(args: string[], json: boolean): Promise<void> {
   const noGraph = args.includes("--no-graph");
 
   const filteredArgs = args.filter((a) => !a.startsWith("--audience=") && !a.startsWith("--task=") && a !== "--no-graph");
-  const queryPath = filteredArgs[0] ?? process.cwd();
 
-  if (!queryPath.startsWith("/")) {
-    cliError(`Error: path must be absolute, got "${queryPath}"`);
-    return;
+  let queryPath: string;
+  const rawArg = filteredArgs[0];
+
+  if (!rawArg) {
+    // No arg: use cwd
+    queryPath = process.cwd();
+  } else if (rawArg.startsWith("/")) {
+    // Absolute path: use as-is
+    queryPath = rawArg;
+  } else if (!rawArg.includes("/") && !rawArg.includes(".")) {
+    // Looks like a slug (no slashes, no dots): resolve from project metadata
+    const dataDir = getDataDir();
+    const projMetaPath = resolve(dataDir, "projects", rawArg, "meta.json");
+    if (!existsSync(projMetaPath)) {
+      cliError(`Error: project "${rawArg}" not found in SPOC`);
+      return;
+    }
+    // Read the project's workspace paths and use the first one
+    try {
+      const projMeta = JSON.parse(readFileSync(projMetaPath, "utf-8"));
+      const paths: string[] = Array.isArray(projMeta.workspacePaths) ? projMeta.workspacePaths : [];
+      if (paths.length === 0) {
+        cliError(`Error: project "${rawArg}" has no workspace paths configured`);
+        return;
+      }
+      // Resolve ~ in path
+      const first = paths[0];
+      queryPath = first.startsWith("~")
+        ? resolve(homedir(), first.slice(2))
+        : resolve(first);
+    } catch {
+      cliError(`Error: could not read project metadata for "${rawArg}"`);
+      return;
+    }
+  } else {
+    // Relative path or something with dots/slashes - try to resolve
+    queryPath = resolve(rawArg);
+    if (!existsSync(queryPath)) {
+      cliError(`Error: path "${rawArg}" does not exist. Use an absolute path or a project slug.`);
+      return;
+    }
   }
 
   const dataDir = getDataDir();
@@ -572,8 +653,7 @@ async function handleTaskTransition(args: string[], json: boolean): Promise<void
     requireWriteGate(token, slug, "tool:transition_project_task");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -611,15 +691,17 @@ async function handleTaskCreate(args: string[], json: boolean): Promise<void> {
   }
 
   const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:create_project_task");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
-      return;
+  if (!_dryRun) {
+    try {
+      requireWriteGate(token, slug, "tool:create_project_task");
+    } catch (err) {
+      if (err instanceof WriteGateError) {
+        cliError(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
     }
-    throw err;
   }
 
   const projectDir = getProjectDir(slug);
@@ -638,6 +720,16 @@ async function handleTaskCreate(args: string[], json: boolean): Promise<void> {
   }
   if (status && !(TASK_STATUSES as readonly string[]).includes(status)) {
     cliError(`Error: invalid status "${status}". Valid: ${TASK_STATUSES.join(", ")}`);
+    return;
+  }
+
+  if (_dryRun) {
+    const result = { ok: true, dryRun: true, data: { wouldCreate: { title, slug, planId, priority, status } } };
+    if (json) {
+      console.log(jsonOut(result));
+    } else {
+      console.log(`[dry-run] Would create task "${title}" in project "${slug}"`);
+    }
     return;
   }
 
@@ -673,8 +765,7 @@ async function handleTaskUpdate(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:update_project_task");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -733,8 +824,7 @@ async function handleTaskDelete(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:delete_project_task");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -777,15 +867,16 @@ async function handlePlanCreate(args: string[], json: boolean): Promise<void> {
   }
 
   const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:create_project_plan");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
-      return;
+  if (!_dryRun) {
+    try {
+      requireWriteGate(token, slug, "tool:create_project_plan");
+    } catch (err) {
+      if (err instanceof WriteGateError) {
+        renderWriteGateError(err, json);
+        return;
+      }
+      throw err;
     }
-    throw err;
   }
 
   const projectDir = getProjectDir(slug);
@@ -814,6 +905,16 @@ async function handlePlanCreate(args: string[], json: boolean): Promise<void> {
   }
 
   const id = normalizeIdentifier(title);
+
+  if (_dryRun) {
+    const result = { ok: true, dryRun: true, data: { wouldCreate: { title, slug, id, status, summary, keywords } } };
+    if (json) {
+      console.log(jsonOut(result));
+    } else {
+      console.log(`[dry-run] Would create plan "${title}" in project "${slug}"`);
+    }
+    return;
+  }
 
   try {
     const meta = await createPlan(projectDir, {
@@ -849,8 +950,7 @@ async function handlePlanUpdateMeta(args: string[], json: boolean): Promise<void
     requireWriteGate(token, slug, "tool:update_project_plan_meta");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -901,29 +1001,21 @@ async function handlePlanUpdateBody(args: string[], json: boolean): Promise<void
   }
 
   const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:update_project_plan_body");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
-      return;
-    }
-    throw err;
-  }
+  const bodyFile = extractFlag(args, "--body-file");
+  const bodyStdin = args.includes("--body-stdin");
 
+  // Validate params before consuming the token
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     cliError(`Error: project "${slug}" not found`);
     return;
   }
 
-  const bodyFile = extractFlag(args, "--body-file");
-  if (!bodyFile) {
-    cliError("Error: --body-file is required");
+  if (!bodyFile && !bodyStdin) {
+    cliError("Error: --body-file=<path> is required (provide path to a markdown file with the plan body content), or use --body-stdin to read from stdin");
     return;
   }
-  if (!existsSync(bodyFile)) {
+  if (bodyFile && !existsSync(bodyFile)) {
     cliError(`Error: body file not found: ${bodyFile}`);
     return;
   }
@@ -936,7 +1028,18 @@ async function handlePlanUpdateBody(args: string[], json: boolean): Promise<void
     return;
   }
 
-  const body = readFileSync(bodyFile, "utf-8");
+  // Consume token only after all validation passes
+  try {
+    requireWriteGate(token, slug, "tool:update_project_plan_body");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      renderWriteGateError(err, json);
+      return;
+    }
+    throw err;
+  }
+
+  const body = bodyFile ? readFileSync(bodyFile, "utf-8") : await readStdin();
   const bodyPath = resolve(projectDir, plan.file);
 
   try {
@@ -966,8 +1069,7 @@ async function handlePlanDelete(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:delete_project_plan");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -1468,8 +1570,7 @@ async function handleKnowledgeCreate(args: string[], json: boolean): Promise<voi
     requireWriteGate(token, slug, "tool:create_project_knowledge_entry");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -1574,8 +1675,7 @@ async function handleKnowledgeUpdateMeta(args: string[], json: boolean): Promise
     requireWriteGate(token, slug, "tool:update_project_knowledge_meta");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -1627,24 +1727,16 @@ async function handleKnowledgeUpdateBody(args: string[], json: boolean): Promise
   }
 
   const token = extractFlag(args, "--token");
-  try {
-    requireWriteGate(token, slug, "tool:update_project_knowledge_body");
-  } catch (err) {
-    if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
-      return;
-    }
-    throw err;
-  }
-
   const bodyFile = extractFlag(args, "--body-file");
-  if (!bodyFile) {
-    cliError("Error: --body-file is required");
+  const bodyStdin = args.includes("--body-stdin");
+
+  // Validate params before consuming the token
+  if (!bodyFile && !bodyStdin) {
+    cliError("Error: --body-file=<path> is required (provide path to a markdown file with the knowledge body content), or use --body-stdin to read from stdin");
     return;
   }
 
-  if (!existsSync(bodyFile)) {
+  if (bodyFile && !existsSync(bodyFile)) {
     cliError(`Error: body file not found: ${bodyFile}`);
     return;
   }
@@ -1663,6 +1755,17 @@ async function handleKnowledgeUpdateBody(args: string[], json: boolean): Promise
     return;
   }
 
+  // Consume token only after all validation passes
+  try {
+    requireWriteGate(token, slug, "tool:update_project_knowledge_body");
+  } catch (err) {
+    if (err instanceof WriteGateError) {
+      renderWriteGateError(err, json);
+      return;
+    }
+    throw err;
+  }
+
   const rawMeta = await readJsonSafe<unknown>(metaPath);
   if (rawMeta === undefined) {
     cliError(`Error: unable to parse meta for "${entryId}"`);
@@ -1670,7 +1773,7 @@ async function handleKnowledgeUpdateBody(args: string[], json: boolean): Promise
   }
   const existingMeta = validateJson(rawMeta, knowledgeMetaSchema, metaPath);
   const bodyPath = resolve(projectDir, existingMeta.file);
-  const body = readFileSync(bodyFile, "utf-8");
+  const body = bodyFile ? readFileSync(bodyFile, "utf-8") : await readStdin();
 
   await writeFile(bodyPath, body, "utf-8");
   const meta = await updateKnowledgeEntry(projectDir, { id: entryId });
@@ -1695,8 +1798,7 @@ async function handleKnowledgeDelete(args: string[], json: boolean): Promise<voi
     requireWriteGate(token, slug, "tool:delete_project_knowledge_entry");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -1771,6 +1873,17 @@ function findDiagramScript(): string | undefined {
   return undefined;
 }
 
+function resolveDiagramPath(arg1: string, arg2?: string): { path: string; slug?: string; planId?: string } | undefined {
+  // If arg1 contains "/" or ends with ".mmd", treat as raw path
+  if (arg1.includes("/") || arg1.endsWith(".mmd")) {
+    return { path: arg1 };
+  }
+  // Otherwise: arg1 = slug, arg2 = planId
+  if (!arg2) return undefined;
+  const dataDir = getDataDir();
+  return { path: resolve(dataDir, "projects", arg1, "plans", `${arg2}.diagram.mmd`), slug: arg1, planId: arg2 };
+}
+
 async function handleDiagram(args: string[], json: boolean): Promise<void> {
   const subcommand = args[0];
 
@@ -1807,30 +1920,124 @@ async function handleDiagram(args: string[], json: boolean): Promise<void> {
     return;
   }
 
-  if (subcommand !== "inspect" && subcommand !== "ready") {
-    cliError(`Error: unknown diagram subcommand "${subcommand}". Use: inspect, ready, show`);
+  // `spoc diagram status <slug> <planId> <nodeId> <newStatus> --token=<token>`
+  if (subcommand === "status") {
+    const token = extractFlag(args, "--token");
+    const slug = args[1];
+    const planId = args[2];
+    const nodeId = args[3];
+    const newStatus = args[4];
+    if (!slug || !planId || !nodeId || !newStatus) {
+      cliError("Error: usage: spoc diagram status <slug> <planId> <nodeId> <status> --token=<token>");
+      return;
+    }
+    requireWriteGate(token, slug, "cli:diagram_status");
+    const resolved = resolveDiagramPath(slug, planId);
+    if (!resolved) {
+      cliError("Error: could not resolve diagram path.");
+      return;
+    }
+    if (!existsSync(resolved.path)) {
+      cliError(`Error: No diagram found for plan "${planId}" in project "${slug}". Create one via brainstorm workflow.`);
+      return;
+    }
+    const scriptPath = findDiagramScript();
+    if (!scriptPath) {
+      cliError("Error: manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup");
+      return;
+    }
+    try {
+      const output = execSync(`node "${scriptPath}" status "${resolved.path}" "${nodeId}" "${newStatus}"`, {
+        encoding: "utf-8",
+        timeout: 10000,
+      });
+      if (json) {
+        try { JSON.parse(output); console.log(output.trim()); } catch { console.log(jsonOut({ output: output.trim() })); }
+      } else {
+        console.log(output.trim());
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+      cliError(`Error: diagram status failed: ${msg}`);
+    }
     return;
   }
 
-  const path = args[1];
-  if (!path) {
-    cliError(`Error: usage: spoc diagram ${subcommand} <path>`);
+  // `spoc diagram sort-metadata <slug> <planId> --token=<token>`
+  if (subcommand === "sort-metadata") {
+    const token = extractFlag(args, "--token");
+    const slug = args[1];
+    const planId = args[2];
+    if (!slug || !planId) {
+      cliError("Error: usage: spoc diagram sort-metadata <slug> <planId> --token=<token>");
+      return;
+    }
+    requireWriteGate(token, slug, "cli:diagram_sort_metadata");
+    const resolved = resolveDiagramPath(slug, planId);
+    if (!resolved) {
+      cliError("Error: could not resolve diagram path.");
+      return;
+    }
+    if (!existsSync(resolved.path)) {
+      cliError(`Error: No diagram found for plan "${planId}" in project "${slug}". Create one via brainstorm workflow.`);
+      return;
+    }
+    const scriptPath = findDiagramScript();
+    if (!scriptPath) {
+      cliError("Error: manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup");
+      return;
+    }
+    try {
+      const output = execSync(`node "${scriptPath}" sort-metadata "${resolved.path}"`, {
+        encoding: "utf-8",
+        timeout: 10000,
+      });
+      if (json) {
+        try { JSON.parse(output); console.log(output.trim()); } catch { console.log(jsonOut({ output: output.trim() })); }
+      } else {
+        console.log(output.trim());
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? (err as { stderr?: string }).stderr || err.message : String(err);
+      cliError(`Error: diagram sort-metadata failed: ${msg}`);
+    }
     return;
   }
 
-  if (!existsSync(path)) {
-    cliError(`Error: file not found: ${path}`);
+  if (subcommand !== "inspect" && subcommand !== "ready" && subcommand !== "validate") {
+    cliError(`Error: unknown diagram subcommand "${subcommand}". Use: inspect, ready, validate, status, sort-metadata, show`);
+    return;
+  }
+
+  const arg1 = args[1];
+  if (!arg1) {
+    cliError(`Error: usage: spoc diagram ${subcommand} <slug> <planId>  OR  spoc diagram ${subcommand} <path>`);
+    return;
+  }
+
+  const resolved = resolveDiagramPath(arg1, args[2]);
+  if (!resolved) {
+    cliError(`Error: usage: spoc diagram ${subcommand} <slug> <planId>  OR  spoc diagram ${subcommand} <path>`);
+    return;
+  }
+
+  if (!existsSync(resolved.path)) {
+    if (resolved.slug && resolved.planId) {
+      cliError(`Error: No diagram found for plan "${resolved.planId}" in project "${resolved.slug}". Create one via brainstorm workflow.`);
+    } else {
+      cliError(`Error: file not found: ${resolved.path}`);
+    }
     return;
   }
 
   const scriptPath = findDiagramScript();
   if (!scriptPath) {
-    cliError("Error: manage-diagram.mjs not found");
+    cliError("Error: manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup");
     return;
   }
 
   try {
-    const output = execSync(`node "${scriptPath}" ${subcommand} "${path}"`, {
+    const output = execSync(`node "${scriptPath}" ${subcommand} "${resolved.path}"`, {
       encoding: "utf-8",
       timeout: 10000,
     });
@@ -1869,7 +2076,57 @@ interface BatchResult {
   error?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Batch op registry and normalization
+// ---------------------------------------------------------------------------
+
+interface BatchOpInfo {
+  canonical: string;
+  aliases: string[];
+  description: string;
+}
+
+const BATCH_OPS: BatchOpInfo[] = [
+  { canonical: "task-create", aliases: ["create_project_task"], description: "Create a new task" },
+  { canonical: "task-transition", aliases: ["transition_project_task"], description: "Transition task status" },
+  { canonical: "task-update", aliases: ["update_project_task"], description: "Update task metadata" },
+  { canonical: "knowledge-create", aliases: ["create_knowledge_entry"], description: "Create a knowledge entry" },
+  { canonical: "knowledge-update-meta", aliases: ["update_knowledge_entry"], description: "Update knowledge entry metadata" },
+  { canonical: "knowledge-update-body", aliases: ["update_knowledge_body"], description: "Update knowledge entry body" },
+  { canonical: "plan-create", aliases: ["create_project_plan"], description: "Create a plan" },
+  { canonical: "plan-update-meta", aliases: ["update_project_plan"], description: "Update plan metadata" },
+  { canonical: "doc-update", aliases: ["update_project_doc"], description: "Update a project document" },
+];
+
+const VALID_OPS = BATCH_OPS.map((o) => o.canonical);
+
+function normalizeBatchOp(op: string): string {
+  // Already canonical?
+  if (VALID_OPS.includes(op)) return op;
+  // Check aliases
+  for (const info of BATCH_OPS) {
+    if (info.aliases.includes(op)) return info.canonical;
+  }
+  // Try normalizing: replace spaces/underscores with hyphens, lowercase
+  const normalized = op.toLowerCase().replace(/[\s_]+/g, "-");
+  if (VALID_OPS.includes(normalized)) return normalized;
+  return op; // Return as-is; will fail at switch with good error
+}
+
 async function handleBatch(args: string[], json: boolean): Promise<void> {
+  // --list-ops: output valid batch operations
+  if (args.includes("--list-ops")) {
+    if (json) {
+      console.log(jsonOut({ ops: BATCH_OPS }));
+    } else {
+      for (const info of BATCH_OPS) {
+        const aliases = info.aliases.length > 0 ? ` (aliases: ${info.aliases.join(", ")})` : "";
+        console.log(`${info.canonical}${aliases} — ${info.description}`);
+      }
+    }
+    return;
+  }
+
   const filePath = extractFlag(args, "--file");
   if (!filePath) {
     cliError("Error: --file is required for batch command");
@@ -1915,6 +2172,7 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
 
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i];
+    op.op = normalizeBatchOp(op.op);
     try {
       switch (op.op) {
         case "task-transition": {
@@ -2045,7 +2303,7 @@ async function handleBatch(args: string[], json: boolean): Promise<void> {
           break;
         }
         default:
-          results.push({ index: i, op: op.op, success: false, error: `Unknown op: ${op.op}` });
+          results.push({ index: i, op: op.op, success: false, error: `Unknown op: ${op.op}. Valid ops: ${VALID_OPS.join(", ")}` });
       }
     } catch (err) {
       results.push({
@@ -2367,8 +2625,7 @@ async function handleProjectInit(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:init_project");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -2469,8 +2726,7 @@ async function handleProjectDelete(args: string[], json: boolean): Promise<void>
     requireWriteGate(token, slug, "tool:delete_project");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -2525,8 +2781,7 @@ async function handleProjectStatus(args: string[], json: boolean): Promise<void>
     requireWriteGate(token, slug, "tool:update_project_status");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -2575,9 +2830,17 @@ async function handleWrite(args: string[], json: boolean): Promise<void> {
 
 async function handleWritePropose(args: string[], json: boolean): Promise<void> {
   const slug = extractFlag(args, "--slug");
-  const summary = extractFlag(args, "--summary");
+  let summary = extractFlag(args, "--summary");
   const opsRaw = extractFlag(args, "--ops");
   const ttlStr = extractFlag(args, "--ttl");
+
+  // Support positional summary: spoc write propose "summary text" --ops=... --slug=...
+  if (!summary) {
+    const positional = args.find((a) => !a.startsWith("--"));
+    if (positional) {
+      summary = positional;
+    }
+  }
 
   if (!slug) {
     cliError("Error: --slug is required");
@@ -2585,7 +2848,7 @@ async function handleWritePropose(args: string[], json: boolean): Promise<void> 
     return;
   }
   if (!summary) {
-    cliError("Error: --summary is required");
+    cliError("Error: --summary is required (pass as --summary=TEXT or as a positional argument)");
     process.exitCode = 1;
     return;
   }
@@ -2596,7 +2859,21 @@ async function handleWritePropose(args: string[], json: boolean): Promise<void> 
   }
 
   const operations = opsRaw.split(",").map((o) => o.trim());
-  const ttlMs = ttlStr ? Number.parseInt(ttlStr, 10) : 120_000;
+  const ttlMs = ttlStr ? Number.parseInt(ttlStr, 10) : 600_000;
+
+  if (_dryRun) {
+    const result = { ok: true, dryRun: true, data: { wouldCreate: { slug, summary, ops: operations, ttl: ttlMs } } };
+    if (json) {
+      console.log(jsonOut(result));
+    } else {
+      console.log("[dry-run] Would create write proposal:");
+      console.log(`  Slug: ${slug}`);
+      console.log(`  Summary: ${summary}`);
+      console.log(`  Operations: ${operations.join(", ")}`);
+      console.log(`  TTL: ${ttlMs}ms`);
+    }
+    return;
+  }
 
   try {
     const proposal = createWriteProposal({ slug, summary, operations, ttlMs });
@@ -2992,8 +3269,7 @@ async function handleLoopStart(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:start_project_loop");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -3045,8 +3321,7 @@ async function handleLoopCancel(args: string[], json: boolean): Promise<void> {
     requireWriteGate(token, slug, "tool:cancel_project_loop");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -3164,20 +3439,6 @@ async function handleDeploySuperpowers(args: string[], json: boolean): Promise<v
   const configRoot = extractFlag(args, "--config-root");
   const dryRun = args.includes("--dry-run");
 
-  if (!dryRun) {
-    const token = extractFlag(args, "--token");
-    try {
-      requireWriteGate(token, "_global", "tool:deploy_spoc_bundle");
-    } catch (err) {
-      if (err instanceof WriteGateError) {
-        cliError(`Error: ${err.message}`);
-        process.exitCode = 1;
-        return;
-      }
-      throw err;
-    }
-  }
-
   try {
     const repoRoot = resolve(import.meta.dirname, "../..");
     const scriptPath = resolve(repoRoot, "scripts/deploy-opencode-bundle.mjs");
@@ -3238,8 +3499,7 @@ async function handleSyncAgentsMd(args: string[], json: boolean): Promise<void> 
     requireWriteGate(token, slug, "tool:sync_agents_md");
   } catch (err) {
     if (err instanceof WriteGateError) {
-      cliError(`Error: ${err.message}`);
-      process.exitCode = 1;
+      renderWriteGateError(err, json);
       return;
     }
     throw err;
@@ -3667,10 +3927,11 @@ export async function handleDagCommand(
   command: string,
   args: string[],
 ): Promise<boolean> {
-  const { json, lean, rest } = parseFlags(args);
+  const { json, lean, dryRun, rest } = parseFlags(args);
 
   // Set module-level lean mode for jsonOut helper
   _leanMode = lean;
+  _dryRun = dryRun;
 
   if (rest.includes("--help") || args.includes("--help")) {
     printUsage();
