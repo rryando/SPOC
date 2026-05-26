@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getProjectDir } from "./paths.js";
 import type { KnowledgeProposal } from "./graphify.js";
+import { getProjectDir } from "./paths.js";
 
 interface KnowledgeMetaEntry {
   id: string;

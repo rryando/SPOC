@@ -359,7 +359,7 @@ flowchart TD
     E --> F[Present plan + diagram + tasks summary]
     F -->|confirmed| G[spoc plan create]
     G --> H[spoc task create × N nodes]
-    H --> I[Write .diagram.mmd]
+    H --> I[spoc diagram init slug planId --json]
     I --> J[Done]
 \`\`\`
 
@@ -382,7 +382,7 @@ flowchart TD
 
     A[T0 Orient] --> B{Plan has .mmd?}
     B -->|yes| C[spoc diagram ready → select node]
-    B -->|no| C2[Explore sub-agent → task list]:::sub
+    B -->|no| C2[spoc diagram init slug planId --json OR Explore sub-agent → task list]:::sub
     C --> D{Task record exists?}
     D -->|no| D2[spoc task create] --> E
     D -->|yes| E{Task shape?}

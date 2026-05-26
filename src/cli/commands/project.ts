@@ -233,7 +233,9 @@ async function handleProjectInit(
     const skipGraphify = process.env.SPOC_SKIP_GRAPHIFY === "1";
     if (looksLikeCodebase && !skipGraphify) {
       try {
-        const { detectGraphify, runExtraction, ingestGraph } = await import("../../utils/graphify.js");
+        const { detectGraphify, runExtraction, ingestGraph } = await import(
+          "../../utils/graphify.js"
+        );
         const { persistProposals } = await import("../../utils/graphify-knowledge.js");
         const info = detectGraphify();
         if (info.available) {
