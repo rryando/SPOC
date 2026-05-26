@@ -3,73 +3,49 @@ name: caveman-commit
 description: Use when writing git commit messages, especially when SPOC Caveman mode is active. Produces Conventional Commits with terse, intent-preserving prose. Subject ≤50 chars; body only when the "why" isn't obvious from the diff.
 ---
 
-Write commit messages terse and exact. Conventional Commits format. No fluff. Why over what.
+# Skill: caveman-commit
 
-Adapted from https://github.com/JuliusBrussee/caveman (MIT).
+## When
 
-## Rules
+Writing git commit messages. Terse, exact, Conventional Commits. Why over what.
 
-**Subject line:**
-- \`<type>(<scope>): <imperative summary>\` — scope optional
-- Types: \`feat\`, \`fix\`, \`refactor\`, \`perf\`, \`docs\`, \`test\`, \`chore\`, \`build\`, \`ci\`, \`style\`, \`revert\`
-- Imperative mood: "add", "fix", "remove" — not "added", "adds", "adding"
-- ≤50 chars when possible, hard cap 72
-- No trailing period
-- Match project convention for capitalization after the colon
+## Flow
 
-**Body (only if needed):**
-- Skip entirely when the subject is self-explanatory
-- Add body only for: non-obvious *why*, breaking changes, migration notes, linked issues
-- Wrap at 72 chars
-- Bullets `-` not `*`
-- Reference issues/PRs at end: `Closes #42`, `Refs #17`
-
-**What NEVER goes in:**
-- "This commit does X", "I", "we", "now", "currently" — the diff already says what
-- "As requested by..." — use a `Co-authored-by` trailer instead
-- AI attribution lines ("Generated with...", "Co-authored-by: Claude" unless explicitly requested)
-- Emoji unless the project's existing history uses them
-- Restating the filename when scope already says it
-
-## Examples
-
-New endpoint for user profile with non-obvious why:
-
-```
-feat(api): add GET /users/:id/profile
-
-Mobile client needs profile data without the full user payload
-to reduce LTE bandwidth on cold-launch screens.
-
-Closes #128
+```mermaid
+flowchart TD
+    A[Read diff] --> B[Classify: feat/fix/refactor/perf/docs/test/chore]
+    B --> C["Write subject: type(scope): imperative ≤50"]
+    C --> D{Why obvious from diff?}
+    D -->|yes| E[Subject only — done]
+    D -->|no| F[Write body: why + context]
+    F --> G{Breaking/security/migration?}
+    G -->|yes| H[MUST include body]
+    G -->|no| E
+    H --> E
 ```
 
-Breaking API change:
+## Format Rules
 
-```
-feat(api)!: rename /v1/orders to /v1/checkout
+| Element | Rule |
+|---------|------|
+| Subject | `<type>(<scope>): <imperative>` ≤50 chars (hard cap 72) |
+| Types | feat, fix, refactor, perf, docs, test, chore, build, ci, style, revert |
+| Mood | Imperative: "add", "fix", "remove" — not past/present tense |
+| Body | Wrap 72 chars, bullets `-`, skip if subject self-explanatory |
+| Issues | End of body: `Closes #42`, `Refs #17` |
 
-BREAKING CHANGE: clients on /v1/orders must migrate to /v1/checkout
-before 2026-06-01. Old route returns 410 after that date.
-```
+## Never Include
 
-Trivial change (subject alone is enough):
+- "This commit does X", "I", "we", "now" — diff says what
+- AI attribution (unless explicitly requested)
+- Emoji (unless project history uses them)
+- Trailing period on subject
 
-```
-chore(deps): bump vitest to 1.6.0
-```
+## Always Include Body For
 
-## Auto-Clarity — ALWAYS include a body for
+- Breaking changes, security fixes (cite CVE), data migrations, reverts (name SHA)
 
-- Breaking changes
-- Security fixes (reference CVE or advisory)
-- Data migrations
-- Any commit that reverts a prior commit (name the SHA being reverted)
+## Constraints
 
-Future debuggers need the context — do not compress these into subject-only.
-
-## Boundaries
-
-This skill only generates the commit message. It does not run `git commit`, stage files, or amend. Output the message as a code block ready to paste.
-
-When the user says "stop caveman-commit" or "normal mode", revert to verbose commit style until re-invoked.
+- Output message as code block only — do not run `git commit`
+- "Stop caveman-commit" or "normal mode" → revert to verbose style

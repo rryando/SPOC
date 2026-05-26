@@ -3,79 +3,56 @@ name: explore-dag
 description: Navigate and understand the project DAG
 ---
 
-> **Canonical source of truth:** the runtime EXPLORE workflow
-> specification and context-loading tiers live in
-> `src/prompts/spoc-orchestrate.ts`. This skill file is a condensed
-> summary. When they disagree, the TS prompt wins.
+> **Canonical source:** `src/cli/spoc-orchestrate.ts` under `### EXPLORE Workflow`.
 
-## SPOC CLI
+## When
 
-All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
+Need to understand project relationships, find context, inspect plan and knowledge indexes, or traverse dependencies.
+
+## Flow
+
+```mermaid
+flowchart TD
+    classDef sub fill:#8b5cf6,color:#fff
+
+    A[spoc project list → big picture] --> B{Question answered by DAG?}
+    B -->|yes| C[Report from DAG data]
+    B -->|no| D[Dispatch explore sub-agent]:::sub
+    D --> E{Durable discovery?}
+    E -->|yes| F[spoc knowledge create]
+    E -->|no| C
+    F --> C
+```
+
+## CLI Primer
+
 ```bash
 TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <mutating-command> --token=$TOKEN --json
+spoc <command> --token=$TOKEN --json
 ```
+Discovery: `spoc --commands --json`
 
-**Available commands:**
-- `spoc context [<path>] --lean --json` — project orientation
-- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
-- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
-- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
-- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
-- `spoc project list --lean --json` — list all projects
-- `spoc search <slug> "<query>" --lean --json` — cross-type search
+## Key Commands
 
-**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
+| Operation | Command |
+|-----------|---------|
+| All projects | `spoc project list --json` |
+| Project meta | `spoc project get <slug> --json` |
+| Project doc | `spoc project get <slug> --doc=<doc> --json` |
+| Plan and knowledge indexes | `spoc plan list <slug> --json` / `spoc knowledge list <slug> --json` |
+| Full body | `spoc plan get <slug> <id> --body --json` / `spoc knowledge get <slug> <id> --body --json` |
+| Search | `spoc search <slug> "<query>" --json` |
 
-**Discover all commands:** `spoc --commands --json`
+## Traversal Pattern
 
-**Verify SPOC is available:** `spoc --version`
-
-## When to Use
-
-Use this skill when:
-- You need to understand how projects relate to each other
-- The user asks about project dependencies or status
-- You need to find context about a specific project before making changes
-- Planning work that may span multiple projects
-
-## Steps
-
-### List all projects
-1. Run `spoc project list --json` to get the full DAG graph.
-2. Each entry has: `id`, `name`, `status`, `dependsOn[]`.
-
-### Inspect a specific project
-1. Run `spoc project get <slug> --json` to get the project's meta (doc paths, repo URL, timestamps).
-2. Read individual docs by running `spoc project get <slug> --doc=<doc> --json`:
-   - `--doc=overview` — What is this project?
-   - `--doc=tasks` — What's being worked on?
-   - `--doc=dependencies` — What does it connect to?
-   - `--doc=knowledge` — How does the code work?
-
-### Inspect plan and knowledge indexes
-Beyond the four core docs, each project can have structured plans and knowledge entries:
-1. Run `spoc plan list <slug> --json` to see all plans (feature designs, migration strategies, etc.).
-2. Run `spoc knowledge list <slug> --json` to see all knowledge entries (architecture, patterns, gotchas, etc.).
-3. Use `spoc plan get <slug> <planId> --body --json` or `spoc knowledge get <slug> <entryId> --body --json` to read the full body of any item.
-
-### Traverse dependencies
-1. From the `spoc project list --json` output, find a project's `dependsOn` array.
-2. For each dependency, run `spoc project get <slug> --json` to read its meta and docs recursively.
-3. Build a mental model of the dependency chain.
-
-### Example: Find all downstream projects
-Given project `core-lib`, find everything that depends on it:
-```
-1. Run spoc project list --json
-2. Filter projects where dependsOn includes "core-lib"
-3. These are the downstream dependents
-```
+1. `spoc project list --json` → get all projects + `dependsOn[]`
+2. Filter for dependencies of interest
+3. `spoc project get <slug> --json` per dependency for meta/docs
+4. Build dependency chain
 
 ## Tips
-- Start with `spoc project list --json` for the big picture
+
+- Start with `spoc project list` for the big picture
 - Use `knowledge` docs to quickly understand unfamiliar codebases
-- Use `spoc plan list <slug> --json` and `spoc knowledge list <slug> --json` to discover deeper project context
-- Filter plans by keyword: `spoc plan list <slug> --json` then filter output for specific keywords
 - Check `status` to know if a dependency is still actively maintained
-- Use `spoc dependency add <slug> <target> --token=$TOKEN --json` to add/remove edges as you discover relationships
+- Persist durable discoveries via `spoc knowledge create`

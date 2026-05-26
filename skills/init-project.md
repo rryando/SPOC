@@ -3,80 +3,53 @@ name: init-project
 description: Initialize a new project in the DAG
 ---
 
-> **Canonical source of truth:** the runtime INIT workflow specification
-> lives in `src/prompts/spoc-orchestrate.ts` under `### INIT Workflow`.
-> This skill file is a condensed summary. When they disagree, the TS
-> prompt wins.
+> **Canonical source:** `src/cli/spoc-orchestrate.ts` under `### INIT Workflow`.
 
-## When to Use
+## When
 
-Use this skill when the user wants to:
-- Track a new project / codebase in the DAG
-- Start working on a new initiative that should be connected to existing projects
-- Bootstrap project documentation for a repository
+User wants to track a new project, bootstrap documentation, or connect a repo to the DAG.
 
-## SPOC CLI
+## Flow
 
-All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
-```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <mutating-command> --token=$TOKEN --json
+```mermaid
+flowchart TD
+    classDef gate fill:#f59e0b,color:#fff
+
+    A[Gather: name, description, repoUrl?, dependsOn?] --> B[spoc project list → conflict check]
+    B --> C[spoc write propose → present summary]:::gate
+    C -->|confirmed| D[spoc project init --token]
+    D --> E[spoc project update-doc × 4]
+    E --> F{Repo analysis needed?}
+    F -->|yes| G[Dispatch analysis sub-agent]
+    F -->|no| H[Done]
+    G --> I[spoc knowledge create × N]
+    I --> H
 ```
 
-**Available commands:**
-- `spoc context [<path>] --lean --json` — project orientation
-- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
-- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
-- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
-- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
-- `spoc project list --lean --json` — list all projects
-- `spoc search <slug> "<query>" --lean --json` — cross-type search
+## CLI Primer
 
-**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
+```bash
+TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
+spoc <command> --token=$TOKEN --json
+```
+Discovery: `spoc --commands --json`
 
-**Discover all commands:** `spoc --commands --json`
+## Constraints
 
-**Verify SPOC is available:** `spoc --version`
-
-## Steps
-
-1. **Gather information** from the user or context:
-   - `name` (required) — Human-readable project name
-   - `description` (required) — One-line description of what this project is
-   - `repoUrl` (optional) — Git repository URL
-   - `dependsOn` (optional) — Array of existing project slugs this depends on
-
-2. **Check existing projects** by running `spoc project list --json` to:
-   - Avoid duplicate names
-   - Verify any `dependsOn` targets exist
-
-3. **Initialize the project** using the write-gate flow:
-   ```bash
-   TOKEN=$(spoc write propose "Init project <name>" --ops=project:init --slug=<slug> --json | jq -r .data.token)
-   spoc project init --name="My Project" --description="A brief description" --repo-url="https://github.com/org/repo" --depends-on="other-project" --token=$TOKEN --json
-   ```
-
-4. **Verify** by running `spoc project get <slug> --json` to confirm the project was created.
-
-5. **Populate knowledge** (optional) — If the repo already exists, read the skill `spoc://skills/update-docs` to learn how to populate the knowledge doc with structured information about the codebase.
+- Do NOT read repo to infer name/description — gather from user
+- Verify `dependsOn` targets exist via `spoc project list --json`
+- Init creates empty plans/ and knowledge/ indexes
 
 ## Content Guidelines
 
-The init tool renders templates with placeholder content. After init, guide the user to fill in:
+| Doc | Format |
+|-----|--------|
+| overview.md | 2-3 sentence summary + goals |
+| tasks.md | `[ ]` backlog / `[/]` in-progress / `[x]` done |
+| dependencies.md | Upstream + downstream sections |
+| knowledge.md | High-level context + pointers to structured entries |
 
-- **overview.md** — Project summary, goals, notes
-- **tasks.md** — Concrete backlog items (execution queue state, not full feature narratives)
-- **dependencies.md** — Upstream/downstream context
-- **knowledge.md** — High-level project context and pointers; see the `update-docs` skill for detailed guidelines
-
-The init tool also creates empty indexes for structured subresources:
-
-- **plans/** — Structured plans for feature work that spans multiple tasks or decisions. Create plans with `spoc plan create <slug> --title="..." --token=$TOKEN --json`.
-- **knowledge/** — Durable knowledge entries for lessons, gotchas, patterns, architecture, and feature notes. Create entries with `spoc knowledge create <slug> "<title>" --kind=<kind> --summary="..." --body="<content>" --token=$TOKEN --json`.
-
-## Knowledge Categories for New Projects
-
-During INIT codebase analysis, the explore/analysis sub-agent should create one knowledge entry per applicable category from the table below.
+## Knowledge Categories for Analysis Sub-Agent
 
 | Category | Kind | What to discover |
 |----------|------|------------------|

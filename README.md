@@ -300,7 +300,7 @@ Node status is encoded via `classDef`:
 |---|---|
 | **Project** | `doc update`, `project status`, `project delete`, `dependency add/remove` |
 | **Tasks** | `task create`, `task update`, `task delete`, `task transition` |
-| **Plans** | `plan create`, `plan update-meta`, `plan update-body`, `plan delete` |
+| **Plans** | `plan list/get/create/update-meta/update-body/delete` |
 | **Knowledge** | `knowledge create`, `knowledge update-meta`, `knowledge update-body`, `knowledge delete` |
 | **Bundle** | `deploy-superpowers`, `sync-agents-md` |
 

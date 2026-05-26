@@ -3,237 +3,103 @@ name: brainstorming
 description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
 ---
 
-# Brainstorming Ideas Into Designs
+# Skill: brainstorming
 
-Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+## When
 
-Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+Any creative work — creating features, building components, adding functionality, or modifying behavior. Design before implementation, always.
 
-<HARD-GATE>
-Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
-</HARD-GATE>
-
-## SPOC CLI
-
-All DAG operations use the CLI. Reads are direct. Writes require a write-gate token:
-```bash
-TOKEN=$(spoc write propose "summary" --ops=<op> --slug=<slug> --json | jq -r .data.token)
-spoc <mutating-command> --token=$TOKEN --json
-```
-
-**Available commands:**
-- `spoc context [<path>] --lean --json` — project orientation
-- `spoc task list <slug> [--status=<s>] --lean --json` — list tasks
-- `spoc plan list <slug> [--status=<s>] --lean --json` — list plans
-- `spoc knowledge list <slug> [--kind=<k>] --lean --json` — list knowledge entries
-- `spoc knowledge search <slug> "<query>" --lean --json` — search knowledge
-- `spoc project list --lean --json` — list all projects
-- `spoc search <slug> "<query>" --lean --json` — cross-type search
-
-**Output:** `{ok: true, data: {...}}` on success, `{ok: false, code: "...", message: "..."}` on failure.
-
-**Discover all commands:** `spoc --commands --json`
-
-**Verify SPOC is available:** `spoc --version`
-
-## Execution Modes
-
-This skill operates in two contexts depending on who loads it.
-
-### Mode Detection
-
-- If bash is available (can run `spoc --version`) → **Agent-Direct Mode**
-- If not → **Orchestrator Mode** (return artifact for orchestrator to persist)
-
-### Agent-Direct Mode
-
-The agent has bash/CLI access and writes to the DAG itself.
-
-- Resolve project context via `spoc context --audience=designer --lean --json`
-- Uses write-gate pattern: `spoc write propose "summary" --ops=<ops> --slug=<slug> --json` → extract token → pass `--token=$TOKEN` to mutating commands
-- Creates plans directly via `spoc plan create <slug> --title="..." --status=proposed --token=$TOKEN --json` / `spoc plan update-body <slug> <planId> --token=$TOKEN --json`
-- Generates diagrams and writes `.mmd` files via tools
-- Creates knowledge entries via `spoc knowledge create <slug> --title="..." --kind=<kind> --token=$TOKEN --json` when discoveries warrant persistence
-- When user confirmation is needed (design approval, scope decisions): return to orchestrator with a structured summary and wait for confirmation relay before proceeding
-
-### Orchestrator Mode
-
-The orchestrator owns all write-gates. The agent returns design artifacts as structured text.
-
-Agent's final message contains:
-- Proposed plan `title`, `summary`, `status`, `keywords`, `sourceFiles`
-- Plan `body` (full markdown)
-- Diagram `.mmd` content (Mermaid source)
-- Any knowledge entries to create
-
-The orchestrator persists these via CLI commands after user confirms.
-
----
-
-## Anti-Pattern: "This Is Too Simple To Need A Design"
-
-Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
-
-## Checklist
-
-You MUST create a task for each of these items and complete them in order:
-
-1. **Explore project context** — check files, docs, recent commits
-2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
-3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
-4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Generate and present plan diagram** — after selecting the recommended approach, silently load the `to-diagram` skill (do not narrate the skill load or its conventions to the user) and generate a Mermaid plan diagram showing the structure and flow of that approach. Use `flowchart TD` for task/component dependency graphs; `stateDiagram-v2` for lifecycle/state machines. All nodes start as `:::backlog` at this stage. Use stable node IDs (`T001`, `T002`, etc.). Then preview and persist the diagram:
-   - **Draft to temp**: generate the `.mmd` content in memory or write to `/tmp/<plan-id>.diagram.mmd` for preview. Do NOT write to the DAG path yet.
-   - **Render via visual companion**: write an HTML fragment to the brainstorming server's project dir that wraps the Mermaid code with a Mermaid.js CDN `<script>` tag, then tell the user: "Review the plan diagram at [visual companion URL]"
-   - **Fallback** (visual companion not running): present the Mermaid block inline in chat
-   - **Persist to DAG**: the `.mmd` file is written to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` only after the user confirms the write-gate in step 6. The write-gate summary must include: diagram path, node count, ready/blocked node counts, and that this is a new diagram.
+> CLI Primer: `spoc --commands --json` for discovery. All writes: `spoc write propose` → token → command with `--token`.
 
 <HARD-GATE>
-A plan diagram MUST be generated and presented to the user for review before proceeding to step 6. The diagram serves as visual validation of scope AND as an agent-readable execution map. It must be drafted in memory or `/tmp` first (never written to the DAG before the write-gate). It is persisted to the DAG `.mmd` path only after write-gate confirmation in step 6. Do not skip this step.
+Do NOT invoke any implementation skill, write any code, or take any implementation action until you have presented a design and the user has approved it. Every project, regardless of perceived simplicity.
 </HARD-GATE>
 
-6. **Present design** — in sections scaled to their complexity, get user approval after each section
-7. **Write design doc** — save to spoc as a project plan (see Storage section below)
-8. **Spec review loop** — dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
-9. **User reviews written spec** — ask user to review the spec file before proceeding
-10. **Transition to implementation** — invoke writing-plans skill to create implementation plan. The diagram from step 5 is the design-phase `.mmd` file. When transitioning to writing-plans, pass this file path forward as the artifact to extend. The implementation plan diagram should EXTEND (not replace) the design diagram — adding implementation-specific task nodes and refining dependencies while preserving the validated topology.
+## Flow
 
-## Process Flow
-
-```dot
-digraph brainstorming {
-    "Explore project context" [shape=box];
-    "Visual questions ahead?" [shape=diamond];
-    "Offer Visual Companion\n(own message, no other content)" [shape=box];
-    "Ask clarifying questions" [shape=box];
-    "Propose 2-3 approaches" [shape=box];
-    "Present design sections" [shape=box];
-    "User approves design?" [shape=diamond];
-    "Write design doc" [shape=box];
-    "Spec review loop" [shape=box];
-    "Spec review passed?" [shape=diamond];
-    "User reviews spec?" [shape=diamond];
-    "Invoke writing-plans skill" [shape=doublecircle];
-
-    "Explore project context" -> "Visual questions ahead?";
-    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
-    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
-    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
-    "Ask clarifying questions" -> "Propose 2-3 approaches";
-    "Generate plan diagram" [shape=box];
-    "Propose 2-3 approaches" -> "Generate plan diagram";
-    "Generate plan diagram" -> "Present design sections";
-    "Present design sections" -> "User approves design?";
-    "User approves design?" -> "Present design sections" [label="no, revise"];
-    "User approves design?" -> "Write design doc" [label="yes"];
-    "Write design doc" -> "Spec review loop";
-    "Spec review loop" -> "Spec review passed?";
-    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
-    "Spec review passed?" -> "User reviews spec?" [label="approved"];
-    "User reviews spec?" -> "Write design doc" [label="changes requested"];
-    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
-}
+```mermaid
+flowchart TD
+    A[Explore project context] --> B{Visual questions ahead?}
+    B -->|yes| C[Offer visual companion - own message]
+    B -->|no| D[Ask clarifying questions - one at a time]
+    C --> D
+    D --> E{Scope too large?}
+    E -->|yes| F[Decompose into sub-projects]
+    F --> D
+    E -->|no| G[Propose 2-3 approaches with recommendation]
+    G --> H[Generate plan diagram .mmd]
+    H --> I[Present design sections incrementally]
+    I --> J{User approves?}
+    J -->|no| I
+    J -->|yes| K[Write design to spoc plan]
+    K --> L[Spec review loop]
+    L --> M{Approved?}
+    M -->|issues, ≤5x| L
+    M -->|yes| N[User reviews spec]
+    N --> O{Changes?}
+    O -->|yes| K
+    O -->|no| P[Invoke writing-plans skill]
 ```
 
-**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+## Confidence Check
 
-## The Process
+```mermaid
+flowchart TD
+    Q[Assess understanding] --> R{Confidence level?}
+    R -->|High - clear scope, known patterns| S[Propose approaches directly]
+    R -->|Medium - some unknowns| T[Ask 2-3 targeted questions]
+    R -->|Low - vague or multi-system| U[Scope decomposition first]
+```
 
-**Understanding the idea:**
+## Q&A Rhythm
 
-- Check out the current project state first (files, docs, recent commits)
-- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
-- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
-- For appropriately-scoped projects, ask questions one at a time to refine the idea
-- Prefer multiple choice questions when possible, but open-ended is fine too
-- Only one question per message - if a topic needs more exploration, break it into multiple questions
-- Focus on understanding: purpose, constraints, success criteria
+- **One question per message** — if a topic needs more, break into multiple
+- **Multiple choice preferred** when options are enumerable
+- **Scope check early**: if request describes multiple independent subsystems, flag immediately — decompose before refining details
+- Each sub-project gets its own spec → plan → implementation cycle
 
-**Exploring approaches:**
+## Design Presentation
 
-- Propose 2-3 different approaches with trade-offs
-- Present options conversationally with your recommendation and reasoning
-- Lead with your recommended option and explain why
-
-**Presenting the design:**
-
-- Once you believe you understand what you're building, present the design
-- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
-- Ask after each section whether it looks right so far
+- Scale each section to its complexity (few sentences → 300 words max)
+- Ask after each section if it looks right
 - Cover: architecture, components, data flow, error handling, testing
-- Be ready to go back and clarify if something doesn't make sense
+- Design for isolation: one purpose per unit, well-defined interfaces, independently testable
 
-**Design for isolation and clarity:**
+## Diagram Creation
 
-- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
-- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
-- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
-- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+<HARD-GATE>
+A plan diagram MUST be generated and presented before proceeding to storage. Draft in memory or `/tmp` — never write to DAG before write-gate confirmation.
+</HARD-GATE>
 
-**Working in existing codebases:**
+- Load `to-diagram` skill silently (don't narrate conventions to user)
+- Use `flowchart TD` for task/dependency graphs; `stateDiagram-v2` for lifecycles
+- All nodes start `:::backlog`, stable IDs (`T001`, `T002`, ...)
+- Persist to `~/.spoc/projects/<slug>/plans/<plan-id>.diagram.mmd` only after write-gate
+- This diagram becomes the design-phase `.mmd` that `writing-plans` will EXTEND
 
-- Explore the current structure before proposing changes. Follow existing patterns.
-- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
-- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+## Storage
 
-## After the Design
+```bash
+TOKEN=$(spoc write propose "Create design spec" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
+spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="..." --status=proposed --keywords='["spec","design"]' --body="<markdown>" --token=$TOKEN --json
+```
 
-**Storage — spoc Project Plan:**
-
-- Store the validated design as a spoc project plan using CLI commands:
-  1. Ensure a spoc project exists for the current work (`spoc project list --json`; use `spoc project init --token=$TOKEN --json` to create if needed)
-  2. Create the spec as a plan:
-     ```bash
-     TOKEN=$(spoc write propose "Create design spec" --ops=plan:create --slug=<slug> --json | jq -r .data.token)
-     spoc plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="one-line description" --status=proposed --keywords='["spec", "design"]' --body="<full design markdown>" --token=$TOKEN --json
-     ```
-  3. Note the returned `planId` for reference in later steps
-- Use elements-of-style:writing-clearly-and-concisely skill if available
-- No git commit needed — the spec lives in spoc, not the project repo
-
-**Spec Review Loop:**
-After writing the spec document:
-
-1. Dispatch a general-purpose review sub-agent using the spec-document-reviewer-prompt.md template (see spec-document-reviewer-prompt.md)
-2. If Issues Found: fix, re-dispatch, repeat until Approved
-3. If loop exceeds 5 iterations, surface to human for guidance
-
-**User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
-
-> "Spec written and saved to spoc project plan `<planId>` in project `<slug>`. Please review it (`spoc plan get <slug> <planId> --body --json`) and let me know if you want to make any changes before we start writing out the implementation plan."
-
-Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
-
-**Implementation:**
-
-- Invoke the writing-plans skill to create a detailed implementation plan
-- Do NOT invoke any other skill. writing-plans is the next step.
-
-## Key Principles
-
-- **One question at a time** - Don't overwhelm with multiple questions
-- **Multiple choice preferred** - Easier to answer than open-ended when possible
-- **YAGNI ruthlessly** - Remove unnecessary features from all designs
-- **Explore alternatives** - Always propose 2-3 approaches before settling
-- **Incremental validation** - Present design, get approval before moving on
-- **Be flexible** - Go back and clarify when something doesn't make sense
+After storage: _"Spec saved to plan `<planId>` in project `<slug>`. Please review and let me know if changes needed before implementation planning."_
 
 ## Visual Companion
 
-A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+Browser-based companion for mockups/diagrams. Offer once when visual questions are anticipated:
 
-**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
-> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+> "Some of what we're working on might be easier to show in a browser. Want to try it?"
 
-**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+- This offer MUST be its own message (no other content)
+- Per-question: use browser only when **seeing** beats **reading**
+- If accepted, read `skills/brainstorming/visual-companion.md`
 
-**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+## Constraints
 
-- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
-- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
-
-A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
-
-If they agree to the companion, read the detailed guide before proceeding:
-`skills/brainstorming/visual-companion.md`
+- The ONLY next skill after brainstorming is `writing-plans` — never implementation skills
+- Every project needs a design, no matter how "simple"
+- One question per message, multiple choice when possible
+- YAGNI ruthlessly — remove unnecessary features from all designs
+- Existing codebases: explore first, follow patterns, don't propose unrelated refactoring

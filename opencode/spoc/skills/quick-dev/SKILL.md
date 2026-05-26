@@ -3,47 +3,34 @@ name: quick-dev
 description: Use when the task is fully bounded with no open decisions — rename, refactor, extract, multi-var/multi-file change, API shape already known, config nudge, copy update, trivial targeted bugfix
 ---
 
-# quick-dev
+# Skill: quick-dev
 
-Use this skill when the task is **fully bounded** with no open decisions and success criteria are derivable without asking.
+## When
 
-## Trigger — self-select when ALL apply
+Task is fully bounded — no open decisions, success criteria derivable without asking.
 
-- Rename, refactor, extract, signature change, multi-var/multi-file search-replace, config nudge, copy update, targeted bugfix with a known root cause, API shape already defined, trivial test fix
-- No product/UX/architecture decisions remain
-- Success criteria are clear without asking
+## Flow
+
+```mermaid
+flowchart TD
+    A[Orient: spoc context --lean --json] --> B{Fully bounded?}
+    B -->|Yes| C[Execute change directly]
+    B -->|No| D[Escalate to code-agent or brainstorming]
+    C --> E[Verify: typecheck + lint + affected tests]
+    E --> F[Done — commit only when asked]
+```
 
 ## Behaviour
 
-1. Orient + read context:
-   - **SPOC context first** (fast, token-efficient):
-     ```bash
-     spoc context [--path=<dir>] --audience=implementer --lean --json
-     ```
-   - If the task relates to a known pattern, search:
-     ```bash
-     spoc search <slug> "<keywords>" --lean --json
-     ```
-   - **Then read local files** — relevant types, call sites, file headers — targeted by what SPOC told you
-2. Execute the change directly — no planning doc, no brainstorming, no TDD ritual
-3. Run focused verification: type-check, lint, affected tests — not the full suite unless the change is pervasive
-4. Commit only when the user asks
+1. Orient with SPOC context + search if pattern-related
+2. Execute directly — no planning doc, no brainstorming, no TDD ritual
+3. Run focused verification (not full suite unless pervasive)
 
 ## Escalation
 
-If hidden complexity surfaces mid-task (the change cascades unexpectedly, or a genuine decision appears):
-
-- **Pause immediately**
-- State the issue explicitly
-- Offer to switch to `code-agent` (if one decision opened up) or `brainstorming` (if design is genuinely unclear)
-- Wait for user confirmation before continuing
-
-Do not silently expand scope.
+If hidden complexity surfaces mid-task — **pause immediately**, state the issue, offer to switch to `code-agent` or `brainstorming`. Do not silently expand scope.
 
 ## NOT for
 
-- Tasks with open design decisions
-- New behaviour or UX changes
-- Multi-subsystem changes with unknown interfaces
-
-Use `code-agent` or `brainstorming` for those.
+- Tasks with open design decisions → `code-agent`
+- New behaviour or UX changes → `brainstorming`
