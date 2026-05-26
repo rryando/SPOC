@@ -86,7 +86,15 @@ Token is single-use, scoped to the project + operation, and expires after **10 m
 |---|---|---|
 | [Node.js](https://nodejs.org/) | v18+ | Required |
 | [OpenCode](https://opencode.ai/) | latest | Required for agent integration |
+| [gh (GitHub CLI)](https://cli.github.com/) | any | Required — used by skills like `deep-pr-review` |
 | [graphify](https://github.com/safishamsi/graphify) | any | Optional — AST code-graph analysis |
+| [rtk](https://github.com/rtk-ai/rtk) | any | Optional — improves AI command usage tracking |
+
+**Install RTK:**
+```bash
+rtk init -g                 # Install hook + RTK.md (recommended)
+rtk init -g --opencode      # OpenCode plugin (instead of Claude Code)
+```
 
 ---
 
@@ -100,32 +108,33 @@ Token is single-use, scoped to the project + operation, and expires after **10 m
 git clone https://github.com/your-org/spoc.git
 cd spoc
 npm install
-# postinstall automatically builds TypeScript and registers the `spoc` CLI
-# at ~/.local/bin/spoc
 ```
 
-**2. Add `~/.local/bin` to your PATH** (if not already)
+**2. Run the setup wizard**
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-# Add the above line to ~/.zshrc or ~/.bashrc to persist across sessions
-```
-
-**3. Run the setup wizard from your project**
-
-```bash
-cd /path/to/your-project
-spoc init
+npm run init
 ```
 
 The wizard:
-1. Creates `~/.spoc/` (project data store)
-2. Registers the current directory as the workspace path
-3. Deploys bundled agents + skills into `~/.config/opencode/`
+1. Builds the TypeScript source
+2. Registers the `spoc` CLI at `~/.local/bin/spoc`
+3. Creates `~/.spoc/` (project data store)
+4. Deploys bundled agents + skills into `~/.config/opencode/`
 
-**4. Start OpenCode**
+**3. Track a project**
 
-Open OpenCode in your project directory — you'll see the **SPOC Orchestrator** listed as a selectable agent. From that point, every session starts with an operating brief instead of a blank slate:
+Open OpenCode in your desired project folder, then call `spoc init` to register it with SPOC:
+
+```bash
+spoc init
+```
+
+This creates the DAG structure for the project and registers the current directory as a workspace path.
+
+**4. Start using SPOC**
+
+You'll see the **SPOC Orchestrator** listed as a selectable agent in OpenCode. Every session starts with an operating brief instead of a blank slate:
 
 ```bash
 spoc context
@@ -156,16 +165,16 @@ SPOC Caveman supports three intensity levels: `lite`, `full` (default), `ultra`.
 
 Dispatched automatically by the orchestrator. You do not interact with them directly.
 
-| Sub-Agent | Role | Model Tier |
+| Sub-Agent | Role | Model |
 |---|---|---|
-| **software-engineer** | Implements code, runs tests, ships features | Sonnet |
-| **tech-architect** | Design decisions, architecture analysis, refactor guidance | Opus |
-| **qa-analyst** | Proactive audits, convention enforcement, quality verification | Sonnet |
-| **oncall-ops** | Systematic debugging, incident triage, root cause analysis | Sonnet |
-| **spoc-docs** | Manages DAG — plans, knowledge entries, diagrams, tasks | Sonnet |
-| **system-architect** | Module boundaries, dependency graphs, migration strategies | Opus |
-| **code-reviewer** | Code review for correctness, maintainability, testing | Haiku |
-| **docs-researcher** | Documentation writing, research synthesis, document analysis | Opus |
+| **software-engineer** | Implementation specialist. Writes code, runs tests, ships features. Loads quick-dev, code-agent, TDD, executing-plans, finishing-a-development-branch, and aesthetic skills as needed. | Opus |
+| **tech-architect** | Architecture and analysis specialist. Deep structural reasoning, refactor guidance, trade-off evaluation, and root cause analysis without making hasty edits. | Haiku |
+| **qa-analyst** | Quality enforcement specialist. Proactive code audits, review dispatch, convention compliance, and verification gate enforcement. | Haiku |
+| **oncall-ops** | Debugging and diagnosis specialist. Finds root causes through systematic investigation, log triage, bisect, and performance profiling. | Opus |
+| **spoc-docs** | SPOC documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. Knows SPOC structure intimately. | Opus |
+| **system-architect** | Architecture and design specialist. Module boundaries, dependency graphs, migration strategies, and cross-project design decisions. | Opus |
+| **code-reviewer** | Reviews code changes for production readiness and catches correctness, maintainability, and testing issues. | Haiku |
+| **docs-researcher** | Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks. | Opus |
 
 ---
 
@@ -190,6 +199,7 @@ Skills are instruction sets loaded on demand. The orchestrator auto-layers them 
 | `requesting-code-review` | Major feature complete, before merging |
 | `receiving-code-review` | Acting on review feedback (verify before blindly implementing) |
 | `finishing-a-development-branch` | Implementation done, deciding how to integrate |
+| `deep-pr-review` | Deep PR review triggered from a GitHub PR link — multi-dimensional analysis grounded in SPOC DAG context, posts inline GitHub review comments |
 
 ### SPOC Orchestration
 

@@ -7,6 +7,16 @@
 import { existsSync, mkdirSync, symlinkSync, unlinkSync, readlinkSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+
+function isCommandAvailable(cmd) {
+  try {
+    execSync(`command -v ${cmd}`, { stdio: "ignore", shell: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const cliPath = resolve(__dirname, "spoc-cli.mjs");
@@ -51,3 +61,16 @@ if (!pathDirs.includes(binDir)) {
 
 console.log(`\nUsage: spoc <command> [args]`);
 console.log(`Commands: context, task, plan, knowledge, search, diagram, batch, validate`);
+
+// Dependency checks
+console.log("");
+if (!isCommandAvailable("gh")) {
+  console.warn(`WARNING: gh (GitHub CLI) not found.`);
+  console.warn(`  Skills like deep-pr-review require it: https://cli.github.com/`);
+}
+
+if (!isCommandAvailable("rtk")) {
+  console.warn(`WARNING: rtk not found.`);
+  console.warn(`  RTK improves AI command usage tracking: https://github.com/rtk-ai/rtk`);
+  console.warn(`  Install: rtk init -g  (or rtk init -g --opencode for OpenCode)`);
+}
