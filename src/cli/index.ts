@@ -13,7 +13,7 @@ import { generateCommandHelp, generateCommandsDiscovery, formatCommandsDiscovery
 
 /**
  * Determine the longest-match command path from raw args.
- * Tries two-word path first (e.g. "write propose"), then single word.
+ * Tries two-word path first (e.g. "task transition"), then single word.
  */
 function determineCommandPath(args: string[]): { path: string; remaining: string[] } | undefined {
   if (args.length >= 2) {

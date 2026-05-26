@@ -303,7 +303,7 @@ async function handleProjectValidate(
         kind: "missing_agents_md",
         message: `No AGENTS.md found at workspace path: ${ws}`,
         file: agentsPath,
-        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path> --token=<token>`,
+        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
         safeToAutoRepair: true,
       });
     }
