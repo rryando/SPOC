@@ -24,7 +24,16 @@ import {
 } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 
-const KIND_ENUM = ["lesson", "gotcha", "pattern", "feature", "decision", "reference"];
+const KIND_ENUM = [
+  "lesson",
+  "gotcha",
+  "pattern",
+  "architecture",
+  "module",
+  "feature",
+  "reference",
+  "decision",
+];
 function requireProject(slug: string): CLIResult | string {
   const dir = getProjectDir(slug);
   if (!existsSync(dir)) {
@@ -136,6 +145,11 @@ defineCommand({
     keywords: { type: "string", description: "Comma-separated keywords" },
     body: { type: "string", description: "Inline markdown body content" },
     "body-file": { type: "string", description: "Path to markdown file with entry body" },
+    "source-files": {
+      type: "string",
+      description:
+        'Comma-separated source file references (e.g. "src/utils/dag.ts,src/cli/index.ts:MyClass")',
+    },
   },
   handler: handleKnowledgeCreate,
 });
@@ -151,12 +165,19 @@ async function handleKnowledgeCreate(
   const keywordsRaw = params.keywords as string | undefined;
   const bodyInline = params.body as string | undefined;
   const bodyFile = params["body-file"] as string | undefined;
+  const sourceFilesRaw = params["source-files"] as string | undefined;
   const result = requireProject(slug);
   if (typeof result !== "string") return result;
   const projectDir = result;
   if (bodyFile && !existsSync(bodyFile)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Body file not found: ${bodyFile}`);
   }
+  const sourceFiles = sourceFilesRaw
+    ? sourceFilesRaw.split(",").map((s) => {
+        const [path, anchor] = s.trim().split(":");
+        return anchor ? { path, anchor } : { path };
+      })
+    : undefined;
   if (flags.dryRun) {
     const id = normalizeIdentifier(title);
     const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()) : [];
@@ -170,6 +191,7 @@ async function handleKnowledgeCreate(
         keywords,
         slug,
         hasBody: !!(bodyInline || bodyFile),
+        ...(sourceFiles && { sourceFiles }),
       },
     });
   }
@@ -189,6 +211,7 @@ async function handleKnowledgeCreate(
       keywords,
       ...(summary && { summary }),
       ...(content && { content }),
+      ...(sourceFiles && { sourceFiles }),
     });
     return success(entry);
   } catch (err) {

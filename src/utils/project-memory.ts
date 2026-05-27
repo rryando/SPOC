@@ -49,6 +49,7 @@ export const KNOWLEDGE_KINDS = [
   "module",
   "feature",
   "reference",
+  "decision",
 ] as const;
 
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];
