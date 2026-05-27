@@ -23,4 +23,31 @@ Task tool (spoc:code-reviewer):
 - Is the implementation following the file structure from the plan?
 - Did this implementation create new files that are already large, or significantly grow existing files? (Don't flag pre-existing file sizes — focus on what this change contributed.)
 
-**Code reviewer returns:** Strengths, Issues (Critical/Important/Minor), Assessment
+## Report Format (MANDATORY)
+
+Return prose explanation followed by this EXACT JSON block as the LAST thing in your message:
+
+```json
+{
+  "status": "DONE | DONE_WITH_CONCERNS",
+  "summary": "<1-2 sentences: quality verdict>",
+  "payload": {
+    "approved": true,
+    "issues": [
+      {
+        "severity": "critical | important | minor",
+        "file": "src/foo.ts",
+        "line": 15,
+        "finding": "Variable name unclear",
+        "suggestion": "Rename `d` to `duration`"
+      }
+    ]
+  }
+}
+```
+
+- `approved: true` = quality acceptable (minor issues OK)
+- `approved: false` = must fix before proceeding (has critical/important issues)
+- Severity: `critical` (must fix), `important` (should fix), `minor` (nice to fix)
+
+**No prose after the JSON block.**

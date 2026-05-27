@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Project update commands — update-doc, update-status, update-paths
+// Project update commands — update-doc, update-status, update-paths, write-checkpoint
 // ---------------------------------------------------------------------------
 
 import { existsSync, readFileSync } from "node:fs";
@@ -211,6 +211,89 @@ async function handleProjectUpdatePaths(
     await writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
 
     return success({ slug, workspacePaths: paths });
+  } catch (err) {
+    return failure("update_error", err instanceof Error ? err.message : String(err));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// project write-checkpoint
+// ---------------------------------------------------------------------------
+
+defineCommand({
+  path: "project write-checkpoint",
+  description: "Write sync checkpoint fields (lastSyncedAt, lastSyncGitCommit, lastSyncStats) to project meta.json",
+  mutation: true,
+  params: {
+    slug: { type: "string", required: true, positional: 0, description: "Project slug" },
+    lastSyncedAt: { type: "string", description: "ISO timestamp of last sync" },
+    lastSyncGitCommit: { type: "string", description: "Git commit SHA of last sync" },
+    lastSyncStats: { type: "string", description: "JSON string with sync stats object" },
+  },
+  handler: handleProjectWriteCheckpoint,
+});
+
+async function handleProjectWriteCheckpoint(
+  params: Record<string, unknown>,
+  flags: CommandFlags,
+): Promise<CLIResult> {
+  const slug = params.slug as string;
+  const lastSyncedAt = params.lastSyncedAt as string | undefined;
+  const lastSyncGitCommit = params.lastSyncGitCommit as string | undefined;
+  const lastSyncStatsRaw = params.lastSyncStats as string | undefined;
+
+  if (!lastSyncedAt && !lastSyncGitCommit && !lastSyncStatsRaw) {
+    return failure(
+      ERROR_CODES.MISSING_PARAM,
+      "At least one of --lastSyncedAt, --lastSyncGitCommit, or --lastSyncStats is required",
+      { param: "lastSyncedAt" },
+    );
+  }
+
+  const projectDir = getProjectDir(slug);
+  if (!existsSync(projectDir)) {
+    return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`);
+  }
+
+  let lastSyncStats: Record<string, unknown> | undefined;
+  if (lastSyncStatsRaw) {
+    try {
+      lastSyncStats = JSON.parse(lastSyncStatsRaw) as Record<string, unknown>;
+    } catch {
+      return failure("invalid_param", "Failed to parse --lastSyncStats as JSON", {
+        param: "lastSyncStats",
+      });
+    }
+  }
+
+  if (flags.dryRun) {
+    return success({
+      dryRun: true,
+      wouldUpdate: { slug, lastSyncedAt, lastSyncGitCommit, lastSyncStats },
+    });
+  }
+
+  const metaPath = resolve(projectDir, "meta.json");
+  try {
+    const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+    const updated: Record<string, unknown> = {};
+
+    if (lastSyncedAt !== undefined) {
+      meta.lastSyncedAt = lastSyncedAt;
+      updated.lastSyncedAt = lastSyncedAt;
+    }
+    if (lastSyncGitCommit !== undefined) {
+      meta.lastSyncGitCommit = lastSyncGitCommit;
+      updated.lastSyncGitCommit = lastSyncGitCommit;
+    }
+    if (lastSyncStats !== undefined) {
+      meta.lastSyncStats = lastSyncStats;
+      updated.lastSyncStats = lastSyncStats;
+    }
+
+    await writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
+
+    return success({ slug, updated });
   } catch (err) {
     return failure("update_error", err instanceof Error ? err.message : String(err));
   }

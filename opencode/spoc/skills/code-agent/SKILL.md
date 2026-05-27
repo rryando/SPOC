@@ -21,7 +21,7 @@ flowchart TD
     D -->|No, inferable| E
     D -->|No, genuine ambiguity| F[Ask ONE targeted question]
     F --> E
-    E --> G[Verify — tests, lint, build]
+    E --> G[Verify — affected tests + lint on changed files]
     G --> H{Complexity expanded?}
     H -->|No| I[Done]
     H -->|Yes| J[Pause — state issue — offer brainstorming]
@@ -50,6 +50,7 @@ If relevant entries exist, incorporate their guidance. Don't rediscover what's a
 - Ask at most one targeted question (product direction, naming, breaking trade-off)
 - TDD for new non-trivial behavior; skip for structural changes covered by existing tests
 - Lightweight bullet plan only when 3+ files and sequencing matters
+- Verify scoped: lint + test only files you touched (full suite only if change is pervasive — shared types, config, build)
 
 ## NOT for
 

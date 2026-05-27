@@ -102,12 +102,43 @@ Do NOT make the subagent read the plan file. Provide full text in the prompt.
 - `./implementer-prompt.md`
 - `./spec-reviewer-prompt.md`
 - `./code-quality-reviewer-prompt.md`
+- `./return-schema.md` — structured output format (inject into every dispatch)
+
+## Structured Return
+
+All sub-agents MUST return a JSON block as the final thing in their message, per `./return-schema.md`.
+Orchestrator parses `status` for routing, `payload` for action. Free-form prose above is fine.
+
+Include in every dispatch prompt:
+> "Return format: JSON envelope with status + typed payload. See return-schema.md for your role's schema."
+
+## Git State Discipline
+
+- Sub-agents MUST NOT run `git stash` — ever, under any circumstance
+- Sub-agents MUST NOT run `git checkout` on shared branches
+- Sub-agents commit their changes atomically (scoped to task files) before reporting back
+- Other agents may be working concurrently — do not assume a clean worktree
+- Use `git diff HEAD -- <your-files>` to verify YOUR changes only — bare `git diff` is unreliable in parallel
+- If you see unexpected changes in files outside your scope: **ignore them** — they belong to another agent
+
+## Verification Scoping
+
+Sub-agents lint and test **only files they touched**:
+
+| Scope | Command | NOT this |
+|-------|---------|----------|
+| Lint | `biome check src/changed.ts` | `biome check .` |
+| Test | `vitest run test/changed.test.ts` | `vitest run` / `npm test` |
+| Type check | `tsc --noEmit` (whole-project — exception) | — |
+
+Full suite justified ONLY when change is pervasive (shared types, config, build).
+Sub-agent must state `scopeReason` in return payload.
 
 ## Parallelism Rules
 
-When dispatching multiple implementers in the same round:
+Parallel implementers are allowed when tasks touch **zero shared files**.
 
-1. **Independence check:** Tasks must not share files. If file overlap → serialize instead.
+1. **Independence check:** Orchestrator verifies no file overlap before dispatch. If overlap → serialize.
 2. **Batch limit:** Maximum 4 concurrent subagents per round. Queue remaining.
 3. **Prompt construction:** Each subagent gets: Scope, Goal, Context, Constraints, Output format — all required.
 4. **Conflict detection:** After fan-out completes, check for conflicting edits before committing.
@@ -122,7 +153,7 @@ When dispatching multiple implementers in the same round:
 
 - Fresh subagent per task — never reuse session context
 - Spec review BEFORE code quality review (never reverse)
-- Never dispatch parallel implementers (conflicts)
+- Parallel implementers only when zero file overlap (orchestrator verifies)
 - Never skip re-review after fixes
 - Never ignore BLOCKED/NEEDS_CONTEXT status — something must change
 - Never start on main/master without explicit user consent

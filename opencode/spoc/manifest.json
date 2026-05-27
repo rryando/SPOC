@@ -30,6 +30,18 @@
     "requiredMerges": [
       {
         "path": [
+          "permission"
+        ],
+        "value": {
+          "external_directory": {
+            "/tmp": "allow",
+            "~/.spoc": "allow",
+            "~/.config/opencode": "allow"
+          }
+        }
+      },
+      {
+        "path": [
           "model"
         ],
         "value": "github-copilot/claude-sonnet-4.6"
@@ -78,6 +90,7 @@
           "prompt": "{file:./prompts/code-reviewer.txt}",
           "permission": {
             "edit": "deny",
+            "bash": "allow",
             "webfetch": "deny"
           }
         }
@@ -94,7 +107,11 @@
           "permission": {
             "edit": "ask",
             "bash": "ask",
-            "webfetch": "allow"
+            "webfetch": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/docs-researcher.txt}"
         }
@@ -111,7 +128,10 @@
           "permission": {
             "edit": "ask",
             "bash": "ask",
-            "webfetch": "deny"
+            "webfetch": "deny",
+            "external_directory": {
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/tech-architect.txt}"
         }
@@ -129,7 +149,11 @@
             "edit": "allow",
             "bash": "allow",
             "webfetch": "deny",
-            "mcp": "allow"
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/software-engineer.txt}"
         }
@@ -147,7 +171,12 @@
             "edit": "allow",
             "bash": "allow",
             "webfetch": "deny",
-            "mcp": "allow"
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.spoc": "allow",
+              "~/.config/opencode": "allow"
+            }
           },
           "prompt": "{file:./prompts/spoc-docs.txt}"
         }
@@ -165,7 +194,10 @@
             "edit": "deny",
             "bash": "allow",
             "webfetch": "deny",
-            "mcp": "allow"
+            "mcp": "allow",
+            "external_directory": {
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/qa-analyst.txt}"
         }
@@ -183,7 +215,11 @@
             "edit": "ask",
             "bash": "allow",
             "webfetch": "deny",
-            "mcp": "allow"
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/oncall-ops.txt}"
         }
@@ -201,7 +237,10 @@
             "edit": "deny",
             "bash": "allow",
             "webfetch": "allow",
-            "mcp": "allow"
+            "mcp": "allow",
+            "external_directory": {
+              "~/.spoc": "allow"
+            }
           },
           "prompt": "{file:./prompts/system-architect.txt}"
         }

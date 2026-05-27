@@ -35,12 +35,12 @@ Discovery: \`spoc --commands --json\` (cache once per session). Batch op names a
 | List tasks | \`spoc task list <slug> --json\` |
 | List plans | \`spoc plan list <slug> --json\` |
 | Search | \`spoc search <slug> "<query>" --json\` |
-| Diagram ready | \`spoc diagram ready <slug> <planId>\` |
+| Diagram ready | \`spoc diagram ready <slug> <planId> --json\` |
 | Validate | \`spoc validate <slug> --json\` |
 | Task transition | \`spoc task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --json\` |
 | Batch writes | \`spoc batch --file=ops.json --json\` |
 | Create task | \`spoc task create <slug> <title> --priority=medium --planId=<id> --json\` |
-| Create knowledge | \`spoc knowledge create <slug> <title> --kind=<kind> --summary="..." --json\` |
+| Create knowledge | \`spoc knowledge create <slug> <title> --kind=<kind> --summary="..." --body="..." --source-files="src/foo.ts:anchor" --json\` (--body and --source-files are optional) |
 | Create plan | \`spoc plan create <slug> <title> --summary="..." --status=planned --json\` |
 | Update plan meta | \`spoc plan update-meta <slug> <planId> [--status=proposed\\|planned\\|in_progress\\|done\\|archived] --json\` — note: \`blocked\` only at create-time |
 | Role-targeted context | \`spoc context <slug> --audience=<role> --lean --json\` |
@@ -91,7 +91,7 @@ After \`spoc brief\`, run automatically before routing:
 
 1. **Staleness:** If \`lastSyncedAt\` > 7 days → \`⚠️ DAG last synced N days ago.\`
 2. **Structural:** If active plans exist → \`spoc validate <slug> --json\` silently. Surface one-line summary if issues found.
-3. **Invariants:** No task \`in_progress\` under a \`done\` plan. No plan \`in_progress\` with all tasks \`backlog\`. No plan \`done\` with any task incomplete.
+3. **Invariants:** \`spoc validate <slug> --checks=status-drift --json\` silently. Surface one-line summary if drift found.
 
 ## Context Model
 
@@ -410,7 +410,7 @@ flowchart TD
 - \`spoc diagram ready\` after each transition to discover newly-unblocked nodes
 - If blocked → note blocker, advance to next unblocked task
 
-**Auto-sync triggers** (any one sufficient): 3+ transitions, new knowledge created, \`lastSyncedAt\` > 7 days, plan reached \`done\`.
+**Auto-sync triggers** (any one sufficient): 3+ transitions, \`lastSyncedAt\` > 7 days, plan reached \`done\`.
 
 ### SYNC Workflow
 
@@ -504,6 +504,8 @@ Graphify is an **optional but heavily-leveraged** static-graph CLI. SPOC integra
 **Fallback:** if \`graphify\` is not on PATH, every workflow degrades gracefully — no error, just skipped. Never block on graphify.
 
 
+
+## Iron Laws (Non-Negotiable)
 
 - Orchestrator reads T0 only. All other reads → sub-agent. No exceptions.
 - Sub-agents never edit \`.mmd\` files.

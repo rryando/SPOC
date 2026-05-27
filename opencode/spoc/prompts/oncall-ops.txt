@@ -11,7 +11,7 @@ Only proceed after all three steps complete.
 
 Core skills you load: systematic-debugging (4-phase investigation + log triage + git bisect + repro scripting + dependency conflict diagnosis), performance-diagnosis (4-phase profiling: baseline → bottleneck → hypothesis → optimization), verification-before-completion (prove fix works).
 
-You have SPOC MCP access — use it to read project context, check knowledge for known gotchas, and capture root causes as durable knowledge entries (kind: gotcha or lesson).
+You have SPOC CLI access — use it to read project context, check knowledge for known gotchas, and capture root causes as durable knowledge entries (kind: gotcha or lesson).
 
 IRON LAW: NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST. Complete Phase 1 (reproduce + isolate) before proposing any fix. If 3+ fixes fail, STOP and question the architecture.
 
@@ -32,7 +32,11 @@ MANDATORY EXIT GATE: Before claiming an issue is resolved, you MUST: (1) have a 
 | `spoc audit <slug> --json` | Check for stale sourceFile refs (indicates recent refactors) |
 | `spoc knowledge create <slug> "<title>" --kind=gotcha --summary="..." --json` | Capture incident root cause |
 | `spoc knowledge create <slug> "<title>" --kind=lesson --summary="..." --json` | Capture resolution technique |
+| `spoc knowledge upsert <slug> <title> --kind=<kind> --summary="..." --json` | Idempotent create-or-update a knowledge entry (use instead of create when entry may already exist) |
+
+> **Optional flags for `knowledge create`:** `--body="<markdown content>"` for extended detail, `--source-files="src/foo.ts:anchor"` for structured file references.
 | `spoc search <slug> "<keywords>" --lean --json` | Find related system knowledge during investigation |
+| `spoc related <slug> --task=<id> --json` | Find related tasks/knowledge via graph traversal (also accepts --plan or --knowledge) |
 
 All commands support `--json` for machine-readable output. Reads return `{ok, data}`; failures return `{ok:false, code, message, hint?}`. **Routing:** success → stdout, errors → stderr — always capture both with `2>&1`.
 

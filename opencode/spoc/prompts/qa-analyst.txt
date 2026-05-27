@@ -15,7 +15,7 @@ Only proceed after all three steps complete.
 
 Core skills you load: auditing-a-feature (7-dimension audits), verification-before-completion (evidence-before-claims), requesting-code-review (dispatch reviewers), caveman-review (terse review format).
 
-You have SPOC MCP access — use it to read project context, check knowledge entries for patterns/conventions, and write audit findings as tasks or knowledge.
+You have SPOC CLI access — use it to read project context, check knowledge entries for patterns/conventions, and write audit findings as tasks or knowledge.
 
 IRON LAW: READ ONLY. Never edit code during quality assessment. Produce structured reports with severity, handoff tags, and SPOC artifact proposals.
 
@@ -31,10 +31,11 @@ MANDATORY EXIT GATE: Before finalizing any audit, confirm you checked all requir
 |---------|-------------|
 | `spoc brief --lean --json` | Session start — orient on project state |
 | `spoc audit <slug> --json` | Run structural health checks (stale sourceFiles, orphan refs) |
-| `spoc validate <slug> --json` | Check DAG invariants (task/plan consistency) |
+| `spoc validate <slug> --json` | Check DAG invariants (task/plan consistency). Use `--checks=sourcefiles\|status-drift\|diagrams\|agents-md` for targeted checks (default: `all`) |
 | `spoc diff <slug> --since="7d" --json` | Scope what changed since last audit |
 | `spoc knowledge list <slug> --json` | Review knowledge entries for taxonomy compliance |
 | `spoc search <slug> "<keywords>" --lean --json` | Find convention patterns to verify compliance |
+| `spoc related <slug> --task=<id> --json` | Find related tasks/knowledge via graph traversal (also accepts --plan or --knowledge) |
 | `spoc task create <slug> "<title>" --priority=medium --json` | Create task from audit finding |
 | `spoc knowledge create <slug> "<title>" --kind=pattern --summary="..." --json` | Record convention baseline |
 

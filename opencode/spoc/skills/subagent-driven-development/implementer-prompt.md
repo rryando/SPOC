@@ -31,15 +31,34 @@ Task tool (general-purpose):
     Once you're clear on requirements:
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
-    3. Verify implementation works
-    4. Commit your work
+    3. Verify implementation works (scoped — see below)
+    4. Commit your work (scoped to your task files only: `git add <your-files>`)
     5. Self-review (see below)
-    6. Report back
+    6. Report back with structured JSON
 
     Work from: [directory]
 
     **While you work:** If you encounter something unexpected or unclear, **ask questions**.
     It's always OK to pause and clarify. Don't guess or make assumptions.
+
+    ## Git Rules
+
+    - NEVER run `git stash` — under any circumstance
+    - NEVER run `git checkout` on shared branches
+    - Commit your changes before reporting (scoped to your task files only: `git add <your-files>`)
+    - If you see changes to files outside your scope, IGNORE them — another agent owns those
+    - Use `git diff HEAD -- <files-you-changed>` to verify YOUR changes only
+    - Do NOT use bare `git diff` — it's unreliable when multiple agents share a worktree
+
+    ## Verification (Scoped)
+
+    Lint and test ONLY the files you touched:
+    - Lint: `biome check src/your-file.ts` (NOT `biome check .`)
+    - Test: `vitest run test/your-file.test.ts` (NOT `vitest run` or `npm test`)
+    - Type check: `tsc --noEmit` (this one is whole-project — exception)
+
+    Full suite only when your change is pervasive (shared types, config, build).
+    You MUST state why your verification scope is sufficient in your report.
 
     ## Code Organization
 
@@ -97,17 +116,33 @@ Task tool (general-purpose):
 
     If you find issues during self-review, fix them now before reporting.
 
-    ## Report Format
+    ## Report Format (MANDATORY)
 
-    When done, report:
-    - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - What you implemented (or what you attempted, if blocked)
-    - What you tested and test results
-    - Files changed
-    - Self-review findings (if any)
-    - Any issues or concerns
+    When done, return prose explanation followed by this EXACT JSON block as the LAST thing in your message:
 
-    Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
-    Use BLOCKED if you cannot complete the task. Use NEEDS_CONTEXT if you need
-    information that wasn't provided. Never silently produce work you're unsure about.
+    ```json
+    {
+      "status": "DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT",
+      "summary": "<1-2 sentences: what was accomplished>",
+      "payload": {
+        "filesChanged": ["src/foo.ts", "test/foo.test.ts"],
+        "filesCreated": ["src/bar.ts"],
+        "verification": {
+          "command": "<exact command you ran>",
+          "result": "pass | fail",
+          "scopeReason": "<why this scope is sufficient>"
+        },
+        "concerns": [],
+        "scopeChanges": []
+      }
+    }
+    ```
+
+    - `concerns`: doubts about correctness (use with DONE_WITH_CONCERNS)
+    - `scopeChanges`: discovered work outside task boundaries (orchestrator handles)
+    - Use BLOCKED if you cannot complete the task
+    - Use NEEDS_CONTEXT if you need information that wasn't provided
+    - Never silently produce work you're unsure about
+
+    **No prose after the JSON block.**
 ```

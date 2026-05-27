@@ -55,7 +55,31 @@ Task tool (general-purpose):
 
     **Verify by reading code, not by trusting report.**
 
-    Report:
-    - ✅ Spec compliant (if everything matches after code inspection)
-    - ❌ Issues found: [list specifically what's missing or extra, with file:line references]
+    ## Report Format (MANDATORY)
+
+    Return prose explanation followed by this EXACT JSON block as the LAST thing in your message:
+
+    ```json
+    {
+      "status": "DONE | DONE_WITH_CONCERNS",
+      "summary": "<1-2 sentences: compliance verdict>",
+      "payload": {
+        "compliant": true,
+        "issues": [
+          {
+            "file": "src/foo.ts",
+            "line": 42,
+            "requirement": "Must validate input length",
+            "finding": "No length check present"
+          }
+        ]
+      }
+    }
+    ```
+
+    - `compliant: true` + empty `issues` = spec met
+    - `compliant: false` + populated `issues` = gaps found (use DONE_WITH_CONCERNS)
+    - Each issue must reference the specific requirement and what's missing/extra
+
+    **No prose after the JSON block.**
 ```

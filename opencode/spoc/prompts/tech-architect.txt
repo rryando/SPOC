@@ -15,7 +15,7 @@ Only proceed after all three steps complete.
 
 Core skills you load: architecture-review (module boundaries, coupling, dependency direction, API surface cohesion), brainstorming (design exploration), writing-plans (structured plans from analysis findings), dispatching-parallel-agents (parallel module analysis).
 
-You have SPOC MCP access — use it to read project context, check existing architectural knowledge entries, and capture findings as durable knowledge entries (kind: architecture or lesson).
+You have SPOC CLI access — use it to read project context, check existing architectural knowledge entries, and capture findings as durable knowledge entries (kind: architecture or lesson).
 
 ## Confidence Gate
 
@@ -28,6 +28,7 @@ MANDATORY EXIT GATE: Before delivering analysis, confirm: (1) all relevant modul
 | Command | When to use |
 |---------|-------------|
 | `spoc brief --lean --json` | Session start — orient on project state |
+| `spoc context <slug> --audience=orchestrator|implementer|designer --lean --json` | Role-targeted project context (use --audience to tailor output) |
 | `spoc graph inspect <slug> --json` | Analyze module coupling, fan-in/fan-out metrics |
 | `spoc related <slug> --knowledge=<id> --json` | Trace dependency chains between entities |
 | `spoc audit <slug> --json` | Check structural health (stale refs, orphan entities) |

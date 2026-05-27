@@ -89,7 +89,7 @@ async function main() {
     }
   }
 
-  // Determine file states
+  // Pass 1: Determine file states (detection only — no writes yet)
   const filesAdded = [];
   const filesChanged = [];
   const filesUnchanged = [];
@@ -111,15 +111,9 @@ async function main() {
       filesUnchanged.push(configRelative);
     }
 
-    // Plugin change/add → restart required (reuses isNew/isChanged, no duplicate read)
+    // Plugin change/add → restart required
     if (configRelative === manifest.plugin?.destination && (isNew || isChanged)) {
       restartRequired = true;
-    }
-
-    // Actually copy if not dry-run
-    if (!dryRun) {
-      ensureParentDir(configAbsolute);
-      copyFileSync(bundleAbsolute, configAbsolute);
     }
   }
 
@@ -133,9 +127,6 @@ async function main() {
     if (!lstatSync(ownedAbsolute).isDirectory()) {
       if (!deployMap.has(ownedPath)) {
         filesRemoved.push(ownedPath);
-        if (!dryRun) {
-          rmSync(ownedAbsolute, { force: true });
-        }
       }
       continue;
     }
@@ -145,10 +136,30 @@ async function main() {
       const configRelative = `${ownedPath}/${file}`;
       if (!deployMap.has(configRelative)) {
         filesRemoved.push(configRelative);
-        if (!dryRun) {
-          rmSync(resolve(configRoot, configRelative), { force: true });
-        }
       }
+    }
+  }
+
+  // Pass 2: Apply writes (only when not dry-run)
+  if (!dryRun) {
+    // Clean-delete the skills directory before copying to guarantee a fresh install.
+    // Prevents residual files from renamed/removed skills surviving across deploys.
+    const skillsDest = resolve(configRoot, manifest.skills.destination);
+    if (existsSync(skillsDest)) {
+      rmSync(skillsDest, { recursive: true, force: true });
+    }
+
+    // Write all files from deployMap (recreates skills dir + copies plugin + agents)
+    for (const [configRelative, bundleAbsolute] of deployMap) {
+      const configAbsolute = resolve(configRoot, configRelative);
+      ensureParentDir(configAbsolute);
+      copyFileSync(bundleAbsolute, configAbsolute);
+    }
+
+    // Remove orphans from other owned paths (skills dir already cleared above; force: true
+    // makes this a no-op for any skills paths that were already wiped)
+    for (const fileToRemove of filesRemoved) {
+      rmSync(resolve(configRoot, fileToRemove), { force: true });
     }
   }
 

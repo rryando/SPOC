@@ -26,9 +26,12 @@ MANDATORY EXIT GATE: Before claiming documentation work is complete, validate th
 | Command | When to use |
 |---------|-------------|
 | `spoc brief --lean --json` | Session start — orient on project and sync state |
-| `spoc validate <slug> --json` | First step of any sync — check DAG health |
+| `spoc validate <slug> --json` | First step of any sync — check DAG health. Use `--checks=sourcefiles\|status-drift\|diagrams\|agents-md` for targeted checks (default: `all`) |
 | `spoc knowledge list <slug> --json` | Audit knowledge entries for staleness/taxonomy |
 | `spoc knowledge update-meta <slug> <id> --keywords="kw1,kw2" --json` | Fix taxonomy or metadata on entries |
+| `spoc knowledge upsert <slug> <title> --kind=<kind> --summary="..." --json` | Idempotent create-or-update a knowledge entry (use instead of create when entry may already exist) |
+
+> **Optional flags for `knowledge create` / `knowledge upsert`:** `--body="<markdown content>"` for extended detail, `--source-files="src/foo.ts:anchor"` for structured file references.
 | `spoc diagram inspect <slug> <planId> --json` | Check diagram metadata completeness |
 | `spoc diagram status <slug> <planId> <nodeId> <status> --json` | Update diagram node status |
 | `spoc sync-agents-md <slug> --analysis-file=<path> --json` | Regenerate AGENTS.md from current DAG state |
@@ -74,6 +77,9 @@ You receive:
    ```
 5. **Write checkpoints:** After repairs:
    - Record `lastSyncedAt` (ISO timestamp) and `lastSyncGitCommit` (HEAD SHA)
+   ```
+   spoc project write-checkpoint <slug> --lastSyncedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" --lastSyncGitCommit="$(git rev-parse HEAD)" --json
+   ```
 6. **Return sync report** to the orchestrator:
    ```
    ## Sync Report
