@@ -24,7 +24,7 @@ ARCS gives AI coding agents a queryable project DAG so they never start cold. In
 ## The Problem
 
 Every AI coding session starts fresh. The agent doesn't know:
-- What task to pick up next
+- What task to pick up next (and which tasks are blocked by incomplete work)
 - What was already tried and failed
 - What architectural decisions were made
 - What the current plan looks like
@@ -33,7 +33,7 @@ ARCS solves this with three persistent surfaces:
 
 | Surface | Storage | Purpose |
 |---------|---------|---------|
-| **Queue** | `tasks/index.json` | Immediate work items: `backlog → in_progress → done` |
+| **Queue** | `tasks/index.json` | Work items with dependency ordering via `dependsOn` |
 | **Plan** | `plans/*.md` + `.diagram.mmd` | Multi-step feature work with Mermaid execution maps |
 | **Memory** | `knowledge/*.md` | Durable discoveries: lessons, patterns, gotchas, architecture |
 
@@ -41,57 +41,90 @@ ARCS solves this with three persistent surfaces:
 
 ## How It Works
 
-### The Agent Loop
+### The Core Loop
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Session Start                                       │
-│                                                      │
-│  1. arcs brief          → routing envelope (~1 KB)   │
-│  2. arcs next           → next task + related knowledge │
-│  3. [agent does work]                                │
-│  4. arcs done <id>      → mark complete, learn       │
-│  5. arcs remember "..." → capture durable discovery  │
-│                                                      │
-│  Repeat 2–5 until session ends                       │
-└─────────────────────────────────────────────────────┘
+arcs next  →  [agent works]  →  arcs done <id>  →  arcs remember "..."
+     │                                │                      │
+     │ returns first task             │ completes task,      │ captures durable
+     │ whose dependencies             │ unblocks dependents  │ knowledge for
+     │ are ALL satisfied              │                      │ future sessions
+     ▼                                ▼                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ~/.arcs/projects/{slug}/                      │
+│                                                                  │
+│  tasks/index.json ──dependsOn──→ topological sort → next task   │
+│  knowledge/       ──BM25+graph──→ related context               │
+│  plans/           ──diagram.mmd──→ execution map                │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-The core loop is three commands: `arcs next` → work → `arcs done`. Everything else is orchestration.
+Three commands: `arcs next` → work → `arcs done`. The DAG handles ordering.
+
+### Task Dependencies — The Actual DAG
+
+Tasks declare dependencies. ARCS enforces acyclicity and uses topological sort to determine execution order:
+
+```bash
+arcs task create myapp "Design database schema" --priority=high
+arcs task create myapp "Build REST API" --dependsOn=design-database-schema
+arcs task create myapp "Write integration tests" --dependsOn=build-rest-api
+arcs task create myapp "Deploy to staging" --dependsOn=build-rest-api,write-integration-tests
+```
+
+```mermaid
+flowchart TD
+    T001["Design database schema"]:::done
+    T002["Build REST API"]:::inProgress
+    T003["Write integration tests"]:::backlog
+    T004["Deploy to staging"]:::blocked
+
+    T001 --> T002
+    T002 --> T003
+    T002 --> T004
+    T003 --> T004
+
+    classDef done fill:#22c55e,color:#fff
+    classDef inProgress fill:#f59e0b,color:#fff
+    classDef backlog fill:#94a3b8,color:#fff
+    classDef blocked fill:#ef4444,color:#fff
+```
+
+`arcs next` returns "Write integration tests" (T003) — it's the first task whose dependencies are all done. T004 is blocked because T003 isn't done yet. Priority is a tiebreaker within the same topological level, not the primary sort.
 
 ### The Orchestrator
 
-When used with [OpenCode](https://opencode.ai/), ARCS ships a full orchestrator agent that automates the loop:
+When used with [OpenCode](https://opencode.ai/), ARCS ships a full orchestrator that automates the loop:
 
 ```mermaid
 flowchart TD
     User(["User Request"])
-    T0["arcs brief\n→ routing envelope"]
+    T0["arcs brief → T0 envelope"]
     Classify{"Classify Intent"}
 
-    Init["INIT\nScan codebase\nPopulate DAG"]
-    Brain["BRAINSTORM\nCreate plans\nGenerate diagram"]
-    Exec["EXECUTE\nPick unblocked task\nDispatch sub-agent"]
-    Sync["SYNC\nAudit docs\nReconcile drift"]
+    Init["INIT\nScan repo → populate DAG"]
+    Brain["BRAINSTORM\nCreate plan → wire dependsOn\n→ generate diagram"]
+    Exec["EXECUTE\narcs next → dispatch sub-agent\n→ arcs done → unblock dependents"]
+    Sync["SYNC\nAudit DAG → reconcile drift"]
 
-    DAG[("~/.arcs/projects/{slug}/")]
+    DAG[("Project DAG\ntasks + plans + knowledge\n+ dependency graph")]
 
     User --> T0 --> Classify
     Classify -- "new project" --> Init
     Classify -- "plan features" --> Brain
-    Classify -- "do work / next task" --> Exec
+    Classify -- "do work" --> Exec
     Classify -- "update docs" --> Sync
     Init & Brain & Exec & Sync --> DAG
 ```
 
 The orchestrator:
-1. **Orients** — calls `arcs brief` for the T0 routing envelope
-2. **Classifies** — detects intent from the user's message
-3. **Routes** — delegates to the right workflow + specialist sub-agents
-4. **Writes** — commits changes to the DAG
-5. **Reports** — summarizes what was done, current state, next steps
+1. **Orients** — calls `arcs brief` for the T0 routing envelope (~1 KB)
+2. **Classifies** — detects intent (INIT / BRAINSTORM / EXECUTE / SYNC)
+3. **Routes** — delegates to specialist sub-agents with scoped prompts
+4. **Executes** — `arcs next` picks dependency-safe tasks; sub-agents implement them
+5. **Advances** — `arcs done` completes tasks, automatically unblocking dependents
 
-### T0 Routing Envelope
+### T0 Routing Envelope (the operating brief)
 
 ```bash
 $ arcs brief --lean --json
@@ -102,13 +135,16 @@ $ arcs brief --lean --json
   "slug": "my-project",
   "name": "My Project",
   "operatingBrief": {
-    "currentFocus": "Add user authentication",
+    "currentFocus": "Build REST API",
     "recommendedSurface": "QUEUE",
-    "why": "3 backlog tasks ready for implementation",
-    "nextAction": "Pick up task auth-middleware"
+    "why": "Task in progress: Build REST API",
+    "nextAction": "Continue task build-rest-api"
   },
-  "openTasksCount": 5,
-  "topOpenTasks": [...]
+  "openTasksCount": 3,
+  "topOpenTasks": [
+    { "id": "build-rest-api", "title": "Build REST API", "status": "in_progress" },
+    { "id": "write-integration-tests", "title": "Write integration tests", "status": "backlog" }
+  ]
 }
 ```
 
@@ -118,17 +154,26 @@ $ arcs brief --lean --json
 
 ## CLI Reference
 
-All commands: `arcs <command> [args] --json`. Structured output: `{ok, data}` on success, `{ok, code, message}` on error.
+All commands: `arcs <command> [args] --json`. Output: `{ok, data}` on success, `{ok, code, message}` on error.
 
 ### Core Agent Loop
 
 | Command | Purpose |
 |---------|---------|
 | `arcs brief` | T0 routing envelope — what to focus on |
-| `arcs next` | Get next task + related knowledge context |
-| `arcs done <taskId>` | Mark task complete (optional `--learn` flag) |
+| `arcs next` | Next dependency-safe task + related knowledge |
+| `arcs done <taskId>` | Mark complete, unblock dependents |
 | `arcs remember "<text>"` | Capture knowledge (auto-classifies kind) |
 | `arcs status` | Progress overview across all surfaces |
+
+### Tasks & Dependencies
+
+| Command | Purpose |
+|---------|---------|
+| `arcs task create <slug> <title> --dependsOn=id1,id2` | Create task with dependency edges |
+| `arcs task update <slug> <id> --dependsOn=id1` | Add/update dependencies |
+| `arcs task transition <slug> <id> <status>` | Move through lifecycle |
+| `arcs diagram ready <slug> <planId>` | Get unblocked diagram nodes |
 
 ### Project Management
 
@@ -139,16 +184,12 @@ All commands: `arcs <command> [args] --json`. Structured output: `{ok, data}` on
 | `arcs context [slug]` | Full context assembly (audience-targeted) |
 | `arcs search <slug> "<query>"` | BM25 + graph-scored search across DAG |
 | `arcs validate <slug>` | Health check — status drift, orphans, staleness |
-| `arcs cross-invoke <slug> "<prompt>"` | *(planned)* Create a task in another project and invoke opencode there |
 
-### Tasks, Plans, Knowledge
+### Plans & Knowledge
 
 | Command | Purpose |
 |---------|---------|
-| `arcs task create <slug> <title>` | Create a task |
-| `arcs task transition <slug> <id> <status>` | Move task through lifecycle |
 | `arcs plan create <slug> <title>` | Create a plan |
-| `arcs diagram ready <slug> <planId>` | Get unblocked diagram nodes |
 | `arcs knowledge create <slug> <title>` | Create knowledge entry |
 
 ### Flags
@@ -160,73 +201,48 @@ All commands: `arcs <command> [args] --json`. Structured output: `{ok, data}` on
 | `--dry-run` | Validate without mutation |
 | `--help` | Per-command usage |
 
-Full command discovery: `arcs --commands --json` (61 commands).
+Full command discovery: `arcs --commands --json`.
 
 ---
 
-## Multi-Project Orchestration *(planned)*
+## Graph & Retrieval
 
-When working across multiple ARCS-tracked projects, `arcs cross-invoke` eliminates the context-switch. One command tracks the work in the target project's DAG and optionally drives opencode there via the opencode Server HTTP API:
+ARCS builds a relationship graph across all project entities:
 
-```bash
-# Working in frontend, need a backend change
-arcs cross-invoke loqua "Add POST /api/auth/register endpoint"
-```
+| Edge Type | Weight | Connects |
+|-----------|--------|----------|
+| `task_belongs_to_plan` | 1.0 | Task → Plan |
+| `task_blocks_task` | 0.95 | Task → Task (from `dependsOn`) |
+| `shares_source_file` | 0.9 | Any → Any (co-reference) |
+| `knowledge_touches_file` | 0.85 | Knowledge → File |
+| `plan_contains_task` | 0.8 | Plan → Task |
+| `shares_keywords` | 0.5 | Knowledge → Knowledge |
 
-What always happens:
-1. **Task created** in `loqua`'s DAG — tracked immediately, survives session failure
-2. **T0 context fetched** — `arcs brief loqua` provides the operating brief for the target project
-3. **Enriched command printed** — ready-to-run `opencode run` with task ID and agent loop hint pre-injected
-
-```bash
-# Default — print the command, run it when ready (safe, no auto-execution)
-arcs cross-invoke loqua "Add auth endpoint"
-
-# Execute — drives opencode in the target workspace via Server API
-arcs cross-invoke loqua "Add auth endpoint" --exec
-```
-
-With `--exec`, ARCS starts a headless opencode server in the target workspace, sends the prompt asynchronously, and streams events back — including permission requests you approve directly in your terminal, one at a time. No TUI takeover. No blind auto-approve.
-
-```
-✓ Task tsk_abc123 created in loqua (backlog)
-→ [loqua] write_file: src/api/auth/register.ts
-→ [loqua] Allow write_file src/api/auth/register.ts? (y/n): y
-→ [loqua] run_command: npm test
-→ [loqua] Allow run_command npm test? (y/n): y
-✓ [loqua] Session complete
-```
-
-**Graceful degradation:** if the target project's workspace path isn't configured, the task is still created and a setup hint is printed — no silent failures.
+Queries: `arcs search` uses BM25 for text + graph traversal (weighted BFS) for relationship scoring. `arcs next` enriches results with related knowledge from the graph.
 
 ---
 
 ## Sub-Agents
 
-The orchestrator dispatches specialist sub-agents. Each gets a scoped prompt with explicit boundaries:
+The orchestrator dispatches specialist sub-agents with scoped prompts:
 
-| Sub-Agent | Role | Dispatched When |
-|-----------|------|-----------------|
-| **software-engineer** | Writes code, runs tests, ships features | EXECUTE — bounded implementation tasks |
-| **system-architect** | Module boundaries, migration design, plan creation | BRAINSTORM — design-open problems |
-| **tech-architect** | Deep analysis, trade-off evaluation, root cause | Analysis without edits |
-| **oncall-ops** | Systematic debugging, log triage, bisect | Bugs, test failures, incidents |
-| **code-reviewer** | Pre-merge review, convention enforcement | PR review, phase completion |
-| **qa-analyst** | Read-only audits, compliance checks | Convention verification |
-| **arcs-docs** | DAG health, knowledge curation, diagram drift | SYNC workflow |
-| **docs-researcher** | External research, documentation writing | INIT tech-stack scan |
-| **devil-advocate** | Adversarial phase-gate, KISS/YAGNI/DRY checks | Phase boundaries |
+| Sub-Agent | Role | When |
+|-----------|------|------|
+| **software-engineer** | Writes code, runs tests | EXECUTE — bounded tasks |
+| **system-architect** | Module boundaries, plan creation | BRAINSTORM — design-open |
+| **tech-architect** | Deep analysis, trade-offs | Analysis without edits |
+| **oncall-ops** | Debugging, log triage, bisect | Bugs, test failures |
+| **code-reviewer** | Pre-merge review | PR review, phase gates |
+| **devil-advocate** | Adversarial KISS/YAGNI/DRY gate | Phase boundaries |
+| **arcs-docs** | DAG health, knowledge curation | SYNC workflow |
 
 ### Skills (loaded per-dispatch)
-
-Skills are instruction bundles that sub-agents load based on task shape:
 
 | Category | Skills |
 |----------|--------|
 | **Work mode** (pick one) | `quick-dev`, `code-agent`, `test-driven-development`, `brainstorming` |
-| **Lifecycle** (layer on) | `writing-plans`, `executing-plans`, `subagent-driven-development` |
-| **Quality** (auto-triggered) | `verification-before-completion`, `requesting-code-review`, `deep-pr-review` |
-| **Diagnosis** | `systematic-debugging`, `confidence-gate` |
+| **Lifecycle** | `writing-plans`, `executing-plans`, `subagent-driven-development` |
+| **Quality** | `requesting-code-review`, `deep-pr-review`, `systematic-debugging` |
 | **Tooling** | `to-diagram`, `init-project`, `caveman-commit` |
 
 ---
@@ -235,42 +251,21 @@ Skills are instruction bundles that sub-agents load based on task shape:
 
 ```
 ~/.arcs/
-├── meta.json                         # Global registry of project slugs
+├── meta.json                         # Global registry
 └── projects/{slug}/
     ├── meta.json                     # Project metadata + workspace paths
-    ├── overview.md                   # Summary + goals (2-3 sentences)
-    ├── tasks.md                      # Rendered task queue
-    ├── dependencies.md               # Upstream / downstream edges
-    ├── knowledge.md                  # Index → knowledge entries
-    ├── AGENTS.md                     # Auto-generated coding guardrails
-    ├── tasks/index.json              # Structured task records
+    ├── overview.md                   # Summary + goals
+    ├── tasks.md                      # Rendered task queue (human-readable)
+    ├── tasks/index.json              # Structured tasks + dependsOn edges
     ├── plans/
-    │   ├── {id}.meta.json            # Plan status + metadata
-    │   ├── {id}.md                   # Plan body (prose)
-    │   └── {id}.diagram.mmd          # Mermaid execution map
+    │   ├── {id}.meta.json            # Plan status + keywords
+    │   ├── {id}.md                   # Plan body
+    │   └── {id}.diagram.mmd          # Mermaid execution map (auto-generated arrows)
     └── knowledge/
         ├── index.json                # Knowledge index
-        ├── {id}.meta.json            # Entry metadata (kind, sourceFiles)
+        ├── {id}.meta.json            # Metadata (kind, audience, sourceFiles)
         └── {id}.md                   # Entry body
 ```
-
-### Plan Diagrams
-
-Each plan has a `.diagram.mmd` — a Mermaid flowchart that agents read first for task selection. Node status is encoded via `classDef`:
-
-```mermaid
-flowchart TD
-    T001["Setup auth middleware"]:::done
-    T002["Add JWT validation"]:::in_progress
-    T003["Write integration tests"]:::backlog
-    T001 --> T002 --> T003
-
-    classDef done fill:#4caf50,color:#fff
-    classDef in_progress fill:#ff9800,color:#fff
-    classDef backlog fill:#9e9e9e,color:#fff
-```
-
-Agents call `arcs diagram ready` to discover unblocked nodes, then `arcs task transition` to advance state.
 
 ### Knowledge Kinds
 
@@ -297,14 +292,14 @@ arcs init
 
 **3. Use it**
 
-Select **ARCS Orchestrator** in OpenCode. Or use the CLI directly:
-
 ```bash
 arcs brief              # What should I work on?
-arcs next               # Give me the next task
-arcs done <taskId>      # I finished it
+arcs next               # Get next unblocked task
+arcs done <taskId>      # Mark complete, unblock dependents
 arcs remember "..."     # Capture what I learned
 ```
+
+Or select **ARCS Orchestrator** in OpenCode for full automation.
 
 ---
 
@@ -313,23 +308,20 @@ arcs remember "..."     # Capture what I learned
 | Tool | Required | Notes |
 |------|----------|-------|
 | [Node.js](https://nodejs.org/) v18+ | Yes | Runtime |
-| [OpenCode](https://opencode.ai/) | Yes | Agent host (orchestrator + sub-agents) |
-| [gh](https://cli.github.com/) | Yes | Used by `deep-pr-review` skill |
+| [OpenCode](https://opencode.ai/) | Recommended | Agent host (orchestrator + sub-agents) |
 | [graphify](https://github.com/safishamsi/graphify) | No | Optional AST-based codebase knowledge extraction |
 
 ---
 
 ## Graphify (Optional)
 
-When [graphify](https://github.com/safishamsi/graphify) is on PATH, ARCS auto-extracts structural knowledge during INIT and SYNC — no LLM calls required:
+When [graphify](https://github.com/safishamsi/graphify) is on PATH, ARCS auto-extracts structural knowledge during INIT and SYNC:
 
 | Category | Cap | What |
 |----------|-----|------|
-| God nodes | 8 | Highest-connectivity modules (architectural hubs) |
+| God nodes | 8 | Highest-connectivity modules |
 | Clusters | 8 | Directory-based module boundaries |
-| Couplings | 5 | Cross-module links between high-degree nodes |
-
-Trigger manually: `arcs graphify-sync <slug>`. Output: `graphify-out/graph.json` (auto-gitignored).
+| Couplings | 5 | Cross-module dependency links |
 
 ---
 
@@ -337,31 +329,22 @@ Trigger manually: `arcs graphify-sync <slug>`. Output: `graphify-out/graph.json`
 
 ```bash
 git clone https://github.com/rryando/arcs.git
-cd arcs && npm install && npm run init
+cd arcs && npm install && npm run build
 ```
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Compile TypeScript → `dist/` |
-| `npm test` | Vitest suite (62 files, 686 tests) |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm test` | Vitest suite (67 files, 744 tests) |
 | `npm run typecheck` | Type check without emit |
 | `npm run lint` | Biome lint + format |
-
-Quality gate: `npm test && npm run typecheck && npm run lint`
 
 ### Bundle Workflow
 
 ```bash
-# Edit opencode/arcs/skills/ or prompts/
-npm run build:opencode-bundle    # Build
-arcs lint-bundle                 # Validate
+npm run build:opencode-bundle    # Build agent/skill bundle
+arcs lint-bundle                 # Validate bundle integrity
 arcs deploy-superpowers          # Deploy to ~/.config/opencode/
-```
-
-### Environment
-
-```bash
-ARCS_DATA_DIR=/custom/path arcs brief    # Override data directory (default: ~/.arcs/)
 ```
 
 ---
