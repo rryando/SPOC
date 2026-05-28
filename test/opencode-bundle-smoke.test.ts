@@ -169,11 +169,11 @@ describe("opencode SPOC bundle bundle", () => {
 
     // SPOC-native skills (authored in this repo) live in the bundle but aren't
     // declared in bundle-runtime.json — they are preserved output files.
-    const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review", "init-project"];
-    const expectedSkillNames = [
-      ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
-    ].sort();
-    expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
+     const spocNativeSkillNames = ["caveman-commit", "init-project"];
+     const expectedSkillNames = [
+       ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
+     ].sort();
+     expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 
     try {
       // Output root IS the source of truth — copy the real bundle into the
@@ -187,7 +187,7 @@ describe("opencode SPOC bundle bundle", () => {
       expect(result.status).toBe(0);
       // Skills dir contains the manifest-declared skills plus the SPOC-native
       // skills (preservedOutputFiles) — the build prunes nothing in this set.
-      const spocNativeSkillNames = ["loop", "caveman-commit", "caveman-review", "init-project"];
+      const spocNativeSkillNames = ["caveman-commit", "init-project"];
       const expectedSkillsAfterBuild = [
         ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
       ].sort();

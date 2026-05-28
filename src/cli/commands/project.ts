@@ -9,7 +9,8 @@ import { type RootMeta, readRootMeta, writeRootMeta } from "../../utils/dag.js";
 import { readJsonSafe } from "../../utils/json.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
-import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { createTask, listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { quickScan } from "../../utils/quick-scan.js";
 import { slugify } from "../../utils/slug.js";
 import { getTemplatePath, renderTemplate } from "../../utils/template.js";
 import { normalizeWorkspacePath } from "../../utils/workspace-match.js";
@@ -259,7 +260,32 @@ async function handleProjectInit(
       }
     }
 
-    return success({ slug, name, status: "draft", dependsOn: [], graphify });
+    // Quick scan: extract git context and auto-create initial tasks (non-fatal)
+    // Skip when SPOC_SKIP_QUICK_SCAN=1 (used in tests)
+    let quickScanResult: { tasksCreated: number; suggestedTasks: string[] } | null = null;
+    const skipQuickScan = process.env.SPOC_SKIP_QUICK_SCAN === "1";
+    if (!skipQuickScan) {
+      try {
+        const scanWorkspace = wsPath ?? process.cwd();
+        const scan = quickScan(scanWorkspace);
+        let tasksCreated = 0;
+        for (const title of scan.suggestedTasks.slice(0, 5)) {
+          try {
+            await createTask(projectDir, { title, status: "backlog", priority: "medium" });
+            tasksCreated++;
+          } catch {
+            // Skip duplicate or invalid tasks silently
+          }
+        }
+        if (tasksCreated > 0 || scan.suggestedTasks.length > 0) {
+          quickScanResult = { tasksCreated, suggestedTasks: scan.suggestedTasks };
+        }
+      } catch {
+        // Quick scan failure never blocks project init
+      }
+    }
+
+    return success({ slug, name, status: "draft", dependsOn: [], graphify, quickScan: quickScanResult });
   } catch (err) {
     return failure("init_error", err instanceof Error ? err.message : String(err));
   }

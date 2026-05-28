@@ -18,15 +18,11 @@ const preservedOutputFiles = new Set([
   "bundle-runtime.json",
   ".opencode/plugins/spoc.js",
   // SPOC-native skills (authored in this repo, no upstream source)
-  "skills/loop/SKILL.md",
   // init-project skill — SPOC-native (mirrors orchestrator INIT workflow with
   // graphify sub-flow, typed-agent dispatch, knowledge categories).
   "skills/init-project/SKILL.md",
-  // Caveman skills — adapted from https://github.com/JuliusBrussee/caveman (MIT).
-  // Shipped alongside SPOC Caveman orchestrator so sub-agents can produce
-  // terse commits and PR review comments when caveman mode is active.
+  // Caveman commit skill — adapted from https://github.com/JuliusBrussee/caveman (MIT).
   "skills/caveman-commit/SKILL.md",
-  "skills/caveman-review/SKILL.md",
   // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
   "prompts/software-engineer.txt",
   "prompts/tech-architect.txt",

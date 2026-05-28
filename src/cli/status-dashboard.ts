@@ -43,11 +43,8 @@ export async function showStatusDashboard(): Promise<void> {
   // 3. Read plans with diagram info
   const plans = readPlans(resolve(projectsDir, project.slug));
 
-  // 4. Check preview server
-  const previewRunning = await checkPreviewServer();
-
-  // 5. Render
-  render(project, taskCounts, plans, previewRunning);
+  // 4. Render
+  render(project, taskCounts, plans);
 }
 
 function findProject(projectsDir: string, dataDir: string, cwd: string): ProjectMatch | null {
@@ -212,25 +209,10 @@ function resolveManageDiagramScript(): string | null {
   return null;
 }
 
-async function checkPreviewServer(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 500);
-    const res = await fetch("http://localhost:4077/diagrams", {
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 function render(
   project: ProjectMatch,
   tasks: { backlog: number; inProgress: number; done: number },
   plans: PlanInfo[],
-  previewRunning: boolean,
 ): void {
   const WIDTH = 60;
   const innerWidth = WIDTH - 4; // inside box padding
@@ -284,19 +266,10 @@ function render(
     }
   }
 
-  // Preview server
-  console.log("");
-  if (previewRunning) {
-    console.log(`Preview: ${pc.green("●")} running → ${pc.cyan("http://localhost:4077")}`);
-  } else {
-    console.log(`Preview: ${pc.dim("○")} stopped — run: ${pc.dim("spoc preview --open")}`);
-  }
-
   // Hints
   console.log("");
   console.log(pc.dim("Hints:"));
   console.log(pc.dim("  spoc diagram show <plan-id>    tree view"));
-  console.log(pc.dim("  spoc preview --open            live browser"));
   console.log(pc.dim("  spoc task <slug>               list tasks"));
 }
 

@@ -1,13 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { handleCli } from "../src/cli/index.js";
 
-// Mock setup and preview to avoid side effects
+// Mock setup to avoid side effects
 vi.mock("../src/cli/setup.js", () => ({
   runSetup: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("../src/cli/preview.js", () => ({
-  handlePreviewCli: vi.fn().mockReturnValue(true),
 }));
 
 describe("CLI Router", () => {
@@ -45,11 +41,6 @@ describe("CLI Router", () => {
 
   it("existing commands still work — config", async () => {
     const result = await handleCli(["config"]);
-    expect(result).toBe(true);
-  });
-
-  it("existing commands still work — preview", async () => {
-    const result = await handleCli(["preview"]);
     expect(result).toBe(true);
   });
 

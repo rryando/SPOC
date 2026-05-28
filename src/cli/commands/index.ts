@@ -15,3 +15,6 @@ import "./bundle.js";
 import "./maintenance.js";
 import "./loop.js";
 import "./brief.js";
+import "./next.js";
+import "./remember.js";
+import "./done.js";

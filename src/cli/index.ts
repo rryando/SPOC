@@ -8,7 +8,6 @@ import {
   generateCommandsDiscovery,
 } from "./help-generator.js";
 import { render } from "./output-envelope.js";
-import { handlePreviewCli } from "./preview.js";
 import { runSetup } from "./setup.js";
 
 // ---------------------------------------------------------------------------
@@ -36,7 +35,7 @@ function determineCommandPath(args: string[]): { path: string; remaining: string
 }
 
 /**
- * Entry point for `npx spoc init`, `npx spoc config`, `npx spoc preview`.
+ * Entry point for `npx spoc init`, `npx spoc config`.
  * Returns true if a CLI subcommand was handled, false if the caller
  * should proceed with normal exit.
  */
@@ -87,9 +86,6 @@ export async function handleCli(args: string[]): Promise<boolean> {
     case "config":
       await runSetup("config");
       return true;
-
-    case "preview":
-      return handlePreviewCli(args.slice(1));
 
     case "task":
     case "plan":
