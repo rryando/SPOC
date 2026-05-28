@@ -2,7 +2,7 @@
 
 # ARCS
 
-**DAG-based task orchestration for AI agents**
+**Agent Routing & Context System**
 
 [![npm](https://img.shields.io/npm/v/@rryando/arcs?color=cb3837&label=npm&logo=npm)](https://www.npmjs.com/package/@rryando/arcs)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -17,7 +17,7 @@
 
 ARCS tracks projects, tasks, plans, and knowledge as a directed acyclic graph (DAG) stored in `~/.arcs/`. AI agents call `arcs <command>` to read structured project context instead of scanning codebases from scratch each session.
 
-> **arcs** `/ɑːrks/` — In graph theory, directed edges connecting nodes. A nod to the DAG-based orchestration at the core of this tool.
+> **arcs** `/ɑːrks/` — In graph theory, directed edges connecting nodes. Also: **A**gent **R**outing & **C**ontext **S**ystem.
 
 ---
 
