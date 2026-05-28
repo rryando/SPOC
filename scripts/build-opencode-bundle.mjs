@@ -32,6 +32,7 @@ const preservedOutputFiles = new Set([
   "prompts/system-architect.txt",
   "prompts/code-reviewer.txt",
   "prompts/docs-researcher.txt",
+  "prompts/devil-advocate.txt",
   // Orchestrator prompt files — generated from src/cli/spoc-orchestrate*.ts during
   // bundle build (see generateOrchestratorPrompts() below). TS modules remain the
   // canonical source; these .txt files are committed mirrors so the bundle is

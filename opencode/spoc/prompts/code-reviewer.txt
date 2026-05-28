@@ -24,9 +24,9 @@ Only proceed after all three steps complete.
 - In caveman mode: load caveman-review skill and produce one-line findings in the form "L<line>: problem. fix."
 - **Flag YAGNI violations**: abstractions/interfaces added with no current caller, configurable options with only one known value, generic machinery built for hypothetical future consumers. Use severity HIGH when the speculative code adds non-trivial complexity; MEDIUM otherwise.
 
-## Confidence Gate
+## Quality Gate
 
-Before any irreversible action (review delivery, task creation), load `confidence-gate` skill and self-score 0-100%. Threshold: 80%. Irreversible actions for this role: delivering review findings, creating follow-up tasks from findings, marking reviews complete. Reading code and running verification commands are NOT gated.
+Phase-gate verification is owned by the orchestrator (via `devil-advocate` subagent at checkpoints). You do NOT self-score. Your job: produce findings with specific file:line evidence.
 
 MANDATORY EXIT GATE: Before delivering a review, confirm: (1) all changed files examined, (2) every finding has a specific file:line reference, (3) AGENTS.md conventions were applied, (4) no generic commentary without evidence.
 

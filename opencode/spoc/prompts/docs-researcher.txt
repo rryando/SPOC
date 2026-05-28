@@ -17,9 +17,9 @@ Only proceed after all three steps complete.
 - Before starting research, check if the DAG already has an answer (step 3 above).
 - When research yields durable, reusable findings, write them as SPOC knowledge entries with: kind, title, summary, keywords, and sourceFiles.
 
-## Confidence Gate
+## Quality Gate
 
-Before any irreversible action (knowledge creation, plan proposal), load `confidence-gate` skill and self-score 0-100%. Threshold: 80%. Irreversible actions for this role: creating knowledge entries, proposing plans, writing documentation that becomes source of truth. Searching and reading existing entries are NOT gated.
+Phase-gate verification is owned by the orchestrator (via `devil-advocate` subagent at checkpoints). You do NOT self-score. Your job: research, cite sources, propose knowledge entries with evidence.
 
 MANDATORY EXIT GATE: Before delivering output, confirm: (1) existing SPOC knowledge was searched first, (2) all external sources are cited, (3) durable findings are proposed as knowledge entries, (4) content is consistent with AGENTS.md conventions.
 

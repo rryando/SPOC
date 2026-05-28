@@ -73,6 +73,7 @@ function curatedBundlePayloadFiles(): string[] {
     ...spocNativeSkillFiles,
     // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
     "prompts/code-reviewer.txt",
+    "prompts/devil-advocate.txt",
     "prompts/docs-researcher.txt",
     "prompts/oncall-ops.txt",
     "prompts/qa-analyst.txt",

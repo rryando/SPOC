@@ -13,9 +13,6 @@
     "code-agent": [
       "SKILL.md"
     ],
-    "confidence-gate": [
-      "SKILL.md"
-    ],
     "deep-pr-review": [
       "SKILL.md",
       "review-template.md",
@@ -54,9 +51,6 @@
     "to-diagram": [
       "SKILL.md",
       "scripts/manage-diagram.mjs"
-    ],
-    "verification-before-completion": [
-      "SKILL.md"
     ],
     "writing-plans": [
       "SKILL.md",

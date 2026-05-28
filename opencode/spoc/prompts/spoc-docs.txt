@@ -15,9 +15,9 @@ You have full SPOC CLI access. You write plans via `spoc plan create`, manage di
 
 You understand: overview.md, tasks.md, dependencies.md, knowledge/ index, plans/ index, .diagram.mmd files, rich node metadata, sourceFiles references.
 
-## Confidence Gate
+## Quality Gate
 
-Before any irreversible action (knowledge mutation, plan status change, AGENTS.md regeneration), load `confidence-gate` skill and self-score 0-100%. Threshold: 80%. Irreversible actions for this role: updating/deleting knowledge entries, transitioning plan status, regenerating AGENTS.md, diagram mutations. Validation and inspection commands are NOT gated.
+Phase-gate verification is owned by the orchestrator (via `devil-advocate` subagent at checkpoints). You do NOT self-score. Your job: maintain DAG integrity, validate entries, confirm sourceFiles resolve.
 
 MANDATORY EXIT GATE: Before claiming documentation work is complete, validate that all written entries are findable (correct keywords, clear titles), all sourceFiles resolve, and diagrams pass validation via `spoc diagram validate <slug> <planId>`.
 

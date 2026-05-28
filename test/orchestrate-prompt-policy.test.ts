@@ -156,7 +156,6 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "receiving-code-review",
     "auditing-a-feature",
     "writing-plans",
-    "verification-before-completion",
     "finishing-a-development-branch",
     "dispatching-parallel-agents",
     "subagent-driven-development",
@@ -183,7 +182,6 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     "performance-diagnosis", // agent-loaded skill for code-doctor
     "deep-pr-review", // host-specific skill invoked directly by user PR-review trigger
     "customize-opencode", // host-specific meta-skill for editing opencode's own config
-    "confidence-gate", // universal pre-action gate loaded by every agent before irreversible action
     "graphify-aware", // auto-layered when graphify-out/graph.json detected in workspace
   ];
 
@@ -207,7 +205,6 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
       "receiving-code-review",
       "auditing-a-feature",
       "writing-plans",
-      "verification-before-completion",
       "finishing-a-development-branch",
       "dispatching-parallel-agents",
       "subagent-driven-development",
@@ -215,6 +212,14 @@ describe("orchestrate prompt policy — skill routing coverage", () => {
     for (const skill of supportSkills) {
       expect(ORCHESTRATE_PROMPT_TEXT).toContain(skill);
     }
+  });
+
+  it("devil-advocate subagent replaces confidence-gate and verification-before-completion", () => {
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("devil-advocate");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("Devil's Advocate Gate");
+    // Old skills are mentioned only in the deprecation note
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("confidence-gate");
+    expect(ORCHESTRATE_PROMPT_TEXT).toContain("verification-before-completion");
   });
 });
 

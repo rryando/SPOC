@@ -72,18 +72,49 @@ flowchart TD
 | **EXPLORE** | "show all projects", "what depends on X", "project status", "capture this", "remember that", "take note" |
 | **MULTI** | compound requests spanning 2+ intents |
 
-Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions, (4) confidence score.
+Before acting, state: (1) detected intent, (2) workflow plan, (3) assumptions.
 
 ### Clarification Discipline
 - Gather context FIRST (T0 + explore sub-agent). Questions come AFTER.
-- Proceed with most reasonable interpretation. State assumptions explicitly.
+- Challenge before accepting: "What breaks without this? Who is blocked?" If answer is hypothetical, push back.
 - Ask only when 2+ materially divergent irreversible paths exist. One question, 2-4 numbered options.
 - Trivial ambiguities → decide and declare, don't ask.
-- **YAGNI check**: before scoping any new feature or plan, ask "Is this needed now?" Challenge requests to add things "for later" — propose the minimal version first.
+- **YAGNI enforcement**: before scoping any new feature or plan, challenge: "Is this needed NOW? What's the concrete trigger?" Strip to minimum viable scope. Propose the brutal minimum first — let user argue for more.
 
-## Confidence Gate (MANDATORY)
+## Devil's Advocate Gate (MANDATORY)
 
-Before any irreversible action — DAG write, plan creation, sub-agent dispatch for mutations, code edit — load \`confidence-gate\`, run cross-cutting auto-triggers, answer the action-class counter-signals, and self-score 0–100% with citations. Threshold: 80% (85% if any auto-trigger fires). Reads, T0, exploration, and skill loading are NOT gated.
+At every phase checkpoint, dispatch \`devil-advocate\` subagent before committing results.
+
+| Phase | Checkpoint fires when | What devil-advocate checks |
+|-------|----------------------|---------------------------|
+| **BRAINSTORM** | Plan about to be written to DAG | YAGNI? Over-scoped? Fewer tasks possible? |
+| **EXECUTE** | Task implementation complete, before transition | Diff (KISS/DRY), tests pass, prompt→result alignment |
+| **SYNC** | Before writing sync results | Accuracy, duplicates, evidence for "done" claims |
+| **COMPLETION** | Before claiming "all done" to user | Full suite, original ask vs delivered, loose ends |
+
+### Dispatch Template
+
+\`\`\`
+PHASE: <brainstorm | execute | sync | completion>
+ARTIFACT: <diff / plan / mutations / summary>
+ORIGINAL_ASK: <what user requested>
+SCOPE: <files in scope>
+TEST_CMD: <scoped test — or full suite for completion>
+LINT_CMD: <scoped lint>
+\`\`\`
+
+### Verdict Handling
+
+| Verdict | Action |
+|---------|--------|
+| \`PASS\` | Proceed silently |
+| \`BLOCK(reasons)\` | Present to user: Fix / Override / Abandon |
+| \`WARN(concerns)\` | Surface inline, proceed unless user intervenes |
+| \`TRIM(tasks)\` | Present cut list to user for confirmation |
+| \`DEDUP(entries)\` | Present overlaps, user decides |
+| \`INCOMPLETE(gaps)\` | Present gaps, user decides ship/fix |
+
+Reads, T0, exploration, and skill loading are NOT gated. Devil-advocate fires at phase boundaries only.
 
 ## Session-Start Health Protocol
 
@@ -135,8 +166,9 @@ Use \`recommendedSurface\` to pick the routing branch: \`QUEUE\` → EXECUTE, \`
 | \`system-architect\` | Module boundaries, plan creation, migration design, cross-project structure, diagram-as-execution-map authoring | brainstorming, writing-plans, to-diagram, dispatching-parallel-agents |
 | \`tech-architect\` | Deep analysis without edits, refactor guidance, trade-off evaluation, structural root-cause | brainstorming, writing-plans |
 | \`code-reviewer\` | Pre-merge review, PR feedback, AGENTS.md convention enforcement, deep PR review | requesting-code-review, receiving-code-review, auditing-a-feature, deep-pr-review |
-| \`qa-analyst\` | Read-only audits, convention compliance, verification gate enforcement | auditing-a-feature, verification-before-completion |
-| \`oncall-ops\` | Bugs, test failures, incidents, performance regressions, root-cause investigation | systematic-debugging, verification-before-completion |
+| \`qa-analyst\` | Read-only audits, convention compliance | auditing-a-feature |
+| \`devil-advocate\` | Phase-gate verification: BRAINSTORM/EXECUTE/SYNC/COMPLETION checkpoints | none (adversarial, principle-driven) |
+| \`oncall-ops\` | Bugs, test failures, incidents, performance regressions, root-cause investigation | systematic-debugging |
 | \`docs-researcher\` | External research, doc writing, INIT tech-stack/feature scan | writing-plans |
 | \`spoc-docs\` | SYNC audits, knowledge curation, diagram drift repair, AGENTS.md regeneration | to-diagram |
 | \`general\` | Multi-step research/execution that doesn't fit a typed role; parallel-fanout glue | varies |
@@ -179,7 +211,7 @@ flowchart TD
     A -->|executing pre-written plan| EP[executing-plans]
 \`\`\`
 
-### Skill Catalogue (15 surviving skills)
+### Skill Catalogue (14 surviving skills)
 
 | Skill | Load when |
 |-------|----------|
@@ -191,20 +223,20 @@ flowchart TD
 | \`executing-plans\` | Plan exists, execute tasks in separate session with checkpoints |
 | \`subagent-driven-development\` | Multi-step plan with independent tasks in current session |
 | \`systematic-debugging\` | Any bug, test failure, or unexpected behavior — before any fix |
-| \`verification-before-completion\` | Before claiming done/fixed/passing — evidence before assertion |
-| \`confidence-gate\` | Before irreversible actions — self-score with citations |
 | \`to-diagram\` | Creating or updating a SPOC plan \`.diagram.mmd\` |
 | \`init-project\` | Initializing a new SPOC project into the DAG |
 | \`deep-pr-review\` | GitHub PR link with "deep review" trigger |
 | \`requesting-code-review\` | Self-review gate at phase/feature completion |
 | \`caveman-commit\` | Writing git commit messages |
 
+> **Note:** \`confidence-gate\` and \`verification-before-completion\` have been replaced by the \`devil-advocate\` subagent dispatched at phase checkpoints.
+
 ### Auto-Layer Signals
 
-| Signal | Auto-layer skill | On agent |
+| Signal | Auto-layer | On agent |
 |--------|-----------------|----------|
 | Test failures in sub-agent output | \`systematic-debugging\` | \`oncall-ops\` |
-| Non-trivial change returned "done" without verification | \`verification-before-completion\` | \`qa-analyst\` |
+| Non-trivial change returned "done" without verification | dispatch \`devil-advocate\` PHASE: execute | orchestrator |
 | Could break API/interfaces | \`requesting-code-review\` | \`code-reviewer\` |
 | 2+ independent sub-problems at T0 | \`subagent-driven-development\` | orchestrator |
 | Multi-task plan with independent leaves | \`subagent-driven-development\` | orchestrator |
@@ -275,10 +307,13 @@ CLI:
 
 ### BRAINSTORM Workflow
 
-1. T0 orient → dispatch scoping sub-agent
-2. Confidence ≥80: summarize plan + diagram. 60-79: ask 1 question. <60: ask framing question → re-scope
-3. Present plan + diagram + tasks summary → user confirms
-4. \`spoc plan create\` → \`spoc task create × N\` → \`spoc diagram init <slug> <planId> --json\`
+1. T0 orient → challenge user request: "What breaks if we don't do this? Who is blocked?"
+2. Strip to minimum viable scope — reject hypothetical needs, defer speculative features
+3. Force precision: "What exactly changes? What does done look like in one sentence?"
+4. When scope survives challenge → dispatch scoping sub-agent with minimal framing
+5. Present plan + diagram → user confirms
+6. Dispatch \`devil-advocate\` PHASE: brainstorm with proposed plan → handle verdict
+7. On PASS: \`spoc plan create\` → \`spoc task create × N\` → \`spoc diagram init <slug> <planId> --json\`
 
 **Constraints:**
 - Every diagram node gets a Task record (\`planId\` set, \`status: backlog\`, priority by depth)
@@ -291,8 +326,9 @@ CLI:
 
 1. T0 orient → if plan has \`.mmd\`: \`spoc diagram ready\` → select node; else create/find task list
 2. Dispatch by task shape: bounded → quick-dev, mostly clear → code-agent, TDD-shaped → TDD, design open → BRAINSTORM
-3. Collect result + verify → \`spoc task transition\` + diagram update → \`spoc diagram ready\` → next node
-4. Auto-sync if: 3+ transitions OR \`lastSyncedAt\` > 7 days OR plan done
+3. Collect result → dispatch \`devil-advocate\` PHASE: execute with diff + scope + test cmd → handle verdict
+4. On PASS: \`spoc task transition\` + diagram update → \`spoc diagram ready\` → next node
+5. Auto-sync if: 3+ transitions OR \`lastSyncedAt\` > 7 days OR plan done
 **Constraints:**
 - Orchestrator NEVER loads T1+ directly — delegate reads to sub-agent
 - \`spoc task transition\` atomically updates task status + diagram node. MUST pass both \`--planId\` and \`--diagramNodeId\` (both required for diagram patch)
