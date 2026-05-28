@@ -179,7 +179,7 @@ flowchart TD
     A -->|executing pre-written plan| EP[executing-plans]
 \`\`\`
 
-### Skill Catalogue
+### Skill Catalogue (15 surviving skills)
 
 | Skill | Load when |
 |-------|----------|
@@ -190,20 +190,14 @@ flowchart TD
 | \`writing-plans\` | Have a spec, need a structured multi-step plan |
 | \`executing-plans\` | Plan exists, execute tasks in separate session with checkpoints |
 | \`subagent-driven-development\` | Multi-step plan with independent tasks in current session |
-| \`dispatching-parallel-agents\` | 2+ independent problems, no shared state |
 | \`systematic-debugging\` | Any bug, test failure, or unexpected behavior — before any fix |
-| \`auditing-a-feature\` | Pre-merge or post-completion check for bloat, redundancy, KISS/SOLID drift |
-| \`requesting-code-review\` | Completing tasks, before merge, verify work meets requirements |
-| \`receiving-code-review\` | Got review feedback — verify rigorously, don't blindly implement |
-| \`deep-pr-review\` | GitHub PR link with "deep review" trigger inside cloned repo |
 | \`verification-before-completion\` | Before claiming done/fixed/passing — evidence before assertion |
-| \`finishing-a-development-branch\` | Implementation complete, decide merge/PR/cleanup |
+| \`confidence-gate\` | Before irreversible actions — self-score with citations |
 | \`to-diagram\` | Creating or updating a SPOC plan \`.diagram.mmd\` |
 | \`init-project\` | Initializing a new SPOC project into the DAG |
-| \`using-git-worktrees\` | Starting feature work that needs isolation |
-| \`using-superpowers\` | Always — establishes how to find and use skills |
-
-> **Agent-internal skills** (auto-loaded by context, not orchestrator-selected): \`writing-skills\`, \`caveman-commit\`, \`caveman-review\`, \`spoc-dashboard\`, \`knowledge-curation\`, \`performance-diagnosis\`, \`architecture-review\`
+| \`deep-pr-review\` | GitHub PR link with "deep review" trigger |
+| \`requesting-code-review\` | Self-review gate at phase/feature completion |
+| \`caveman-commit\` | Writing git commit messages |
 
 ### Auto-Layer Signals
 
@@ -212,11 +206,9 @@ flowchart TD
 | Test failures in sub-agent output | \`systematic-debugging\` | \`oncall-ops\` |
 | Non-trivial change returned "done" without verification | \`verification-before-completion\` | \`qa-analyst\` |
 | Could break API/interfaces | \`requesting-code-review\` | \`code-reviewer\` |
-| Last task in plan drained | \`finishing-a-development-branch\` | \`software-engineer\` |
-| 2+ independent sub-problems at T0 | \`dispatching-parallel-agents\` | orchestrator |
+| 2+ independent sub-problems at T0 | \`subagent-driven-development\` | orchestrator |
 | Multi-task plan with independent leaves | \`subagent-driven-development\` | orchestrator |
 | GitHub PR link + "deep review" cue | \`deep-pr-review\` | \`code-reviewer\` |
-| Knowledge entries > 30 days untouched | \`knowledge-curation\` | \`spoc-docs\` |
 
 Announce: \`→ Auto-layering \`<skill>\` on \`<agent>\` (<reason>).\` — don't ask.
 
@@ -229,7 +221,7 @@ SCOPE: <files/modules in scope — explicit boundaries>
 GOAL: <deliverable, not direction>
 CONSTRAINTS: <what NOT to change, conventions, tests that must pass>
 SKILL: <work-mode> + [support skills]
-VERIFY: <command(s) to run before claiming done>
+VERIFY: <scoped test command for ONLY files touched — never full suite>
 RETURN: <what final message must include>
 
 CLI:
@@ -242,6 +234,15 @@ CLI:
 - \`--lean --json\` on every SPOC CLI call within sub-agent prompts (non-negotiable)
 - DAG content written by sub-agents must be full prose (never compressed)
 - Sub-agents NEVER edit \`.mmd\` diagram files
+
+### Isolation Rules (Non-Negotiable)
+- Sub-agents test ONLY files they touched: \`vitest run test/<their-file>.test.ts\` — never \`vitest run\` (full suite)
+- Sub-agents lint ONLY files they touched: \`biome check src/<their-file>.ts\` — never \`biome check .\`
+- Exception: \`tsc --noEmit\` (whole-project type check) is allowed since it's read-only
+- Sub-agents MUST NOT run \`git stash\`, \`git checkout\`, or \`git reset\` — ever
+- Sub-agents MUST NOT modify files outside their declared SCOPE
+- If a sub-agent's scoped test fails due to OTHER agents' changes: report the failure, do NOT fix other agents' code
+- The orchestrator runs the full suite AFTER all parallel agents complete — not each agent individually
 
 ### Agent Lifecycle
 - **Validate result:** Must include scope, verification output, and enumeration of changes
@@ -344,6 +345,8 @@ Decompose → if independent phases: dispatch parallel (load \`dispatching-paral
 
 - Orchestrator reads T0 only. All other reads → sub-agent. No exceptions.
 - Sub-agents never edit \`.mmd\` files.
+- Sub-agents test/lint ONLY their scoped files — never the full suite. Orchestrator owns full-suite verification.
+- Sub-agents NEVER run \`git stash\`, \`git checkout\`, or \`git reset\`.
 - DAG content (plan bodies, knowledge bodies, task titles) must be full prose — never compressed.
 - \`--lean --json\` on every SPOC CLI call in sub-agent prompts.
 - If orchestrator catches itself reading files, writing code, or debugging → STOP → delegate.

@@ -170,14 +170,14 @@ Dispatched automatically by the orchestrator. You do not interact with them dire
 
 | Sub-Agent | Role | Model |
 |---|---|---|
-| **software-engineer** | Implementation specialist. Writes code, runs tests, ships features. Loads quick-dev, code-agent, TDD, executing-plans, finishing-a-development-branch, and aesthetic skills as needed. | Opus |
+| **software-engineer** | Implementation specialist. Writes code, runs tests, ships features. Loads quick-dev, code-agent, TDD, executing-plans skills as needed. | Opus |
 | **tech-architect** | Architecture and analysis specialist. Deep structural reasoning, refactor guidance, trade-off evaluation, and root cause analysis without making hasty edits. | Haiku |
-| **qa-analyst** | Quality enforcement specialist. Proactive code audits, review dispatch, convention compliance, and verification gate enforcement. | Haiku |
+| **qa-analyst** | Quality enforcement specialist. Proactive code audits, convention compliance, and verification gate enforcement. | Haiku |
 | **oncall-ops** | Debugging and diagnosis specialist. Finds root causes through systematic investigation, log triage, bisect, and performance profiling. | Opus |
-| **spoc-docs** | SPOC documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. Knows SPOC structure intimately. | Opus |
+| **spoc-docs** | SPOC documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. | Opus |
 | **system-architect** | Architecture and design specialist. Module boundaries, dependency graphs, migration strategies, and cross-project design decisions. | Opus |
-| **code-reviewer** | Reviews code changes for production readiness and catches correctness, maintainability, and testing issues. | Haiku |
-| **docs-researcher** | Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks. | Opus |
+| **code-reviewer** | Reviews code changes for production readiness. Catches correctness, maintainability, and testing issues. | Haiku |
+| **docs-researcher** | Handles documentation writing, research synthesis, and document-heavy analysis tasks. | Opus |
 
 ---
 
@@ -194,53 +194,26 @@ Skills are instruction sets loaded on demand. The orchestrator auto-layers them 
 | `test-driven-development` | New feature or bugfix — test-first discipline adds value |
 | `brainstorming` | Design open, product direction genuinely unclear |
 
-### Lifecycle Support (layer on top of work mode)
-
-| Skill | Load When |
-|---|---|
-| `verification-before-completion` | Before claiming "done" on any non-trivial change |
-| `requesting-code-review` | Major feature complete, before merging |
-| `receiving-code-review` | Acting on review feedback (verify before blindly implementing) |
-| `finishing-a-development-branch` | Implementation done, deciding how to integrate |
-| `deep-pr-review` | Deep PR review triggered from a GitHub PR link — multi-dimensional analysis grounded in SPOC DAG context, posts inline GitHub review comments |
-
-### SPOC Orchestration
+### Lifecycle & Planning (layer on top of work mode)
 
 | Skill | Load When |
 |---|---|
 | `writing-plans` | Have requirements, about to create a structured plan |
 | `executing-plans` | Have a plan, executing it in a separate session with checkpoints |
 | `subagent-driven-development` | Multi-task plan with independent leaf nodes |
-| `dispatching-parallel-agents` | 2+ independent sub-problems detected at routing time |
-| `loop` | Self-referential dev loop that continues until task completion |
-| `using-superpowers` | Session start orientation |
+| `verification-before-completion` | Before claiming "done" on any non-trivial change |
+| `requesting-code-review` | Self-review gate at phase/feature completion |
+| `deep-pr-review` | Deep PR review triggered from a GitHub PR link |
 
-### Diagnosis & Quality
+### Diagnosis & Tooling
 
 | Skill | Load When |
 |---|---|
 | `systematic-debugging` | Any bug, test failure, or unexpected behavior |
-| `performance-diagnosis` | Profiling data, benchmarks, optimization guidance |
-| `architecture-review` | Evaluating module boundaries, coupling, API surface |
-| `auditing-a-feature` | Pre-refactor or pre-merge quality guard |
-
-### SPOC Tooling
-
-| Skill | Load When |
-|---|---|
+| `confidence-gate` | Before irreversible actions — self-score with citations |
 | `to-diagram` | Creating or updating a Mermaid plan diagram |
-| `knowledge-curation` | Auditing knowledge entries for staleness or drift |
-| `spoc-dashboard` | Browsing multi-plan status across projects |
-| `writing-skills` | Creating, editing, or testing SPOC skills |
-| `customize-opencode` | Editing `opencode.json` or SPOC bundle config |
-
-### Communication
-
-| Skill | Load When |
-|---|---|
+| `init-project` | Initializing a new SPOC project into the DAG |
 | `caveman-commit` | Writing git commit messages in SPOC Caveman mode |
-| `caveman-review` | Writing code review comments in SPOC Caveman mode |
-| `aesthetic` | Any frontend/UI work — components, styles, animations |
 
 ---
 
@@ -328,7 +301,7 @@ npm run build
 |---|---|
 | `npm run build` | Compile TypeScript → `dist/` |
 | `npm run dev` | Watch mode (rebuild on change) |
-| `npm test` | Run Vitest test suite (57 test files, 653 tests) |
+| `npm test` | Run Vitest test suite (62 test files, 685 tests) |
 | `npm run typecheck` | Type check without emit |
 | `npm run lint` | Biome lint + format check |
 | `npm run lint:fix` | Auto-fix lint and format issues |
@@ -412,7 +385,7 @@ spoc/
 │   │   ├── arg-parser.ts                 # Schema-driven argument parser
 │   │   ├── output-envelope.ts            # Structured JSON output ({ok, data} / {ok, code, message})
 │   │   ├── help-generator.ts             # Auto-generated help text from registry
-│   │   ├── dag-commands.ts               # LEGACY: ~157-line thin delegation shell (backward-compat)
+│   │   ├── dag-commands.ts               # LEGACY: thin delegation shell (backward-compat)
 │   │   ├── brief-renderer.ts             # Renders brief output for spoc brief command
 │   │   ├── md-renderer.ts                # Markdown rendering utilities
 │   │   ├── bundle-installer.ts           # OpenCode bundle installer
@@ -423,6 +396,10 @@ spoc/
 │   │   └── commands/                     # 17 focused command modules (≤400 lines each)
 │   │       ├── index.ts                  # Trigger all command registrations (side-effects)
 │   │       ├── brief.ts                  # T0 operating brief
+│   │       ├── next.ts                   # spoc next — get next task + related knowledge
+│   │       ├── done.ts                   # spoc done — mark task complete (--learn flag)
+│   │       ├── remember.ts              # spoc remember — capture knowledge (auto-classify)
+│   │       ├── status.ts                # spoc status — progress overview
 │   │       ├── project.ts                # project list, get, init, validate
 │   │       ├── project-updates.ts        # project update-doc, update-status, update-paths
 │   │       ├── task.ts                   # task list, get, create, transition, update, delete
@@ -445,7 +422,11 @@ spoc/
 │   │   └── graph-cache.ts                # Graph index caching + invalidation
 │   └── utils/
 │       ├── dag.ts                        # Core DAG I/O
-│       ├── project-memory.ts             # Knowledge, plan, task CRUD
+│       ├── project-memory.ts             # Barrel re-exporting split modules below
+│       ├── storage-utils.ts              # Shared enums, types, filesystem helpers
+│       ├── plan-store.ts                 # Plan CRUD operations
+│       ├── knowledge-store.ts            # Knowledge CRUD operations
+│       ├── task-store.ts                 # Task CRUD operations
 │       ├── paths.ts                      # Data dir and project path helpers
 │       ├── workflow-policy.ts            # deriveOperatingBrief(), WorkflowSurface
 │       ├── schemas.ts                    # Shared Zod schemas
@@ -455,14 +436,14 @@ spoc/
 │       ├── errors.ts                     # Error factory functions
 │       └── file-lock.ts                  # Advisory file locking for concurrent writes
 ├── opencode/spoc/
-│   ├── skills/                           # Agent skill instruction sets (25+ skills)
+│   ├── skills/                           # Agent skill instruction sets (15 skills)
 │   ├── prompts/                          # Sub-agent prompt definitions (8 agents)
 │   ├── manifest.json                     # Bundle install manifest
 │   └── bundle-runtime.json               # Curated runtime payload
 ├── scripts/
 │   ├── spoc-cli.mjs                      # CLI entry wrapper (bin)
 │   └── build-opencode-bundle.mjs         # Build bundle
-└── test/                                 # Vitest test suite (57 files, 653 tests)
+└── test/                                 # Vitest test suite (62 files, 685 tests)
     └── helpers/
         ├── cli-runner.ts                 # runCommand() for registry-path invocation
         └── temp-data-dir.ts              # withTempDataDir() — isolated DAG state
