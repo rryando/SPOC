@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests for `spoc status` command
+// Tests for `arcs status` command
 // ---------------------------------------------------------------------------
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -79,14 +79,38 @@ function seedProject(dir: string, slug: string) {
 
   const knowledgeDir = resolve(projDir, "knowledge");
   mkdirSync(knowledgeDir, { recursive: true });
-  const k1 = { id: "k1", normalizedId: "k1", title: "A pattern", kind: "pattern", keywords: [], summary: "", file: "knowledge/k1.md", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" };
-  const k2 = { id: "k2", normalizedId: "k2", title: "A lesson", kind: "lesson", keywords: [], summary: "", file: "knowledge/k2.md", createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" };
-  writeFileSync(resolve(knowledgeDir, "index.json"), JSON.stringify({ entries: [k1, k2] }), "utf-8");
+  const k1 = {
+    id: "k1",
+    normalizedId: "k1",
+    title: "A pattern",
+    kind: "pattern",
+    keywords: [],
+    summary: "",
+    file: "knowledge/k1.md",
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z",
+  };
+  const k2 = {
+    id: "k2",
+    normalizedId: "k2",
+    title: "A lesson",
+    kind: "lesson",
+    keywords: [],
+    summary: "",
+    file: "knowledge/k2.md",
+    createdAt: "2025-01-01T00:00:00Z",
+    updatedAt: "2025-01-01T00:00:00Z",
+  };
+  writeFileSync(
+    resolve(knowledgeDir, "index.json"),
+    JSON.stringify({ entries: [k1, k2] }),
+    "utf-8",
+  );
   writeFileSync(resolve(knowledgeDir, "k1.meta.json"), JSON.stringify(k1), "utf-8");
   writeFileSync(resolve(knowledgeDir, "k2.meta.json"), JSON.stringify(k2), "utf-8");
 }
 
-describe("spoc status", () => {
+describe("arcs status", () => {
   it("returns structured JSON with plans, tasks, and knowledge counts", async () => {
     await withTempDataDir(async (dir) => {
       seedProject(dir, "status-proj");

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleDagCommand } from "../src/cli/dag-commands.js";
 
 function createTempDataDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "spoc-remember-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcs-remember-test-"));
   writeFileSync(
     join(dir, "meta.json"),
     JSON.stringify({
@@ -38,7 +38,7 @@ const stderr: string[] = [];
 
 beforeEach(() => {
   dataDir = createTempDataDir();
-  process.env.SPOC_DATA_DIR = dataDir;
+  process.env.ARCS_DATA_DIR = dataDir;
   stdout.length = 0;
   stderr.length = 0;
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -50,11 +50,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.SPOC_DATA_DIR;
+  delete process.env.ARCS_DATA_DIR;
   vi.restoreAllMocks();
 });
 
-describe("spoc remember", () => {
+describe("arcs remember", () => {
   it("creates a gotcha entry for 'never' keywords", async () => {
     await handleDagCommand("remember", ["test-proj", "Never use MCP again", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -81,7 +81,11 @@ describe("spoc remember", () => {
   });
 
   it("creates a pattern entry for 'pattern' keyword", async () => {
-    await handleDagCommand("remember", ["test-proj", "Use this pattern for all commands", "--json"]);
+    await handleDagCommand("remember", [
+      "test-proj",
+      "Use this pattern for all commands",
+      "--json",
+    ]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed.kind).toBe("pattern");
   });
@@ -93,7 +97,8 @@ describe("spoc remember", () => {
   });
 
   it("truncates long text to title with ellipsis", async () => {
-    const longText = "This is a very long insight that definitely exceeds the fifty character limit for titles";
+    const longText =
+      "This is a very long insight that definitely exceeds the fifty character limit for titles";
     await handleDagCommand("remember", ["test-proj", longText, "--json"]);
     const parsed = JSON.parse(stdout[0]);
     expect(parsed.title).toMatch(/\.\.\.$/);

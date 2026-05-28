@@ -9,7 +9,12 @@ import { type RootMeta, readRootMeta, writeRootMeta } from "../../utils/dag.js";
 import { readJsonSafe } from "../../utils/json.js";
 import { getDataDir, getProjectDir } from "../../utils/paths.js";
 import { PROJECT_DOC_FILES, type ProjectDocType } from "../../utils/project-documents.js";
-import { createTask, listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import {
+  createTask,
+  listTasks,
+  readKnowledgeIndex,
+  readPlanIndex,
+} from "../../utils/project-memory.js";
 import { quickScan } from "../../utils/quick-scan.js";
 import { slugify } from "../../utils/slug.js";
 import { getTemplatePath, renderTemplate } from "../../utils/template.js";
@@ -42,7 +47,7 @@ async function handleProjectList(
   try {
     rootMeta = await readRootMeta(dataDir);
   } catch {
-    return failure("read_error", "Could not read SPOC data directory");
+    return failure("read_error", "Could not read ARCS data directory");
   }
 
   const projects = [];
@@ -95,7 +100,7 @@ async function handleProjectGet(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -225,12 +230,12 @@ async function handleProjectInit(
 
     // Graphify: extract code graph and seed structural knowledge (non-fatal)
     // Only attempt if workspace looks like a real codebase (has .git or package.json)
-    // Skip when SPOC_SKIP_GRAPHIFY=1 (used in tests to avoid spawning real binaries)
+    // Skip when ARCS_SKIP_GRAPHIFY=1 (used in tests to avoid spawning real binaries)
     let graphify: { proposed: number; created: number; hooksHint?: string } | null = null;
     const graphifyWorkspace = wsPath ?? process.cwd();
     const hasGit = existsSync(resolve(graphifyWorkspace, ".git"));
     const looksLikeCodebase = hasGit || existsSync(resolve(graphifyWorkspace, "package.json"));
-    const skipGraphify = process.env.SPOC_SKIP_GRAPHIFY === "1";
+    const skipGraphify = process.env.ARCS_SKIP_GRAPHIFY === "1";
     if (looksLikeCodebase && !skipGraphify) {
       try {
         const { detectGraphify, runExtraction, ingestGraph } = await import(
@@ -261,9 +266,9 @@ async function handleProjectInit(
     }
 
     // Quick scan: extract git context and auto-create initial tasks (non-fatal)
-    // Skip when SPOC_SKIP_QUICK_SCAN=1 (used in tests)
+    // Skip when ARCS_SKIP_QUICK_SCAN=1 (used in tests)
     let quickScanResult: { tasksCreated: number; suggestedTasks: string[] } | null = null;
-    const skipQuickScan = process.env.SPOC_SKIP_QUICK_SCAN === "1";
+    const skipQuickScan = process.env.ARCS_SKIP_QUICK_SCAN === "1";
     if (!skipQuickScan) {
       try {
         const scanWorkspace = wsPath ?? process.cwd();
@@ -285,7 +290,14 @@ async function handleProjectInit(
       }
     }
 
-    return success({ slug, name, status: "draft", dependsOn: [], graphify, quickScan: quickScanResult });
+    return success({
+      slug,
+      name,
+      status: "draft",
+      dependsOn: [],
+      graphify,
+      quickScan: quickScanResult,
+    });
   } catch (err) {
     return failure("init_error", err instanceof Error ? err.message : String(err));
   }
@@ -366,7 +378,7 @@ async function handleProjectValidate(
         kind: "missing_agents_md",
         message: `No AGENTS.md found at workspace path: ${ws}`,
         file: agentsPath,
-        repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
+        repair: `Run: arcs sync-agents-md ${slug} --analysis-file=<path>`,
         safeToAutoRepair: true,
       });
     }

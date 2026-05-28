@@ -1,18 +1,20 @@
-# SPOC
+# ARCS
 
 > Give AI agents durable memory — so they start from context, not a blank slate.
 
-SPOC tracks projects, tasks, plans, and knowledge as a directed acyclic graph (DAG) stored in `~/.spoc/`. AI agents call `spoc <command>` to read structured project context instead of scanning codebases from scratch each session.
+ARCS tracks projects, tasks, plans, and knowledge as a directed acyclic graph (DAG) stored in `~/.arcs/`. AI agents call `arcs <command>` to read structured project context instead of scanning codebases from scratch each session.
+
+The name is a direct nod to graph theory — where nodes are connected by "arcs" (directed edges). It perfectly describes this DAG-based task orchestration tool.
 
 ---
 
-## What Is SPOC
+## What Is ARCS
 
-Every AI coding session starts fresh. SPOC fixes that by maintaining three persistent surfaces per project:
+Every AI coding session starts fresh. ARCS fixes that by maintaining three persistent surfaces per project:
 
 ```mermaid
 graph LR
-    CTX["spoc context\n──────────\noperating brief\ncurrent focus\nnext action"]
+    CTX["arcs context\n──────────\noperating brief\ncurrent focus\nnext action"]
 
     subgraph Q["Queue  (tasks.md + tasks/index.json)"]
         QD["backlog → in_progress → done\nimmediate work items"]
@@ -29,7 +31,7 @@ graph LR
     CTX --> M
 ```
 
-An agent calls `spoc brief` at session start and receives an **operating brief** (~890-byte routing envelope with `currentFocus`, `recommendedSurface`, and `nextAction`) — without reading a single source file.
+An agent calls `arcs brief` at session start and receives an **operating brief** (~890-byte routing envelope with `currentFocus`, `recommendedSurface`, and `nextAction`) — without reading a single source file.
 
 ---
 
@@ -40,7 +42,7 @@ An agent calls `spoc brief` at session start and receives an **operating brief**
 ```mermaid
 flowchart TD
     User(["User / Agent Request"])
-    Orch{"SPOC Orchestrator\nClassify intent"}
+    Orch{"ARCS Orchestrator\nClassify intent"}
 
     Init["INIT\nCreate project\nScan codebase\nPopulate docs & knowledge"]
     Brain["BRAINSTORM\nExplore state\nCreate plans + tasks\nGenerate diagram"]
@@ -49,7 +51,7 @@ flowchart TD
     Explore["EXPLORE\nList projects\nInspect status\n(read-only)"]
     Multi["MULTI\nChain workflows\nin parallel or sequence"]
 
-    DAG[("~/.spoc/\nProjects · Tasks · Plans\nKnowledge · Diagrams")]
+    DAG[("~/.arcs/\nProjects · Tasks · Plans\nKnowledge · Diagrams")]
 
     User --> Orch
     Orch -- "new project" --> Init
@@ -67,11 +69,11 @@ flowchart TD
 ### T0 Orientation
 
 ```bash
-spoc brief --lean --json
+arcs brief --lean --json
 # → currentFocus, recommendedSurface, nextAction (~890-byte routing envelope)
 ```
 
-The orchestrator calls `spoc brief` at the start of every session to orient without loading any source files. `--lean` strips timestamps for token efficiency.
+The orchestrator calls `arcs brief` at the start of every session to orient without loading any source files. `--lean` strips timestamps for token efficiency.
 
 ### Confidence Gate
 
@@ -79,7 +81,7 @@ Before any irreversible action (DAG write, code edit, plan creation), the orches
 
 ### Mutations
 
-Mutating commands run directly — no token, no proposal. Reads and writes share the same `spoc <command> [args] --json` shape.
+Mutating commands run directly — no token, no proposal. Reads and writes share the same `arcs <command> [args] --json` shape.
 
 ---
 
@@ -103,14 +105,10 @@ rtk init -g --opencode      # OpenCode plugin (instead of Claude Code)
 
 ## Quick Start
 
-> SPOC is not yet published to npm — install from source.
-
-**1. Clone and install**
+**1. Install from npm**
 
 ```bash
-git clone https://github.com/your-org/spoc.git
-cd spoc
-npm install
+npm install -g @rryando/arcs
 ```
 
 **2. Run the setup wizard**
@@ -121,26 +119,26 @@ npm run init
 
 The wizard:
 1. Builds the TypeScript source
-2. Registers the `spoc` CLI at `~/.local/bin/spoc`
-3. Creates `~/.spoc/` (project data store)
+2. Registers the `arcs` CLI at `~/.local/bin/arcs`
+3. Creates `~/.arcs/` (project data store)
 4. Deploys bundled agents + skills into `~/.config/opencode/`
 
 **3. Track a project**
 
-Open OpenCode in your desired project folder, then call `spoc init` to register it with SPOC:
+Open OpenCode in your desired project folder, then call `arcs init` to register it with ARCS:
 
 ```bash
-spoc init
+arcs init
 ```
 
 This creates the DAG structure for the project and registers the current directory as a workspace path.
 
-**4. Start using SPOC**
+**4. Start using ARCS**
 
-You'll see the **SPOC Orchestrator** listed as a selectable agent in OpenCode. Every session starts with an operating brief instead of a blank slate:
+You'll see the **ARCS Orchestrator** listed as a selectable agent in OpenCode. Every session starts with an operating brief instead of a blank slate:
 
 ```bash
-spoc context
+arcs context
 # → project overview, current focus, active plans, relevant knowledge
 ```
 
@@ -154,15 +152,15 @@ These are registered as selectable agents in OpenCode. You interact with them di
 
 | Agent | Token Mode | Description |
 |---|---|---|
-| **SPOC Orchestrator** | Full prose | Classifies intent, routes to workflows, delegates to sub-agents, writes DAG |
-| **SPOC Caveman** | ~65% fewer tokens | Identical capabilities; caveman-speak for chat narration only |
+| **ARCS Orchestrator** | Full prose | Classifies intent, routes to workflows, delegates to sub-agents, writes DAG |
+| **ARCS Caveman** | ~65% fewer tokens | Identical capabilities; caveman-speak for chat narration only |
 
 The orchestrator follows three phases on every request:
 1. **Classify** — detect intent (INIT / BRAINSTORM / EXECUTE / SYNC / EXPLORE / MULTI)
 2. **Route** — delegate to the right workflow and specialist sub-agents
 3. **Complete** — summarize what was done, current state, and next steps
 
-SPOC Caveman supports three intensity levels: `lite`, `full` (default), `ultra`. Code, tool arguments, DAG content, and commit messages are always full prose regardless of mode.
+ARCS Caveman supports three intensity levels: `lite`, `full` (default), `ultra`. Code, tool arguments, DAG content, and commit messages are always full prose regardless of mode.
 
 ### Sub-Agents
 
@@ -174,7 +172,7 @@ Dispatched automatically by the orchestrator. You do not interact with them dire
 | **tech-architect** | Architecture and analysis specialist. Deep structural reasoning, refactor guidance, trade-off evaluation, and root cause analysis without making hasty edits. | Haiku |
 | **qa-analyst** | Quality enforcement specialist. Proactive code audits, convention compliance, and verification gate enforcement. | Haiku |
 | **oncall-ops** | Debugging and diagnosis specialist. Finds root causes through systematic investigation, log triage, bisect, and performance profiling. | Opus |
-| **spoc-docs** | SPOC documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. | Opus |
+| **arcs-docs** | ARCS documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. | Opus |
 | **system-architect** | Architecture and design specialist. Module boundaries, dependency graphs, migration strategies, and cross-project design decisions. | Opus |
 | **code-reviewer** | Reviews code changes for production readiness. Catches correctness, maintainability, and testing issues. | Haiku |
 | **docs-researcher** | Handles documentation writing, research synthesis, and document-heavy analysis tasks. | Opus |
@@ -212,15 +210,15 @@ Skills are instruction sets loaded on demand. The orchestrator auto-layers them 
 | `systematic-debugging` | Any bug, test failure, or unexpected behavior |
 | `confidence-gate` | Before irreversible actions — self-score with citations |
 | `to-diagram` | Creating or updating a Mermaid plan diagram |
-| `init-project` | Initializing a new SPOC project into the DAG |
-| `caveman-commit` | Writing git commit messages in SPOC Caveman mode |
+| `init-project` | Initializing a new ARCS project into the DAG |
+| `caveman-commit` | Writing git commit messages in ARCS Caveman mode |
 
 ---
 
 ## Data Model
 
 ```
-~/.spoc/
+~/.arcs/
 ├── meta.json                    # Global registry — all project slugs
 └── projects/
     └── {slug}/
@@ -274,15 +272,15 @@ Node status is encoded via `classDef`:
 
 Registering a workspace path enables two features:
 
-**1. Context resolution** — `spoc context --path=/path/to/repo` matches the directory to its SPOC project and returns the operating brief, current focus, active plans, and relevant knowledge.
+**1. Context resolution** — `arcs context --path=/path/to/repo` matches the directory to its ARCS project and returns the operating brief, current focus, active plans, and relevant knowledge.
 
-**2. AGENTS.md generation** — `spoc sync-agents-md <slug>` assembles a coding guardrail document from three sources and symlinks it into each workspace:
+**2. AGENTS.md generation** — `arcs sync-agents-md <slug>` assembles a coding guardrail document from three sources and symlinks it into each workspace:
 
 | Source | Content |
 |---|---|
 | Coding discipline | Non-negotiable rules (DRY, single responsibility, etc.) |
 | Codebase analysis | LLM-provided scan of tech stack, patterns, file structure |
-| Project context | SPOC overview, current focus, dependencies, active plans |
+| Project context | ARCS overview, current focus, dependencies, active plans |
 
 ---
 
@@ -317,15 +315,15 @@ npm test && npm run typecheck && npm run lint
 | Pattern | Detail |
 |---|---|
 | Framework | Vitest |
-| DAG isolation | `withTempDataDir()` — each test gets a fresh `~/.spoc/` |
+| DAG isolation | `withTempDataDir()` — each test gets a fresh `~/.arcs/` |
 | No mocks | Core DAG I/O tests operate on real (temp) filesystem |
 | Test location | All tests in `test/` (not co-located with source) |
 
 ### Environment
 
 ```bash
-# Override data directory (default: ~/.spoc/)
-SPOC_DATA_DIR=/path/to/custom/dir spoc context
+# Override data directory (default: ~/.arcs/)
+ARCS_DATA_DIR=/path/to/custom/dir arcs context
 ```
 
 ---
@@ -336,18 +334,18 @@ SPOC_DATA_DIR=/path/to/custom/dir spoc context
 
 | Step | Command | Notes |
 |---|---|---|
-| 1. Edit | Modify `opencode/spoc/skills/` or `opencode/spoc/prompts/` | Source of truth is the repo |
+| 1. Edit | Modify `opencode/arcs/skills/` or `opencode/arcs/prompts/` | Source of truth is the repo |
 | 2. Build | `npm run build:opencode-bundle` | Produces hashes, runtime JSON |
-| 3. Lint | `spoc lint-bundle` | Must pass with zero errors |
-| 4. Dry-run | `spoc deploy-superpowers --dry-run` | Review `filesAdded / filesChanged / filesRemoved` |
-| 5. Deploy | `spoc deploy-superpowers` | Writes to `~/.config/opencode/` |
+| 3. Lint | `arcs lint-bundle` | Must pass with zero errors |
+| 4. Dry-run | `arcs deploy-superpowers --dry-run` | Review `filesAdded / filesChanged / filesRemoved` |
+| 5. Deploy | `arcs deploy-superpowers` | Writes to `~/.config/opencode/` |
 | 6. Restart | Restart OpenCode / IDE | Skills load at startup |
 
 ---
 
 ## Graphify Integration (Optional)
 
-Graphify performs AST-based static analysis of your codebase and ingests the results as SPOC knowledge entries — without any LLM API calls.
+Graphify performs AST-based static analysis of your codebase and ingests the results as ARCS knowledge entries — without any LLM API calls.
 
 See installation instructions at **https://github.com/safishamsi/graphify**.
 
@@ -363,20 +361,20 @@ See installation instructions at **https://github.com/safishamsi/graphify**.
 
 | Trigger | Action |
 |---|---|
-| `spoc init` | Full extraction → up to 20 knowledge proposals → creates DAG entries |
+| `arcs init` | Full extraction → up to 20 knowledge proposals → creates DAG entries |
 | SYNC workflow | Re-extracts, compares against existing entries, surfaces stale / new / drifted |
-| Ad-hoc | `spoc graphify-sync <slug>` — re-extracts codebase graph on demand |
+| Ad-hoc | `arcs graphify-sync <slug>` — re-extracts codebase graph on demand |
 
 Output: `graphify-out/graph.json` in workspace (auto-added to `.gitignore`).
 
-If graphify is not installed, SPOC operates normally — all graphify features are gated behind availability checks.
+If graphify is not installed, ARCS operates normally — all graphify features are gated behind availability checks.
 
 ---
 
 ## Project Structure
 
 ```
-spoc/
+arcs/
 ├── src/
 │   ├── index.ts                          # Main entry point — dispatches to CLI
 │   ├── cli/
@@ -386,20 +384,20 @@ spoc/
 │   │   ├── output-envelope.ts            # Structured JSON output ({ok, data} / {ok, code, message})
 │   │   ├── help-generator.ts             # Auto-generated help text from registry
 │   │   ├── dag-commands.ts               # LEGACY: thin delegation shell (backward-compat)
-│   │   ├── brief-renderer.ts             # Renders brief output for spoc brief command
+│   │   ├── brief-renderer.ts             # Renders brief output for arcs brief command
 │   │   ├── md-renderer.ts                # Markdown rendering utilities
 │   │   ├── bundle-installer.ts           # OpenCode bundle installer
 │   │   ├── setup.ts                      # Interactive setup wizard
 │   │   ├── lean-output.ts                # --lean flag support (strip timestamps)
-│   │   ├── spoc-orchestrate.ts           # Orchestrator prompt content
+│   │   ├── arcs-orchestrate.ts           # Orchestrator prompt content
 │   │   ├── status-dashboard.ts           # TTY status overview
 │   │   └── commands/                     # 17 focused command modules (≤400 lines each)
 │   │       ├── index.ts                  # Trigger all command registrations (side-effects)
 │   │       ├── brief.ts                  # T0 operating brief
-│   │       ├── next.ts                   # spoc next — get next task + related knowledge
-│   │       ├── done.ts                   # spoc done — mark task complete (--learn flag)
-│   │       ├── remember.ts              # spoc remember — capture knowledge (auto-classify)
-│   │       ├── status.ts                # spoc status — progress overview
+│   │       ├── next.ts                   # arcs next — get next task + related knowledge
+│   │       ├── done.ts                   # arcs done — mark task complete (--learn flag)
+│   │       ├── remember.ts              # arcs remember — capture knowledge (auto-classify)
+│   │       ├── status.ts                # arcs status — progress overview
 │   │       ├── project.ts                # project list, get, init, validate
 │   │       ├── project-updates.ts        # project update-doc, update-status, update-paths
 │   │       ├── task.ts                   # task list, get, create, transition, update, delete
@@ -435,13 +433,13 @@ spoc/
 │       ├── diagram-generator.ts          # Generate Mermaid diagrams from task metadata
 │       ├── errors.ts                     # Error factory functions
 │       └── file-lock.ts                  # Advisory file locking for concurrent writes
-├── opencode/spoc/
+├── opencode/arcs/
 │   ├── skills/                           # Agent skill instruction sets (15 skills)
 │   ├── prompts/                          # Sub-agent prompt definitions (8 agents)
 │   ├── manifest.json                     # Bundle install manifest
 │   └── bundle-runtime.json               # Curated runtime payload
 ├── scripts/
-│   ├── spoc-cli.mjs                      # CLI entry wrapper (bin)
+│   ├── arcs-cli.mjs                      # CLI entry wrapper (bin)
 │   └── build-opencode-bundle.mjs         # Build bundle
 └── test/                                 # Vitest test suite (62 files, 685 tests)
     └── helpers/

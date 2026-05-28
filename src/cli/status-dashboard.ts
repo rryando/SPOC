@@ -23,7 +23,7 @@ interface PlanInfo {
 }
 
 /**
- * Show a compact status dashboard when `spoc` is invoked with no args in a TTY.
+ * Show a compact status dashboard when `arcs` is invoked with no args in a TTY.
  */
 export async function showStatusDashboard(): Promise<void> {
   const cwd = process.cwd();
@@ -33,7 +33,7 @@ export async function showStatusDashboard(): Promise<void> {
   // 1. Find project matching cwd
   const project = findProject(projectsDir, dataDir, cwd);
   if (!project) {
-    console.log(pc.dim("No SPOC project found for this directory."));
+    console.log(pc.dim("No ARCS project found for this directory."));
     return;
   }
 
@@ -199,9 +199,9 @@ function resolveManageDiagramScript(): string | null {
   const candidates = [
     resolve(
       import.meta.dirname,
-      "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+      "../../opencode/arcs/skills/to-diagram/scripts/manage-diagram.mjs",
     ),
-    resolve(homedir(), ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs"),
+    resolve(homedir(), ".config/opencode/skills/arcs/to-diagram/scripts/manage-diagram.mjs"),
   ];
   for (const p of candidates) {
     if (existsSync(p)) return p;
@@ -218,7 +218,7 @@ function render(
   const innerWidth = WIDTH - 4; // inside box padding
 
   // Header box
-  const topLine = `┌─ ${pc.bold("SPOC")} ${"─".repeat(WIDTH - 7)}┐`;
+  const topLine = `┌─ ${pc.bold("ARCS")} ${"─".repeat(WIDTH - 7)}┐`;
   const botLine = `└${"─".repeat(WIDTH - 2)}┘`;
 
   const dirLine = padRight(`  Dir:     ${process.cwd()}`, innerWidth);
@@ -269,8 +269,8 @@ function render(
   // Hints
   console.log("");
   console.log(pc.dim("Hints:"));
-  console.log(pc.dim("  spoc diagram show <plan-id>    tree view"));
-  console.log(pc.dim("  spoc task <slug>               list tasks"));
+  console.log(pc.dim("  arcs diagram show <plan-id>    tree view"));
+  console.log(pc.dim("  arcs task <slug>               list tasks"));
 }
 
 function padRight(str: string, width: number): string {

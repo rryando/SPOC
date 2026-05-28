@@ -193,7 +193,7 @@ describe("CLI envelope format — batch", () => {
 
   it("--commands --json is wrapped in {ok,data} envelope", async () => {
     const { execSync } = await import("node:child_process");
-    const raw = execSync("node scripts/spoc-cli.mjs --commands --json", {
+    const raw = execSync("node scripts/arcs-cli.mjs --commands --json", {
       encoding: "utf8",
       cwd: `${import.meta.dirname}/..`,
     });

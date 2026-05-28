@@ -18,7 +18,7 @@ async function run(): Promise<void> {
   }
 
   // No recognized command
-  console.error("Unknown command. Run `spoc --help` for usage.");
+  console.error("Unknown command. Run `arcs --help` for usage.");
   process.exit(1);
 }
 

@@ -28,7 +28,7 @@ function requireProject(slug: string): CLIResult | string {
   const dir = getProjectDir(slug);
   if (!existsSync(dir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
   return dir;
@@ -126,7 +126,7 @@ async function handlePlanGet(
 
   if (!plan) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Plan "${planId}" not found`, {
-      hint: `Run 'spoc plan list ${slug}' to see available plans.`,
+      hint: `Run 'arcs plan list ${slug}' to see available plans.`,
     });
   }
 
@@ -313,7 +313,7 @@ async function handlePlanUpdateBody(
   const projectDir = result;
   if (!bodyInline && !bodyFile && !bodyStdin) {
     return failure("missing_param", "Either --body, --body-file, or --body-stdin is required", {
-      usage: "spoc plan update-body <slug> <planId> --body=<content>",
+      usage: "arcs plan update-body <slug> <planId> --body=<content>",
     });
   }
   if (bodyFile && !existsSync(bodyFile)) {
@@ -325,7 +325,7 @@ async function handlePlanUpdateBody(
   const plan = planIndex.plans.find((p) => p.id === planId || p.normalizedId === normalizedId);
   if (!plan) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Plan "${planId}" not found`, {
-      hint: `Run 'spoc plan list ${slug}' to see available plans.`,
+      hint: `Run 'arcs plan list ${slug}' to see available plans.`,
     });
   }
 
@@ -386,7 +386,7 @@ async function handlePlanDelete(
   const plan = planIndex.plans.find((p) => p.id === planId || p.normalizedId === planId);
   if (!plan) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Plan "${planId}" not found`, {
-      hint: `Run 'spoc plan list ${slug}' to see available plans.`,
+      hint: `Run 'arcs plan list ${slug}' to see available plans.`,
     });
   }
 

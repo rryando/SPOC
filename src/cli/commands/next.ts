@@ -2,8 +2,8 @@
 // next — Tell the user what to work on next with relevant context
 // ---------------------------------------------------------------------------
 
-import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
 import { resolveProject } from "../../utils/project-resolver.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
 import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
@@ -81,7 +81,7 @@ async function handleNext(
   if (brief.why) contextParts.push(brief.why);
   const context = contextParts.join(" ") || `Work on: ${task.title}`;
 
-  const doneCommand = `spoc done ${slug} ${task.id}`;
+  const doneCommand = `arcs done ${slug} ${task.id}`;
 
   // Fetch top 2 related knowledge entries
   const knowledgeResults = retrievalIndex.searchKnowledge(task.title, 2);

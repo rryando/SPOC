@@ -5,9 +5,9 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/spoc");
+const bundleRoot = resolve(root, "opencode/arcs");
 const skillsRoot = resolve(bundleRoot, "skills");
-const runtimeManifestPath = resolve(root, "opencode/spoc/bundle-runtime.json");
+const runtimeManifestPath = resolve(root, "opencode/arcs/bundle-runtime.json");
 
 function expectRelativePathInBundle(relativePath: string, label: string) {
   const looksWindowsAbsolute = /^[A-Za-z]:[\\/]/.test(relativePath) || /^\\\\/.test(relativePath);
@@ -75,8 +75,8 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(outputRoot, "extra/nested.txt", "remove nested");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+        ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+        ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).toBe(0);
@@ -116,8 +116,8 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(outputRoot, "skills/planner/SKILL.md", "skill");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+        ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+        ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);
@@ -160,8 +160,8 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+          ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+          ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status, invalidPathCase.label).not.toBe(0);
@@ -205,8 +205,8 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+          ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+          ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -246,8 +246,8 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+          ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+          ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -303,8 +303,8 @@ describe("opencode bundle builder", () => {
         writeFileSync(runtimeManifestPath, JSON.stringify(invalidPathCase.manifest, null, 2));
 
         const result = runBundleBuild({
-          SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-          SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+          ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+          ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
         });
 
         expect(result.status).not.toBe(0);
@@ -332,8 +332,8 @@ describe("opencode bundle builder", () => {
       writeRuntimeFile(outputRoot, "agents/reviews/reviewer.md", "reviewer");
 
       const result = runBundleBuild({
-        SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-        SPOC_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
+        ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+        ARCS_BUNDLE_RUNTIME_MANIFEST: runtimeManifestPath,
       });
 
       expect(result.status).not.toBe(0);

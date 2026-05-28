@@ -33,7 +33,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
+        sourceRoot: "~/.config/opencode/skills/arcs",
         skills: { planner: ["SKILL.md", "notes.md"] },
         agents: [],
         plugin: [],
@@ -73,7 +73,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
+        sourceRoot: "~/.config/opencode/skills/arcs",
         skills: { planner: ["SKILL.md"] },
         agents: [],
         plugin: [],
@@ -112,7 +112,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
+        sourceRoot: "~/.config/opencode/skills/arcs",
         skills: { planner: ["notes.md"] },
         agents: [],
         plugin: [],
@@ -150,7 +150,7 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
+        sourceRoot: "~/.config/opencode/skills/arcs",
         skills: { "to-diagram": ["SKILL.md", "scripts/manage-diagram.mjs"] },
         agents: [],
         plugin: [],
@@ -183,22 +183,22 @@ describe("bundle linter", () => {
     }
   });
 
-  it("reports spoc-dashboard missing package.json type field", () => {
+  it("reports arcs-dashboard missing package.json type field", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-lint-pkg-"));
     const bundleRoot = resolve(tempRoot, "bundle");
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
-        skills: { "spoc-dashboard": ["SKILL.md", "package.json"] },
+        sourceRoot: "~/.config/opencode/skills/arcs",
+        skills: { "arcs-dashboard": ["SKILL.md", "package.json"] },
         agents: [],
         plugin: [],
       };
       writeFile(bundleRoot, "bundle-runtime.json", JSON.stringify(manifest, null, 2));
       writeFile(bundleRoot, "manifest.json", JSON.stringify({ bundleId: "test" }));
-      writeFile(bundleRoot, "skills/spoc-dashboard/SKILL.md", "skill");
+      writeFile(bundleRoot, "skills/arcs-dashboard/SKILL.md", "skill");
       // package.json without type field
-      writeFile(bundleRoot, "skills/spoc-dashboard/package.json", JSON.stringify({}));
+      writeFile(bundleRoot, "skills/arcs-dashboard/package.json", JSON.stringify({}));
 
       const proc = spawnSync("node", [linterScript], {
         cwd: root,
@@ -225,7 +225,7 @@ describe("bundle linter", () => {
 
   // config-drift detection removed: the repo bundle is the source of truth,
   // and there is no "config root" mirror to compare against. Use
-  // `spoc deploy-superpowers --dry-run` to preview deployment-target diffs.
+  // `arcs deploy-superpowers --dry-run` to preview deployment-target diffs.
 
   it("exits 0 with no issues on clean bundle", () => {
     const tempRoot = mkdtempSync(resolve(tmpdir(), "bundle-lint-clean-"));
@@ -233,14 +233,14 @@ describe("bundle linter", () => {
 
     try {
       const manifest = {
-        sourceRoot: "~/.config/opencode/skills/spoc",
+        sourceRoot: "~/.config/opencode/skills/arcs",
         skills: { planner: ["SKILL.md"] },
         agents: [],
         plugin: [],
       };
       writeFile(bundleRoot, "bundle-runtime.json", JSON.stringify(manifest, null, 2));
       writeFile(bundleRoot, "manifest.json", JSON.stringify({ bundleId: "test" }));
-      writeFile(bundleRoot, ".opencode/plugins/spoc.js", "plugin");
+      writeFile(bundleRoot, ".opencode/plugins/arcs.js", "plugin");
       writeFile(bundleRoot, "skills/planner/SKILL.md", "skill");
 
       const proc = spawnSync("node", [linterScript], {

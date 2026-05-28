@@ -48,7 +48,7 @@ describe("CLI Router", () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const result = await handleCli(["task", "--help"]);
     expect(result).toBe(true);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Usage: spoc"));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Usage: arcs"));
     consoleSpy.mockRestore();
   });
 

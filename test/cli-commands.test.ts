@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleDagCommand } from "../src/cli/dag-commands.js";
 
 function createTempDataDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "spoc-cli-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcs-cli-test-"));
   // Seed root meta
   writeFileSync(
     join(dir, "meta.json"),
@@ -117,7 +117,7 @@ let stderr: string[];
 
 beforeEach(() => {
   dataDir = createTempDataDir();
-  process.env.SPOC_DATA_DIR = dataDir;
+  process.env.ARCS_DATA_DIR = dataDir;
   stdout = [];
   stderr = [];
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -129,7 +129,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.SPOC_DATA_DIR;
+  delete process.env.ARCS_DATA_DIR;
   vi.restoreAllMocks();
 });
 
@@ -137,7 +137,7 @@ afterEach(() => {
 // context command
 // ---------------------------------------------------------------------------
 
-describe("spoc context", () => {
+describe("arcs context", () => {
   it("resolves project context from workspace path", async () => {
     const result = await handleDagCommand("context", ["/tmp/test-workspace"]);
     expect(result).toBe(true);
@@ -172,7 +172,7 @@ describe("spoc context", () => {
 // task list
 // ---------------------------------------------------------------------------
 
-describe("spoc task list", () => {
+describe("arcs task list", () => {
   it("lists all tasks for a project", async () => {
     const result = await handleDagCommand("task", ["list", "--slug=test-proj"]);
     expect(result).toBe(true);
@@ -216,7 +216,7 @@ describe("spoc task list", () => {
 // task get
 // ---------------------------------------------------------------------------
 
-describe("spoc task get", () => {
+describe("arcs task get", () => {
   it("gets a single task", async () => {
     const result = await handleDagCommand("task", ["get", "test-proj", "fix-bug"]);
     expect(result).toBe(true);
@@ -244,7 +244,7 @@ describe("spoc task get", () => {
 // task transition
 // ---------------------------------------------------------------------------
 
-describe("spoc task transition", () => {
+describe("arcs task transition", () => {
   it("transitions a task status", async () => {
     const result = await handleDagCommand("task", [
       "transition",
@@ -287,7 +287,7 @@ describe("spoc task transition", () => {
 // search
 // ---------------------------------------------------------------------------
 
-describe("spoc search", () => {
+describe("arcs search", () => {
   it("searches knowledge by query", async () => {
     const result = await handleDagCommand("search", ["test-proj", "api"]);
     expect(result).toBe(true);

@@ -3,7 +3,7 @@ name: update-docs
 description: Update project documents with structured content
 ---
 
-> **Canonical source:** `src/cli/spoc-orchestrate.ts` `## Content Guidelines`.
+> **Canonical source:** `src/cli/arcs-orchestrate.ts` `## Content Guidelines`.
 
 ## When
 
@@ -13,18 +13,18 @@ Codebase analyzed and findings need recording, task statuses changed, dependenci
 
 ```mermaid
 flowchart TD
-    A[Read current doc: spoc project get] --> B[Prepare updated content]
+    A[Read current doc: arcs project get] --> B[Prepare updated content]
     B --> C[Present summary to user]
-    C -->|confirmed| D[spoc project update-doc]
-    D --> E[Verify: spoc project get]
+    C -->|confirmed| D[arcs project update-doc]
+    D --> E[Verify: arcs project get]
 ```
 
 ## CLI Primer
 
 ```bash
-spoc <command> --json
+arcs <command> --json
 ```
-Discovery: `spoc --commands --json`
+Discovery: `arcs --commands --json`
 
 ## Content Guidelines
 
@@ -39,20 +39,20 @@ Discovery: `spoc --commands --json`
 
 Use structured plans for feature work that spans multiple tasks. Create via:
 ```bash
-spoc plan create <slug> "Title" --summary="..." --keywords="implementation-plan" --json
-spoc plan update-body <slug> <planId> --body="..." --json
+arcs plan create <slug> "Title" --summary="..." --keywords="implementation-plan" --json
+arcs plan update-body <slug> <planId> --body="..." --json
 ```
 
-List existing: `spoc plan list <slug> --json`
+List existing: `arcs plan list <slug> --json`
 
 ## Structured Knowledge Entries
 
 For durable project memory (lessons, gotchas, patterns, architecture):
 ```bash
-spoc knowledge create <slug> "Title" --kind=<kind> --summary="..." --body="..." --json
+arcs knowledge create <slug> "Title" --kind=<kind> --summary="..." --body="..." --json
 ```
 
-List existing: `spoc knowledge list <slug> --json`
+List existing: `arcs knowledge list <slug> --json`
 
 | Section | What to include |
 |---------|----------------|

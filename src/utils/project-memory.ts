@@ -10,7 +10,7 @@
  * All original exports are preserved here for backward compatibility.
  */
 
-export * from "./storage-utils.js";
-export * from "./plan-store.js";
 export * from "./knowledge-store.js";
+export * from "./plan-store.js";
+export * from "./storage-utils.js";
 export * from "./task-store.js";

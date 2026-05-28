@@ -2,14 +2,14 @@ import { execSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { detectGraphify } from "../utils/graphify.js";
-import { detectSpocBundleInstall, installSpocBundle } from "./bundle-installer.js";
+import { detectArcsBundleInstall, installArcsBundle } from "./bundle-installer.js";
 import {
+  type ArcsConfig,
   extractModelPreFills,
   getAvailableModels,
   type ModelTierConfig,
   type ProviderModels,
   readOpenCodeConfig,
-  type SpocConfig,
   writeConfig,
 } from "./config.js";
 import {
@@ -33,7 +33,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     execSync("which opencode", { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
   } catch {
     p.cancel(
-      "OpenCode is not installed or not on PATH. SPOC requires OpenCode.\nInstall it from: https://opencode.ai",
+      "OpenCode is not installed or not on PATH. ARCS requires OpenCode.\nInstall it from: https://opencode.ai",
     );
     process.exit(1);
   }
@@ -41,7 +41,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   const isInit = mode === "init";
 
   console.clear();
-  p.intro(color.bgCyan(color.black(isInit ? " SPOC setup " : " SPOC config ")));
+  p.intro(color.bgCyan(color.black(isInit ? " ARCS setup " : " ARCS config ")));
 
   // ── Model configuration ───────────────────────────────────────────────────
   const openCodeConfig = await readOpenCodeConfig();
@@ -74,7 +74,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   }
 
   p.note(
-    "Used by: software-engineer, docs-researcher, spoc-docs, oncall-ops, system-architect, plan, general",
+    "Used by: software-engineer, docs-researcher, arcs-docs, oncall-ops, system-architect, plan, general",
     "Heavy tier agents",
   );
 
@@ -89,7 +89,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     process.exit(0);
   }
 
-  p.note("Used by: build, SPOC Orchestrator, SPOC Caveman", "Standard tier agents");
+  p.note("Used by: build, ARCS Orchestrator, ARCS Caveman", "Standard tier agents");
 
   const lightModel = await selectModel(
     "Light/fast model (read-only, exploration)",
@@ -127,7 +127,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
     const agentTiers: Array<{ name: string; tier: "heavy" | "standard" | "light" }> = [
       { name: "software-engineer", tier: "heavy" },
       { name: "docs-researcher", tier: "heavy" },
-      { name: "spoc-docs", tier: "heavy" },
+      { name: "arcs-docs", tier: "heavy" },
       { name: "oncall-ops", tier: "heavy" },
       { name: "system-architect", tier: "heavy" },
       { name: "plan", tier: "heavy" },
@@ -167,12 +167,12 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
   }
 
   // ── Build config ──────────────────────────────────────────────────────────
-  const config: SpocConfig = {
+  const config: ArcsConfig = {
     version: "1",
     ides: ["opencode"],
   };
 
-  // ── Write SPOC config ───────────────────────────────────────────────────
+  // ── Write ARCS config ───────────────────────────────────────────────────
   const s = p.spinner();
   s.start("Writing configuration…");
   writeConfig(config);
@@ -201,7 +201,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       );
     } else {
       const shouldRegister = await p.confirm({
-        message: `Register ${color.cyan("SPOC - (Orchestrator)")} and ${color.cyan("SPOC - Caveman")} as primary agents in OpenCode? (Tab-switchable alongside Build/Plan)`,
+        message: `Register ${color.cyan("ARCS - (Orchestrator)")} and ${color.cyan("ARCS - Caveman")} as primary agents in OpenCode? (Tab-switchable alongside Build/Plan)`,
         initialValue: true,
       });
 
@@ -220,7 +220,7 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
             `${color.green("✔")} Wrote orchestrator prompt to ${color.dim(displayPath(agentResult.promptPath))}`,
             `${color.green("✔")} Wrote Caveman prompt to ${color.dim(displayPath(agentResult.cavemanPromptPath))}`,
             "",
-            `Switch to ${color.cyan("SPOC - (Orchestrator)")} or ${color.cyan("SPOC - Caveman")} with ${color.bold("Tab")} in OpenCode.`,
+            `Switch to ${color.cyan("ARCS - (Orchestrator)")} or ${color.cyan("ARCS - Caveman")} with ${color.bold("Tab")} in OpenCode.`,
             `${color.dim("Caveman = same capabilities, ~65% fewer output tokens.")}`,
           ].join("\n"),
           "OpenCode Agent",
@@ -233,18 +233,18 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
 
   if (selectedOpenCode && orchestrateEnabled && !opencodeAgentActive) {
     p.note(
-      `${color.yellow("⊘")} Skipped bundled OpenCode SPOC Bundle install because the user declined SPOC Orchestrator registration`,
-      "OpenCode SPOC Bundle",
+      `${color.yellow("⊘")} Skipped bundled OpenCode ARCS Bundle install because the user declined ARCS Orchestrator registration`,
+      "OpenCode ARCS Bundle",
     );
   }
 
   if (selectedOpenCode && orchestrateEnabled && opencodeAgentActive) {
-    const detection = detectSpocBundleInstall();
+    const detection = detectArcsBundleInstall();
 
     if (detection.state === "foreign-existing") {
       const shouldReplace = await p.confirm({
         message:
-          "Replace the active OpenCode SPOC bundle setup with the bundled SPOC-customized version? Future spoc config runs will keep it synced.",
+          "Replace the active OpenCode ARCS bundle setup with the bundled ARCS-customized version? Future arcs config runs will keep it synced.",
         initialValue: true,
       });
 
@@ -254,17 +254,17 @@ export async function runSetup(mode: "init" | "config"): Promise<void> {
       }
 
       if (shouldReplace) {
-        const result = installSpocBundle({ autoConfirmReplacement: true });
-        p.note(result.summary, "OpenCode SPOC Bundle");
+        const result = installArcsBundle({ autoConfirmReplacement: true });
+        p.note(result.summary, "OpenCode ARCS Bundle");
       } else {
         p.note(
-          `${color.yellow("⊘")} Skipped OpenCode bundled SPOC Bundle install`,
-          "OpenCode SPOC Bundle",
+          `${color.yellow("⊘")} Skipped OpenCode bundled ARCS Bundle install`,
+          "OpenCode ARCS Bundle",
         );
       }
     } else {
-      const result = installSpocBundle({ autoConfirmReplacement: false });
-      p.note(result.summary, "OpenCode SPOC Bundle");
+      const result = installArcsBundle({ autoConfirmReplacement: false });
+      p.note(result.summary, "OpenCode ARCS Bundle");
     }
   }
 

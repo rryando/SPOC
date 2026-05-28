@@ -35,7 +35,7 @@ export function generateDiagramFromTasks(planId: string, tasks: TaskMeta[]): Gen
   const lines: string[] = [
     `%% plan: ${planId}`,
     `%% status: ${statusLine}`,
-    `%% ready: (run: spoc diagram ready ${planId})`,
+    `%% ready: (run: arcs diagram ready ${planId})`,
     `%% next-action: Start first backlog task`,
     "",
   ];

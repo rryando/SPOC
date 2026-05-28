@@ -26,7 +26,7 @@ export interface CommandDiscovery {
 
 export function generateCommandHelp(def: CommandDef): string {
   const lines: string[] = [];
-  lines.push(`spoc ${def.path} — ${def.description}`);
+  lines.push(`arcs ${def.path} — ${def.description}`);
   lines.push("");
 
   // Build usage line
@@ -45,7 +45,7 @@ export function generateCommandHelp(def: CommandDef): string {
   }
   positionals.sort((a, b) => a[0] - b[0]);
 
-  const usageParts = [`spoc ${def.path}`];
+  const usageParts = [`arcs ${def.path}`];
   for (const [, name] of positionals) usageParts.push(`<${name}>`);
   for (const [name, p] of requiredFlags) usageParts.push(`--${name}=${p.type.toUpperCase()}`);
   for (const [name, p] of optionalFlags) usageParts.push(`[--${name}=${p.type.toUpperCase()}]`);
@@ -121,6 +121,6 @@ export function formatCommandsDiscovery(discovery: CommandDiscovery, json: boole
     lines.push(`  ${cmd.path.padEnd(maxPath + 2)}${cmd.description}`);
   }
   lines.push("");
-  lines.push("Use 'spoc <command> --help' for details.");
+  lines.push("Use 'arcs <command> --help' for details.");
   return lines.join("\n");
 }

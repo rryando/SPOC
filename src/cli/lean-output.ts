@@ -58,7 +58,7 @@ export function leanify(obj: unknown): unknown {
  */
 export function isLeanMode(args: string[]): boolean {
   if (args.includes("--lean")) return true;
-  if (process.env.SPOC_LEAN === "1") return true;
+  if (process.env.ARCS_LEAN === "1") return true;
   return false;
 }
 

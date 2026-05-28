@@ -9,16 +9,16 @@ import {
 } from "./lib/bundle-helpers.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-const defaultManifestPath = resolve(repoRoot, "opencode/spoc/bundle-runtime.json");
-const defaultOutputRoot = resolve(repoRoot, "opencode/spoc");
+const defaultManifestPath = resolve(repoRoot, "opencode/arcs/bundle-runtime.json");
+const defaultOutputRoot = resolve(repoRoot, "opencode/arcs");
 // Files that are repo-authored and must not be pruned. The repo bundle
 // directory IS the source of truth — there is no external mirror.
 const preservedOutputFiles = new Set([
   "manifest.json",
   "bundle-runtime.json",
-  ".opencode/plugins/spoc.js",
-  // SPOC-native skills (authored in this repo, no upstream source)
-  // init-project skill — SPOC-native (mirrors orchestrator INIT workflow with
+  ".opencode/plugins/arcs.js",
+  // ARCS-native skills (authored in this repo, no upstream source)
+  // init-project skill — ARCS-native (mirrors orchestrator INIT workflow with
   // graphify sub-flow, typed-agent dispatch, knowledge categories).
   "skills/init-project/SKILL.md",
   // Caveman commit skill — adapted from https://github.com/JuliusBrussee/caveman (MIT).
@@ -28,17 +28,17 @@ const preservedOutputFiles = new Set([
   "prompts/tech-architect.txt",
   "prompts/qa-analyst.txt",
   "prompts/oncall-ops.txt",
-  "prompts/spoc-docs.txt",
+  "prompts/arcs-docs.txt",
   "prompts/system-architect.txt",
   "prompts/code-reviewer.txt",
   "prompts/docs-researcher.txt",
   "prompts/devil-advocate.txt",
-  // Orchestrator prompt files — generated from src/cli/spoc-orchestrate*.ts during
+  // Orchestrator prompt files — generated from src/cli/arcs-orchestrate*.ts during
   // bundle build (see generateOrchestratorPrompts() below). TS modules remain the
   // canonical source; these .txt files are committed mirrors so the bundle is
   // self-describing and all prompts live in one directory.
-  "prompts/spoc-orchestrate.txt",
-  "prompts/spoc-orchestrate-caveman.txt",
+  "prompts/arcs-orchestrate.txt",
+  "prompts/arcs-orchestrate-caveman.txt",
 ]);
 
 function ensureParentDirectory(filePath) {
@@ -69,25 +69,24 @@ function pruneUndeclaredFiles(rootPath, allowedFiles) {
 let defaultOutputRootCurrent = defaultOutputRoot;
 
 /**
- * Generates the SPOC Orchestrator and SPOC Caveman prompt .txt files into
- * <outputRoot>/prompts/. The TypeScript modules src/cli/spoc-orchestrate.ts
- * and src/cli/spoc-orchestrate-caveman.ts remain the canonical source; these
+ * Generates the ARCS Orchestrator and ARCS Caveman prompt .txt files into
+ * <outputRoot>/prompts/. The TypeScript modules src/cli/arcs-orchestrate.ts
+ * and src/cli/arcs-orchestrate-caveman.ts remain the canonical source; these
  * .txt files are committed mirrors so the bundle is self-describing alongside
  * the static sub-agent prompts.
  *
- * Requires `tsc` to have run first (dist/cli/spoc-orchestrate.js must exist).
+ * Requires `tsc` to have run first (dist/cli/arcs-orchestrate.js must exist).
  * package.json's build:opencode-bundle chains `tsc` before this script.
  */
 async function generateOrchestratorPrompts(outputRoot) {
-  const orchestrateModulePath = resolve(repoRoot, "dist/cli/spoc-orchestrate.js");
-  const cavemanModulePath = resolve(repoRoot, "dist/cli/spoc-orchestrate-caveman.js");
+  const orchestrateModulePath = resolve(repoRoot, "dist/cli/arcs-orchestrate.js");
+  const cavemanModulePath = resolve(repoRoot, "dist/cli/arcs-orchestrate-caveman.js");
 
   if (!existsSync(orchestrateModulePath) || !existsSync(cavemanModulePath)) {
     throw new Error(
       `Compiled orchestrator modules missing. Run \`npm run build\` before bundle build.\n` +
         `  Expected: ${orchestrateModulePath}\n` +
-        `  Expected: ${cavemanModulePath}`,
-    );
+        `  Expected: ${cavemanModulePath}`,    );
   }
 
   const orchestrateModule = await import(pathToFileURL(orchestrateModulePath).href);
@@ -106,8 +105,8 @@ async function generateOrchestratorPrompts(outputRoot) {
   const promptsDir = resolve(outputRoot, "prompts");
   mkdirSync(promptsDir, { recursive: true });
 
-  const orchestratePath = resolve(promptsDir, "spoc-orchestrate.txt");
-  const cavemanPath = resolve(promptsDir, "spoc-orchestrate-caveman.txt");
+  const orchestratePath = resolve(promptsDir, "arcs-orchestrate.txt");
+  const cavemanPath = resolve(promptsDir, "arcs-orchestrate-caveman.txt");
 
   // Banner prepended to every generated prompt file. Uses HTML comment syntax
   // so it's invisible when rendered as markdown but obvious to anyone opening
@@ -123,23 +122,23 @@ async function generateOrchestratorPrompts(outputRoot) {
 
   writeFileSync(
     orchestratePath,
-    `${banner("src/cli/spoc-orchestrate.ts")}${orchestrateText}\n`,
+    `${banner("src/cli/arcs-orchestrate.ts")}${orchestrateText}\n`,
     "utf-8",
   );
   writeFileSync(
     cavemanPath,
-    `${banner("src/cli/spoc-orchestrate-caveman.ts")}${cavemanText}\n`,
+    `${banner("src/cli/arcs-orchestrate-caveman.ts")}${cavemanText}\n`,
     "utf-8",
   );
 }
 
 async function main() {
-  const manifestPath = process.env.SPOC_BUNDLE_RUNTIME_MANIFEST
-    ? resolve(repoRoot, process.env.SPOC_BUNDLE_RUNTIME_MANIFEST)
+  const manifestPath = process.env.ARCS_BUNDLE_RUNTIME_MANIFEST
+    ? resolve(repoRoot, process.env.ARCS_BUNDLE_RUNTIME_MANIFEST)
     : defaultManifestPath;
   const runtimeManifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  const outputRoot = process.env.SPOC_BUNDLE_OUTPUT_ROOT
-    ? resolve(repoRoot, process.env.SPOC_BUNDLE_OUTPUT_ROOT)
+  const outputRoot = process.env.ARCS_BUNDLE_OUTPUT_ROOT
+    ? resolve(repoRoot, process.env.ARCS_BUNDLE_OUTPUT_ROOT)
     : defaultOutputRoot;
 
   const declaredFiles = listDeclaredFiles(runtimeManifest);

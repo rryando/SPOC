@@ -222,7 +222,8 @@ async function handleProjectUpdatePaths(
 
 defineCommand({
   path: "project write-checkpoint",
-  description: "Write sync checkpoint fields (lastSyncedAt, lastSyncGitCommit, lastSyncStats) to project meta.json",
+  description:
+    "Write sync checkpoint fields (lastSyncedAt, lastSyncGitCommit, lastSyncStats) to project meta.json",
   mutation: true,
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },

@@ -38,7 +38,7 @@ function requireProject(slug: string): CLIResult | string {
   const dir = getProjectDir(slug);
   if (!existsSync(dir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
   return dir;
@@ -437,7 +437,7 @@ async function handleKnowledgeDelete(
   const entry = knowledgeIndex.entries.find((e) => e.id === entryId || e.normalizedId === entryId);
   if (!entry) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Knowledge entry "${entryId}" not found`, {
-      hint: `Run 'spoc knowledge list ${slug}' to see available entries.`,
+      hint: `Run 'arcs knowledge list ${slug}' to see available entries.`,
     });
   }
   if (flags.dryRun) {

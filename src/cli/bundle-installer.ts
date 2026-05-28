@@ -20,14 +20,14 @@ import {
 } from "../utils/json-schemas.js";
 import { PACKAGE_ROOT } from "../utils/paths.js";
 
-export type InstallState = "absent" | "spoc-managed" | "foreign-existing";
+export type InstallState = "absent" | "arcs-managed" | "foreign-existing";
 
 export interface ConfigMerge {
   path: string[];
   value: unknown;
 }
 
-export interface SourceSpocBundleManifest {
+export interface SourceArcsBundleManifest {
   bundleId: string;
   installMode: string;
   bundleVersionSource: string;
@@ -51,7 +51,7 @@ export interface SourceSpocBundleManifest {
   };
 }
 
-export interface InstalledSpocBundleManifest {
+export interface InstalledArcsBundleManifest {
   bundleId: string;
   installMode: string;
   sourceBundleVersion: string;
@@ -62,7 +62,7 @@ export interface InstalledSpocBundleManifest {
 
 export interface InstallDetectionResult {
   state: InstallState;
-  installedManifest: InstalledSpocBundleManifest | null;
+  installedManifest: InstalledArcsBundleManifest | null;
 }
 
 export interface SourceBundleInfo {
@@ -128,7 +128,7 @@ export function opencodeRootDir(): string {
 }
 
 function sourceBundleRootDir(): string {
-  return resolve(PACKAGE_ROOT, "opencode", "spoc");
+  return resolve(PACKAGE_ROOT, "opencode", "arcs");
 }
 
 function sourceBundlePath(relativePath: string): string {
@@ -139,25 +139,25 @@ function opencodePath(relativePath: string): string {
   return resolve(opencodeRootDir(), relativePath);
 }
 
-export function spocInstalledManifestPath(): string {
-  return opencodePath(".spoc-bundle.json");
+export function arcsInstalledManifestPath(): string {
+  return opencodePath(".arcs-bundle.json");
 }
 
 export function opencodeConfigPath(): string {
   return opencodePath("opencode.json");
 }
 
-export function readSourceSpocBundleManifest(): SourceSpocBundleManifest {
+export function readSourceArcsBundleManifest(): SourceArcsBundleManifest {
   const manifestPath = sourceBundlePath("manifest.json");
   const raw = readJsonSafeSync<unknown>(manifestPath);
   if (raw === undefined) {
     throw new Error(`Failed to read source manifest at ${manifestPath}`);
   }
-  return validateJson(raw, opencodeSourceManifestSchema, manifestPath) as SourceSpocBundleManifest;
+  return validateJson(raw, opencodeSourceManifestSchema, manifestPath) as SourceArcsBundleManifest;
 }
 
-export function readInstalledSpocBundleManifest(): InstalledSpocBundleManifest | null {
-  const manifestPath = spocInstalledManifestPath();
+export function readInstalledArcsBundleManifest(): InstalledArcsBundleManifest | null {
+  const manifestPath = arcsInstalledManifestPath();
   if (!existsSync(manifestPath)) {
     return null;
   }
@@ -167,8 +167,8 @@ export function readInstalledSpocBundleManifest(): InstalledSpocBundleManifest |
   return validateJson(raw, opencodeInstalledManifestSchema, manifestPath);
 }
 
-export function writeInstalledSpocBundleManifest(manifest: InstalledSpocBundleManifest): void {
-  writeJsonFile(spocInstalledManifestPath(), manifest);
+export function writeInstalledArcsBundleManifest(manifest: InstalledArcsBundleManifest): void {
+  writeJsonFile(arcsInstalledManifestPath(), manifest);
 }
 
 function configMergeExists(config: Record<string, unknown>, merge: ConfigMerge): boolean {
@@ -185,7 +185,7 @@ function configMergeExists(config: Record<string, unknown>, merge: ConfigMerge):
   return JSON.stringify(current) === JSON.stringify(merge.value);
 }
 
-function hasAnyExistingInstallEvidence(sourceManifest: SourceSpocBundleManifest): boolean {
+function hasAnyExistingInstallEvidence(sourceManifest: SourceArcsBundleManifest): boolean {
   if (sourceManifest.ownedPaths.some((ownedPath) => existsSync(opencodePath(ownedPath)))) {
     return true;
   }
@@ -210,14 +210,14 @@ function hasAnyExistingInstallEvidence(sourceManifest: SourceSpocBundleManifest)
   return false;
 }
 
-function allOwnedPathsExist(manifest: InstalledSpocBundleManifest): boolean {
+function allOwnedPathsExist(manifest: InstalledArcsBundleManifest): boolean {
   return manifest.ownedPaths.every((ownedPath) => existsSync(opencodePath(ownedPath)));
 }
 
-export function detectSpocBundleInstall(
-  sourceManifest: SourceSpocBundleManifest = readSourceSpocBundleManifest(),
+export function detectArcsBundleInstall(
+  sourceManifest: SourceArcsBundleManifest = readSourceArcsBundleManifest(),
 ): InstallDetectionResult {
-  const installedManifest = readInstalledSpocBundleManifest();
+  const installedManifest = readInstalledArcsBundleManifest();
 
   if (installedManifest) {
     const validManagedInstall =
@@ -228,7 +228,7 @@ export function detectSpocBundleInstall(
         hasAnyExistingInstallEvidence(sourceManifest));
 
     return {
-      state: validManagedInstall ? "spoc-managed" : "foreign-existing",
+      state: validManagedInstall ? "arcs-managed" : "foreign-existing",
       installedManifest,
     };
   }
@@ -268,8 +268,8 @@ function listBundleFiles(dir: string = sourceBundleRootDir()): string[] {
   );
 }
 
-export function getSourceSpocBundleInfo(): SourceBundleInfo {
-  const manifest = readSourceSpocBundleManifest();
+export function getSourceArcsBundleInfo(): SourceBundleInfo {
+  const manifest = readSourceArcsBundleManifest();
   const hash = createHash("sha256");
 
   for (const file of listBundleFiles()) {
@@ -286,10 +286,10 @@ export function getSourceSpocBundleInfo(): SourceBundleInfo {
   };
 }
 
-export function buildSpocBundleInstallPlan(): InstallPlan {
-  const sourceManifest = readSourceSpocBundleManifest();
-  const installedManifest = readInstalledSpocBundleManifest();
-  const bundleInfo = getSourceSpocBundleInfo();
+export function buildArcsBundleInstallPlan(): InstallPlan {
+  const sourceManifest = readSourceArcsBundleManifest();
+  const installedManifest = readInstalledArcsBundleManifest();
+  const bundleInfo = getSourceArcsBundleInfo();
 
   return {
     pathsToWrite: sourceManifest.ownedPaths,
@@ -385,8 +385,8 @@ function applyConfigMerges(
 
 function manifestFromPlan(
   plan: InstallPlan,
-  sourceManifest: SourceSpocBundleManifest,
-): InstalledSpocBundleManifest {
+  sourceManifest: SourceArcsBundleManifest,
+): InstalledArcsBundleManifest {
   return {
     bundleId: sourceManifest.bundleId,
     installMode: sourceManifest.installMode,
@@ -398,20 +398,20 @@ function manifestFromPlan(
 }
 
 function installInternal(options: InstallOptions = {}, hooks: InstallHooks = {}): InstallResult {
-  const sourceManifest = readSourceSpocBundleManifest();
-  const detection = detectSpocBundleInstall(sourceManifest);
+  const sourceManifest = readSourceArcsBundleManifest();
+  const detection = detectArcsBundleInstall(sourceManifest);
 
   if (detection.state === "foreign-existing" && !options.autoConfirmReplacement) {
     throw new Error(
-      "Manual confirmation is required before replacing an existing OpenCode SPOC bundle install.",
+      "Manual confirmation is required before replacing an existing OpenCode ARCS bundle install.",
     );
   }
 
   mkdirSync(opencodeRootDir(), { recursive: true });
 
-  const plan = buildSpocBundleInstallPlan();
-  const stagedDir = createTempDir(".spoc-bundle-stage");
-  const backupDir = createTempDir(".spoc-bundle-backup");
+  const plan = buildArcsBundleInstallPlan();
+  const stagedDir = createTempDir(".arcs-bundle-stage");
+  const backupDir = createTempDir(".arcs-bundle-backup");
   const previousConfigExists = existsSync(opencodeConfigPath());
   const previousConfig = previousConfigExists ? readFileSync(opencodeConfigPath(), "utf-8") : null;
   const previousManifest = detection.installedManifest;
@@ -459,14 +459,14 @@ function installInternal(options: InstallOptions = {}, hooks: InstallHooks = {})
     );
     hooks.afterConfigPreparedBeforeManifestWrite?.();
     writeJsonFile(opencodeConfigPath(), preparedConfig);
-    writeInstalledSpocBundleManifest(manifestFromPlan(plan, sourceManifest));
+    writeInstalledArcsBundleManifest(manifestFromPlan(plan, sourceManifest));
 
     return {
       status: "installed",
       summary:
-        detection.state === "spoc-managed"
-          ? "Re-synced bundled SPOC skills"
-          : "Installed bundled SPOC skills",
+        detection.state === "arcs-managed"
+          ? "Re-synced bundled ARCS skills"
+          : "Installed bundled ARCS skills",
     };
   } catch (error) {
     for (const [destinationRelative, backupPath] of backupMap.entries()) {
@@ -482,9 +482,9 @@ function installInternal(options: InstallOptions = {}, hooks: InstallHooks = {})
     }
 
     if (previousManifest == null) {
-      removePathIfExists(spocInstalledManifestPath());
+      removePathIfExists(arcsInstalledManifestPath());
     } else {
-      writeInstalledSpocBundleManifest(previousManifest);
+      writeInstalledArcsBundleManifest(previousManifest);
     }
 
     throw error;
@@ -494,11 +494,11 @@ function installInternal(options: InstallOptions = {}, hooks: InstallHooks = {})
   }
 }
 
-export function installSpocBundle(options: InstallOptions = {}): InstallResult {
+export function installArcsBundle(options: InstallOptions = {}): InstallResult {
   return installInternal(options);
 }
 
-export function installSpocBundleWithHooks(
+export function installArcsBundleWithHooks(
   options: InstallOptions & { hooks?: InstallHooks } = {},
 ): InstallResult {
   return installInternal(options, options.hooks ?? {});

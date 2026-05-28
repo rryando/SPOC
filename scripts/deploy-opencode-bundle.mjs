@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Deploy opencode SPOC bundle bundle from repo to user config.
+// Deploy opencode ARCS bundle bundle from repo to user config.
 //
 // Direction: repo → config ONLY. Never writes config → repo.
 //
 // Env vars:
-//   DEPLOY_BUNDLE_ROOT  — override bundle root (default: opencode/spoc)
+//   DEPLOY_BUNDLE_ROOT  — override bundle root (default: opencode/arcs)
 //   DEPLOY_CONFIG_ROOT  — override config root (default: ~/.config/opencode)
 //   DEPLOY_DRY_RUN      — "false" to actually copy; anything else = dry-run (default: dry-run)
 //
@@ -25,7 +25,7 @@ import { homedir } from "node:os";
 import { dirname, relative, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-const defaultBundleRoot = resolve(repoRoot, "opencode/spoc");
+const defaultBundleRoot = resolve(repoRoot, "opencode/arcs");
 const defaultConfigRoot = resolve(homedir(), ".config/opencode");
 
 const bundleRoot = process.env.DEPLOY_BUNDLE_ROOT
@@ -62,7 +62,7 @@ async function main() {
   // Build mapping: config-relative path → bundle-absolute path
   const deployMap = new Map();
 
-  // Skills: bundle skills/<name>/<file> → config skills/spoc/<name>/<file>
+  // Skills: bundle skills/<name>/<file> → config skills/arcs/<name>/<file>
   const skillsSourceDir = resolve(bundleRoot, manifest.skills.source);
   if (existsSync(skillsSourceDir)) {
     const skillFiles = listAllFiles(skillsSourceDir);
@@ -163,11 +163,11 @@ async function main() {
     }
   }
 
-  // After successful deploy, ensure spoc CLI is globally registered
+  // After successful deploy, ensure arcs CLI is globally registered
   if (!dryRun) {
     try {
       const { execFileSync } = await import("node:child_process");
-      const initScript = resolve(repoRoot, "scripts/spoc-init.mjs");
+      const initScript = resolve(repoRoot, "scripts/arcs-init.mjs");
       if (existsSync(initScript)) {
         execFileSync(process.execPath, [initScript], { stdio: "pipe" });
       }

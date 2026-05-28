@@ -1,5 +1,5 @@
 /**
- * Shared storage utilities for SPOC project stores.
+ * Shared storage utilities for ARCS project stores.
  *
  * Filesystem helpers, validation utilities, and common types used by
  * plan-store, knowledge-store, and task-store modules.

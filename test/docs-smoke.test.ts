@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/spoc-orchestrate.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "../src/cli/arcs-orchestrate.js";
 
 // Resolve relative to project root (one level up from test/)
 const root = resolve(import.meta.dirname, "..");
@@ -78,7 +78,7 @@ describe("docs and skills smoke tests", () => {
     expect(orchestratePrompt).toContain("memory");
   });
 
-  it("README explains that OpenCode setup installs SPOC bundle", () => {
+  it("README explains that OpenCode setup installs ARCS bundle", () => {
     expect(readme).toContain("Deploys bundled agents + skills into `~/.config/opencode/`");
   });
 

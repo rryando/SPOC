@@ -25,13 +25,13 @@ import { failure, success } from "../output-envelope.js";
 function findDiagramScript(): string | undefined {
   const localPath = resolve(
     import.meta.dirname,
-    "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+    "../../../opencode/arcs/skills/to-diagram/scripts/manage-diagram.mjs",
   );
   if (existsSync(localPath)) return localPath;
 
   const configPath = resolve(
     homedir(),
-    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+    ".config/opencode/skills/arcs/to-diagram/scripts/manage-diagram.mjs",
   );
   if (existsSync(configPath)) return configPath;
 
@@ -64,7 +64,7 @@ function requireScript(): CLIResult | string {
   if (!scriptPath) {
     return failure(
       "script_not_found",
-      "manage-diagram.mjs not found. Install SPOC OpenCode bundle: spoc setup",
+      "manage-diagram.mjs not found. Install ARCS OpenCode bundle: arcs setup",
     );
   }
   return scriptPath;
@@ -154,7 +154,7 @@ async function handleDiagramInspect(
 
   if (!planId) {
     return failure(ERROR_CODES.MISSING_PARAM, "--planId is required", {
-      hint: "usage: spoc diagram inspect <slug> <planId>",
+      hint: "usage: arcs diagram inspect <slug> <planId>",
     });
   }
 

@@ -35,7 +35,7 @@ function determineCommandPath(args: string[]): { path: string; remaining: string
 }
 
 /**
- * Entry point for `npx spoc init`, `npx spoc config`.
+ * Entry point for `npx arcs init`, `npx arcs config`.
  * Returns true if a CLI subcommand was handled, false if the caller
  * should proceed with normal exit.
  */

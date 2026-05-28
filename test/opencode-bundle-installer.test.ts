@@ -3,18 +3,18 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  buildSpocBundleInstallPlan,
-  detectSpocBundleInstall,
-  getSourceSpocBundleInfo,
-  installSpocBundle,
-  installSpocBundleWithHooks,
-  readInstalledSpocBundleManifest,
-  type SourceSpocBundleManifest,
-  writeInstalledSpocBundleManifest,
+  buildArcsBundleInstallPlan,
+  detectArcsBundleInstall,
+  getSourceArcsBundleInfo,
+  installArcsBundle,
+  installArcsBundleWithHooks,
+  readInstalledArcsBundleManifest,
+  type SourceArcsBundleManifest,
+  writeInstalledArcsBundleManifest,
 } from "../src/cli/bundle-installer.js";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
-const bundleRoot = resolve(import.meta.dirname, "..", "opencode", "spoc");
+const bundleRoot = resolve(import.meta.dirname, "..", "opencode", "arcs");
 const sourceManifestPath = resolve(bundleRoot, "manifest.json");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 const packageJsonPath = resolve(import.meta.dirname, "..", "package.json");
@@ -33,8 +33,8 @@ function readRuntimeManifest(): RuntimeManifest {
   return JSON.parse(readFileSync(runtimeManifestPath, "utf-8")) as RuntimeManifest;
 }
 
-function readSourceManifest(): SourceSpocBundleManifest {
-  return JSON.parse(readFileSync(sourceManifestPath, "utf-8")) as SourceSpocBundleManifest;
+function readSourceManifest(): SourceArcsBundleManifest {
+  return JSON.parse(readFileSync(sourceManifestPath, "utf-8")) as SourceArcsBundleManifest;
 }
 
 function readExpectedSourceBundleVersion(): string {
@@ -49,12 +49,9 @@ function readExpectedSourceBundleVersion(): string {
   return (JSON.parse(readFileSync(packageJsonPath, "utf-8")) as PackageJson).version;
 }
 
-// SPOC-native skill files: authored in this repo, not sourced from upstream.
+// ARCS-native skill files: authored in this repo, not sourced from upstream.
 // Must match the skill entries in scripts/build-opencode-bundle.mjs preservedOutputFiles.
-const spocNativeSkillFiles = [
-  "skills/caveman-commit/SKILL.md",
-  "skills/init-project/SKILL.md",
-];
+const arcsNativeSkillFiles = ["skills/caveman-commit/SKILL.md", "skills/init-project/SKILL.md"];
 
 function curatedBundlePayloadFiles(): string[] {
   const runtimeManifest = readRuntimeManifest();
@@ -63,14 +60,14 @@ function curatedBundlePayloadFiles(): string[] {
     // Repo-authored preserved files included in bundle identity
     "bundle-runtime.json",
     "manifest.json",
-    ".opencode/plugins/spoc.js",
+    ".opencode/plugins/arcs.js",
     ...Object.entries(runtimeManifest.skills).flatMap(([skillName, files]) =>
       files.map((relativePath) => `skills/${skillName}/${relativePath}`),
     ),
     ...runtimeManifest.agents,
     ...runtimeManifest.plugin,
-    // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
-    ...spocNativeSkillFiles,
+    // ARCS-native skills live in the bundle but aren't declared in bundle-runtime.json
+    ...arcsNativeSkillFiles,
     // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
     "prompts/code-reviewer.txt",
     "prompts/devil-advocate.txt",
@@ -78,13 +75,13 @@ function curatedBundlePayloadFiles(): string[] {
     "prompts/oncall-ops.txt",
     "prompts/qa-analyst.txt",
     "prompts/software-engineer.txt",
-    "prompts/spoc-docs.txt",
+    "prompts/arcs-docs.txt",
     "prompts/system-architect.txt",
     "prompts/tech-architect.txt",
-    // Orchestrator prompt files generated from src/cli/spoc-orchestrate*.ts by
+    // Orchestrator prompt files generated from src/cli/arcs-orchestrate*.ts by
     // build-opencode-bundle.mjs and committed to the repo bundle.
-    "prompts/spoc-orchestrate.txt",
-    "prompts/spoc-orchestrate-caveman.txt",
+    "prompts/arcs-orchestrate.txt",
+    "prompts/arcs-orchestrate-caveman.txt",
   ].sort((a, b) => a.localeCompare(b));
 }
 
@@ -108,7 +105,7 @@ function expectRuntimePayloadInstalled(homeDir: string): void {
     for (const relativePath of files) {
       expect(
         existsSync(
-          resolve(homeDir, ".config", "opencode", "skills", "spoc", skillName, relativePath),
+          resolve(homeDir, ".config", "opencode", "skills", "arcs", skillName, relativePath),
         ),
       ).toBe(true);
     }
@@ -129,52 +126,52 @@ function expectRuntimePayloadInstalled(homeDir: string): void {
 
 const expectedSourceBundleVersion = readExpectedSourceBundleVersion();
 
-const sourceManifestWithConfigOnly: SourceSpocBundleManifest = {
-  bundleId: "spoc-opencode-bundle",
-  installMode: "opencode-spoc",
+const sourceManifestWithConfigOnly: SourceArcsBundleManifest = {
+  bundleId: "arcs-opencode-bundle",
+  installMode: "opencode-arcs",
   bundleVersionSource: "package.json",
-  sourceRoot: "opencode/spoc",
-  skills: { source: "skills", destination: "skills/spoc" },
+  sourceRoot: "opencode/arcs",
+  skills: { source: "skills", destination: "skills/arcs" },
   agents: [],
-  ownedPaths: ["skills/spoc", "plugins/spoc.js"],
+  ownedPaths: ["skills/arcs", "plugins/arcs.js"],
   plugin: {
     required: true,
-    source: ".opencode/plugins/spoc.js",
-    destination: "plugins/spoc.js",
+    source: ".opencode/plugins/arcs.js",
+    destination: "plugins/arcs.js",
   },
   config: {
-    requiredMerges: [{ path: ["plugin", "spoc"], value: { type: "local" } }],
+    requiredMerges: [{ path: ["plugin", "arcs"], value: { type: "local" } }],
   },
 };
 
-const sourceManifestWithoutConfigRequirement: SourceSpocBundleManifest = {
+const sourceManifestWithoutConfigRequirement: SourceArcsBundleManifest = {
   ...sourceManifestWithConfigOnly,
   config: { requiredMerges: [] },
 };
 
 const ownedManifest = {
-  bundleId: "spoc-opencode-bundle",
-  installMode: "opencode-spoc",
+  bundleId: "arcs-opencode-bundle",
+  installMode: "opencode-arcs",
   sourceBundleVersion: expectedSourceBundleVersion,
   sourceBundleHash: "abc",
   installedAt: "2026-03-18T00:00:00.000Z",
-  ownedPaths: ["skills/spoc", "plugins/spoc.js"],
+  ownedPaths: ["skills/arcs", "plugins/arcs.js"],
 };
 
-describe("opencode SPOC bundle install detection", () => {
+describe("opencode ARCS bundle install detection", () => {
   it("returns absent when nothing is installed", async () => {
     await withTempHomeDir(async () => {
-      expect(detectSpocBundleInstall().state).toBe("absent");
+      expect(detectArcsBundleInstall().state).toBe("absent");
     });
   });
 
-  it("returns foreign-existing when destination paths exist without SPOC manifest", async () => {
+  it("returns foreign-existing when destination paths exist without ARCS manifest", async () => {
     await withTempHomeDir(async (homeDir) => {
-      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "spoc"), {
+      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "arcs"), {
         recursive: true,
       });
 
-      expect(detectSpocBundleInstall().state).toBe("foreign-existing");
+      expect(detectArcsBundleInstall().state).toBe("foreign-existing");
     });
   });
 
@@ -182,53 +179,53 @@ describe("opencode SPOC bundle install detection", () => {
     await withTempHomeDir(async (homeDir) => {
       writeFileSync(
         resolve(homeDir, ".config", "opencode", "opencode.json"),
-        JSON.stringify({ plugin: { spoc: { type: "local" } } }, null, 2),
+        JSON.stringify({ plugin: { arcs: { type: "local" } } }, null, 2),
         "utf-8",
       );
 
-      expect(detectSpocBundleInstall(sourceManifestWithConfigOnly).state).toBe("foreign-existing");
+      expect(detectArcsBundleInstall(sourceManifestWithConfigOnly).state).toBe("foreign-existing");
     });
   });
 
-  it("returns foreign-existing when a SPOC manifest exists but owned paths are missing", async () => {
+  it("returns foreign-existing when a ARCS manifest exists but owned paths are missing", async () => {
     await withTempHomeDir(async () => {
-      writeInstalledSpocBundleManifest(ownedManifest);
-      expect(detectSpocBundleInstall().state).toBe("foreign-existing");
+      writeInstalledArcsBundleManifest(ownedManifest);
+      expect(detectArcsBundleInstall().state).toBe("foreign-existing");
     });
   });
 
-  it("reports spoc-managed when the installed manifest exists and all declared owned paths exist", async () => {
+  it("reports arcs-managed when the installed manifest exists and all declared owned paths exist", async () => {
     await withTempHomeDir(async (homeDir) => {
-      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "spoc"), {
+      mkdirSync(resolve(homeDir, ".config", "opencode", "skills", "arcs"), {
         recursive: true,
       });
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(
-        resolve(homeDir, ".config", "opencode", "plugins", "spoc.js"),
+        resolve(homeDir, ".config", "opencode", "plugins", "arcs.js"),
         "plugin",
         "utf-8",
       );
-      writeInstalledSpocBundleManifest(ownedManifest);
+      writeInstalledArcsBundleManifest(ownedManifest);
 
-      expect(readInstalledSpocBundleManifest()).toMatchObject(ownedManifest);
-      expect(detectSpocBundleInstall(sourceManifestWithoutConfigRequirement).state).toBe(
-        "spoc-managed",
+      expect(readInstalledArcsBundleManifest()).toMatchObject(ownedManifest);
+      expect(detectArcsBundleInstall(sourceManifestWithoutConfigRequirement).state).toBe(
+        "arcs-managed",
       );
     });
   });
 });
 
-describe("opencode SPOC bundle bundle identity", () => {
+describe("opencode ARCS bundle bundle identity", () => {
   it("ships bundle-runtime.json alongside the installer manifest", () => {
     expect(existsSync(sourceManifestPath)).toBe(true);
     expect(existsSync(runtimeManifestPath)).toBe(true);
   });
 
   it("computes deterministic source bundle metadata", () => {
-    const info = getSourceSpocBundleInfo();
+    const info = getSourceArcsBundleInfo();
     const curatedPayloadFiles = curatedBundlePayloadFiles();
 
-    expect(info.bundleId).toBe("spoc-opencode-bundle");
+    expect(info.bundleId).toBe("arcs-opencode-bundle");
     expect(info.sourceBundleVersion).toBe(expectedSourceBundleVersion);
     expect(info.sourceBundleHash).toMatch(/^[a-f0-9]{64}$/);
     expect(curatedPayloadFiles).toContain("bundle-runtime.json");
@@ -241,48 +238,48 @@ describe("opencode SPOC bundle bundle identity", () => {
 
   it("plans removal for previously owned paths missing from the new source manifest", async () => {
     await withTempHomeDir(async () => {
-      writeInstalledSpocBundleManifest({
+      writeInstalledArcsBundleManifest({
         ...ownedManifest,
         sourceBundleHash: "old-hash",
-        ownedPaths: ["skills/spoc", "plugins/old-superpowers.js"],
+        ownedPaths: ["skills/arcs", "plugins/old-superpowers.js"],
       });
 
-      const plan = buildSpocBundleInstallPlan();
+      const plan = buildArcsBundleInstallPlan();
 
       expect(plan.pathsToRemove).toContain("plugins/old-superpowers.js");
-      expect(plan.pathsToWrite).toContain("skills/spoc");
-      expect(plan.pathsToWrite).toContain("plugins/spoc.js");
+      expect(plan.pathsToWrite).toContain("skills/arcs");
+      expect(plan.pathsToWrite).toContain("plugins/arcs.js");
       expect(plan.pathsToWrite).not.toContain("agent/code-reviewer.md");
     });
   });
 });
 
-describe("opencode SPOC bundle installer", () => {
+describe("opencode ARCS bundle installer", () => {
   it("refuses to replace a foreign install without auto-confirm", async () => {
     await withTempHomeDir(async (homeDir) => {
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(
-        resolve(homeDir, ".config", "opencode", "plugins", "spoc.js"),
+        resolve(homeDir, ".config", "opencode", "plugins", "arcs.js"),
         "foreign plugin",
         "utf-8",
       );
 
-      expect(() => installSpocBundle()).toThrow(/manual confirmation is required/i);
+      expect(() => installArcsBundle()).toThrow(/manual confirmation is required/i);
     });
   });
 
   it("replaces a foreign install when auto-confirmed and installs the curated runtime payload", async () => {
     await withTempHomeDir(async (homeDir) => {
-      const foreignPluginPath = resolve(homeDir, ".config", "opencode", "plugins", "spoc.js");
+      const foreignPluginPath = resolve(homeDir, ".config", "opencode", "plugins", "arcs.js");
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(foreignPluginPath, "foreign plugin", "utf-8");
 
-      const result = installSpocBundle({ autoConfirmReplacement: true });
+      const result = installArcsBundle({ autoConfirmReplacement: true });
 
       expect(result.status).toBe("installed");
       expectRuntimePayloadInstalled(homeDir);
       expect(readFileSync(foreignPluginPath, "utf-8")).not.toBe("foreign plugin");
-      expect(readInstalledSpocBundleManifest()?.sourceBundleVersion).toBe(
+      expect(readInstalledArcsBundleManifest()?.sourceBundleVersion).toBe(
         expectedSourceBundleVersion,
       );
     });
@@ -290,7 +287,7 @@ describe("opencode SPOC bundle installer", () => {
 
   it("installs bundled runtime payload and writes the bundled model presets into opencode.json", async () => {
     await withTempHomeDir(async (homeDir) => {
-      const result = installSpocBundle({ autoConfirmReplacement: true });
+      const result = installArcsBundle({ autoConfirmReplacement: true });
       const opencodeConfig = JSON.parse(
         readFileSync(resolve(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
       );
@@ -328,7 +325,7 @@ describe("opencode SPOC bundle installer", () => {
         },
       });
       expect(opencodeConfig).not.toHaveProperty("plugin");
-      expect(readInstalledSpocBundleManifest()?.ownedPaths).toContain("skills/spoc");
+      expect(readInstalledArcsBundleManifest()?.ownedPaths).toContain("skills/arcs");
     });
   });
 
@@ -337,19 +334,19 @@ describe("opencode SPOC bundle installer", () => {
       const stalePath = resolve(homeDir, ".config", "opencode", "plugins", "old-superpowers.js");
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(stalePath, "stale", "utf-8");
-      writeInstalledSpocBundleManifest({
+      writeInstalledArcsBundleManifest({
         ...ownedManifest,
-        ownedPaths: ["skills/spoc", "plugins/old-superpowers.js"],
+        ownedPaths: ["skills/arcs", "plugins/old-superpowers.js"],
       });
 
-      installSpocBundle({ autoConfirmReplacement: true });
+      installArcsBundle({ autoConfirmReplacement: true });
       expect(existsSync(stalePath)).toBe(false);
     });
   });
 
   it("restores the prior installed manifest and opencode state when a mid-install failure occurs", async () => {
     await withTempHomeDir(async (homeDir) => {
-      const foreignPlugin = resolve(homeDir, ".config", "opencode", "plugins", "spoc.js");
+      const foreignPlugin = resolve(homeDir, ".config", "opencode", "plugins", "arcs.js");
       const configPath = resolve(homeDir, ".config", "opencode", "opencode.json");
       const priorManifest = {
         ...ownedManifest,
@@ -359,10 +356,10 @@ describe("opencode SPOC bundle installer", () => {
       mkdirSync(resolve(homeDir, ".config", "opencode", "plugins"), { recursive: true });
       writeFileSync(foreignPlugin, "foreign plugin", "utf-8");
       writeFileSync(configPath, JSON.stringify({ existing: true }, null, 2), "utf-8");
-      writeInstalledSpocBundleManifest(priorManifest);
+      writeInstalledArcsBundleManifest(priorManifest);
 
       expect(() =>
-        installSpocBundleWithHooks({
+        installArcsBundleWithHooks({
           autoConfirmReplacement: true,
           hooks: {
             afterConfigPreparedBeforeManifestWrite: () => {
@@ -374,7 +371,7 @@ describe("opencode SPOC bundle installer", () => {
 
       expect(readFileSync(foreignPlugin, "utf-8")).toBe("foreign plugin");
       expect(JSON.parse(readFileSync(configPath, "utf-8"))).toEqual({ existing: true });
-      expect(readInstalledSpocBundleManifest()).toMatchObject(priorManifest);
+      expect(readInstalledArcsBundleManifest()).toMatchObject(priorManifest);
     });
   });
 });

@@ -71,7 +71,9 @@ async function handleStatus(
   const nextTask = [...openTasks].sort((a, b) => {
     if (a.status === "in_progress" && b.status !== "in_progress") return -1;
     if (b.status === "in_progress" && a.status !== "in_progress") return 1;
-    return (priorityOrder[a.priority ?? "medium"] ?? 1) - (priorityOrder[b.priority ?? "medium"] ?? 1);
+    return (
+      (priorityOrder[a.priority ?? "medium"] ?? 1) - (priorityOrder[b.priority ?? "medium"] ?? 1)
+    );
   })[0];
 
   if (flags.json) {
@@ -115,7 +117,10 @@ async function handleStatus(
     `Knowledge: ${knowledgeIndex.entries.length} entries${kindSummary ? ` (${kindSummary})` : ""}`,
     "",
     "Recent:",
-    ...recentDone.map((t) => `  ✓ ${t.title} (${isToday(t.updatedAt) ? "today" : t.updatedAt?.slice(0, 10) ?? "–"})`),
+    ...recentDone.map(
+      (t) =>
+        `  ✓ ${t.title} (${isToday(t.updatedAt) ? "today" : (t.updatedAt?.slice(0, 10) ?? "–")})`,
+    ),
     ...(nextTask ? [`  → ${nextTask.title} (next)`] : ["  (no open tasks)"]),
   ];
 

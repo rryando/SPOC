@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// brief-renderer — Pure markdown renderer for spoc brief data
+// brief-renderer — Pure markdown renderer for arcs brief data
 // ---------------------------------------------------------------------------
 
 export interface BriefTask {

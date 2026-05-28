@@ -150,7 +150,7 @@ async function handleSearch(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -186,14 +186,14 @@ async function handleAgentsMd(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
   const agentsMdPath = resolve(projectDir, "AGENTS.md");
   if (!existsSync(agentsMdPath)) {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `No AGENTS.md found for project '${slug}'`, {
-      hint: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
+      hint: `Run: arcs sync-agents-md ${slug} --analysis-file=<path>`,
     });
   }
 
@@ -244,7 +244,7 @@ export async function runValidation(slug: string, checks: Set<CheckName>): Promi
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -293,7 +293,7 @@ export async function runValidation(slug: string, checks: Set<CheckName>): Promi
           kind: "missing_agents_md",
           message: `No AGENTS.md found at workspace path: ${ws}`,
           file: agentsPath,
-          repair: `Run: spoc sync-agents-md ${slug} --analysis-file=<path>`,
+          repair: `Run: arcs sync-agents-md ${slug} --analysis-file=<path>`,
           safeToAutoRepair: true,
         });
       }

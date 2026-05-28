@@ -18,8 +18,8 @@ vi.mock("../src/retrieval/task-scoped.js", () => ({
 }));
 
 vi.mock("../src/utils/paths.js", () => ({
-  getProjectDir: (slug: string) => `/tmp/spoc-test-${slug}`,
-  getDataDir: () => "/tmp/spoc-data",
+  getProjectDir: (slug: string) => `/tmp/arcs-test-${slug}`,
+  getDataDir: () => "/tmp/arcs-data",
 }));
 
 vi.mock("../src/utils/project-memory.js", async (importOriginal) => {

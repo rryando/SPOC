@@ -1,14 +1,19 @@
 /**
- * Plan CRUD storage for SPOC projects.
+ * Plan CRUD storage for ARCS projects.
  *
  * Provides create, update, delete, and index-read operations for plans,
  * with automatic index maintenance and rebuild-on-read resilience.
  */
 
+import { readdir, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { readdir } from "node:fs/promises";
 import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
-import { indexRebuildFailed, invalidFileFormat, itemNotFound, normalizedIdCollision } from "./errors.js";
+import {
+  indexRebuildFailed,
+  invalidFileFormat,
+  itemNotFound,
+  normalizedIdCollision,
+} from "./errors.js";
 import { withLock } from "./file-lock.js";
 import { readJsonSafe } from "./json.js";
 import { planMetaSchema } from "./json-schemas.js";
@@ -24,13 +29,12 @@ import {
   validatePlanStatus,
   writeJson,
 } from "./storage-utils.js";
-import { writeFile } from "node:fs/promises";
 
 // ---------------------------------------------------------------------------
 // Re-export types used by consumers
 // ---------------------------------------------------------------------------
 
-export type { PlanStatus, FileRef } from "./storage-utils.js";
+export type { FileRef, PlanStatus } from "./storage-utils.js";
 export { PLAN_STATUSES } from "./storage-utils.js";
 
 // ---------------------------------------------------------------------------

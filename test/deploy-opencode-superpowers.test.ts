@@ -37,24 +37,24 @@ function setupBundleRoot(tempRoot: string) {
   const bundleRoot = resolve(tempRoot, "bundle");
   // Minimal manifest.json
   const manifest = {
-    bundleId: "spoc-opencode-bundle",
-    installMode: "opencode-spoc",
-    sourceRoot: "opencode/spoc",
-    skills: { source: "skills", destination: "skills/spoc" },
+    bundleId: "arcs-opencode-bundle",
+    installMode: "opencode-arcs",
+    sourceRoot: "opencode/arcs",
+    skills: { source: "skills", destination: "skills/arcs" },
     agents: [],
     // ownedPaths matches manifest schema: directories/files the deployer owns for removal tests
-    ownedPaths: ["skills/spoc", "plugins/spoc.js"],
+    ownedPaths: ["skills/arcs", "plugins/arcs.js"],
     plugin: {
       required: true,
-      source: ".opencode/plugins/spoc.js",
-      destination: "plugins/spoc.js",
+      source: ".opencode/plugins/arcs.js",
+      destination: "plugins/arcs.js",
     },
     config: { requiredMerges: [] },
   };
   writeFile(bundleRoot, "manifest.json", JSON.stringify(manifest, null, 2));
   writeFile(bundleRoot, "skills/planner/SKILL.md", "# Planner skill");
   writeFile(bundleRoot, "skills/planner/notes.md", "notes content");
-  writeFile(bundleRoot, ".opencode/plugins/spoc.js", "// plugin code");
+  writeFile(bundleRoot, ".opencode/plugins/arcs.js", "// plugin code");
   return bundleRoot;
 }
 
@@ -74,11 +74,11 @@ describe("deploy-opencode-bundle", () => {
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
       expect(result.dryRun).toBe(true);
-      expect(result.filesAdded).toContain("skills/spoc/planner/SKILL.md");
-      expect(result.filesAdded).toContain("skills/spoc/planner/notes.md");
-      expect(result.filesAdded).toContain("plugins/spoc.js");
+      expect(result.filesAdded).toContain("skills/arcs/planner/SKILL.md");
+      expect(result.filesAdded).toContain("skills/arcs/planner/notes.md");
+      expect(result.filesAdded).toContain("plugins/arcs.js");
       // Dry-run: files should NOT actually be written
-      expect(existsSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"))).toBe(false);
+      expect(existsSync(resolve(configRoot, "skills/arcs/planner/SKILL.md"))).toBe(false);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -102,10 +102,10 @@ describe("deploy-opencode-bundle", () => {
       expect(result.dryRun).toBe(false);
       expect(result.filesAdded.length).toBeGreaterThan(0);
       // Files actually written
-      expect(readFileSync(resolve(configRoot, "skills/spoc/planner/SKILL.md"), "utf-8")).toBe(
+      expect(readFileSync(resolve(configRoot, "skills/arcs/planner/SKILL.md"), "utf-8")).toBe(
         "# Planner skill",
       );
-      expect(readFileSync(resolve(configRoot, "plugins/spoc.js"), "utf-8")).toBe("// plugin code");
+      expect(readFileSync(resolve(configRoot, "plugins/arcs.js"), "utf-8")).toBe("// plugin code");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -118,8 +118,8 @@ describe("deploy-opencode-bundle", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Pre-populate config with old content
-      writeFile(configRoot, "skills/spoc/planner/SKILL.md", "old content");
-      writeFile(configRoot, "skills/spoc/planner/notes.md", "notes content"); // same
+      writeFile(configRoot, "skills/arcs/planner/SKILL.md", "old content");
+      writeFile(configRoot, "skills/arcs/planner/notes.md", "notes content"); // same
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -128,8 +128,8 @@ describe("deploy-opencode-bundle", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesChanged).toContain("skills/spoc/planner/SKILL.md");
-      expect(result.filesUnchanged).toContain("skills/spoc/planner/notes.md");
+      expect(result.filesChanged).toContain("skills/arcs/planner/SKILL.md");
+      expect(result.filesUnchanged).toContain("skills/arcs/planner/notes.md");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -142,7 +142,7 @@ describe("deploy-opencode-bundle", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Config has a file no longer in bundle
-      writeFile(configRoot, "skills/spoc/obsolete/SKILL.md", "old skill");
+      writeFile(configRoot, "skills/arcs/obsolete/SKILL.md", "old skill");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -151,7 +151,7 @@ describe("deploy-opencode-bundle", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesRemoved).toContain("skills/spoc/obsolete/SKILL.md");
+      expect(result.filesRemoved).toContain("skills/arcs/obsolete/SKILL.md");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -163,7 +163,7 @@ describe("deploy-opencode-bundle", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "skills/spoc/obsolete/SKILL.md", "old skill");
+      writeFile(configRoot, "skills/arcs/obsolete/SKILL.md", "old skill");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -173,8 +173,8 @@ describe("deploy-opencode-bundle", () => {
 
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
-      expect(result.filesRemoved).toContain("skills/spoc/obsolete/SKILL.md");
-      expect(existsSync(resolve(configRoot, "skills/spoc/obsolete/SKILL.md"))).toBe(false);
+      expect(result.filesRemoved).toContain("skills/arcs/obsolete/SKILL.md");
+      expect(existsSync(resolve(configRoot, "skills/arcs/obsolete/SKILL.md"))).toBe(false);
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -196,7 +196,7 @@ describe("deploy-opencode-bundle", () => {
       expect(proc.status).toBe(0);
       const result = JSON.parse(proc.stdout) as DeployResult;
       expect(result.restartRequired).toBe(true);
-      expect(result.filesAdded).toContain("plugins/spoc.js");
+      expect(result.filesAdded).toContain("plugins/arcs.js");
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
@@ -209,27 +209,27 @@ describe("deploy-opencode-bundle", () => {
     try {
       const bundleRoot = resolve(tempRoot, "bundle");
       const manifest = {
-        bundleId: "spoc-opencode-bundle",
-        installMode: "opencode-spoc",
-        sourceRoot: "opencode/spoc",
-        skills: { source: "skills", destination: "skills/spoc" },
+        bundleId: "arcs-opencode-bundle",
+        installMode: "opencode-arcs",
+        sourceRoot: "opencode/arcs",
+        skills: { source: "skills", destination: "skills/arcs" },
         agents: [
           {
             source: "prompts/test-agent.txt",
             destination: "prompts/test-agent.txt",
           },
         ],
-        ownedPaths: ["skills/spoc", "plugins/spoc.js"],
+        ownedPaths: ["skills/arcs", "plugins/arcs.js"],
         plugin: {
           required: true,
-          source: ".opencode/plugins/spoc.js",
-          destination: "plugins/spoc.js",
+          source: ".opencode/plugins/arcs.js",
+          destination: "plugins/arcs.js",
         },
         config: { requiredMerges: [] },
       };
       writeFile(bundleRoot, "manifest.json", JSON.stringify(manifest, null, 2));
       writeFile(bundleRoot, "skills/planner/SKILL.md", "# Planner skill");
-      writeFile(bundleRoot, ".opencode/plugins/spoc.js", "// plugin code");
+      writeFile(bundleRoot, ".opencode/plugins/arcs.js", "// plugin code");
       writeFile(bundleRoot, "prompts/test-agent.txt", "agent prompt body");
 
       // First deploy: agent file should be added
@@ -271,7 +271,7 @@ describe("deploy-opencode-bundle", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "plugins/spoc.js", "// old plugin");
+      writeFile(configRoot, "plugins/arcs.js", "// old plugin");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -292,7 +292,7 @@ describe("deploy-opencode-bundle", () => {
 
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
-      writeFile(configRoot, "plugins/spoc.js", "// old plugin");
+      writeFile(configRoot, "plugins/arcs.js", "// old plugin");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -317,9 +317,9 @@ describe("deploy-opencode-bundle", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Pre-populate with identical content so no change
-      writeFile(configRoot, "skills/spoc/planner/SKILL.md", "# Planner skill");
-      writeFile(configRoot, "skills/spoc/planner/notes.md", "notes content");
-      writeFile(configRoot, "plugins/spoc.js", "// plugin code");
+      writeFile(configRoot, "skills/arcs/planner/SKILL.md", "# Planner skill");
+      writeFile(configRoot, "skills/arcs/planner/notes.md", "notes content");
+      writeFile(configRoot, "plugins/arcs.js", "// plugin code");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,
@@ -342,7 +342,7 @@ describe("deploy-opencode-bundle", () => {
     try {
       const bundleRoot = setupBundleRoot(tempRoot);
       // Config has extra file that doesn't exist in bundle
-      writeFile(configRoot, "skills/spoc/planner/custom.md", "user custom");
+      writeFile(configRoot, "skills/arcs/planner/custom.md", "user custom");
 
       const proc = runDeploy({
         DEPLOY_BUNDLE_ROOT: bundleRoot,

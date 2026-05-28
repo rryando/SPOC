@@ -1,11 +1,11 @@
 {
-  "name": "spoc",
-  "version": "2.0.0",
-  "description": "CLI for agentic DAG project management",
+  "name": "@rryando/arcs",
+  "version": "3.0.0",
+  "description": "ARCS — DAG-based task orchestration for AI agents. Persistent workflow continuity via graph-structured context.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "spoc": "scripts/spoc-cli.mjs"
+    "arcs": "scripts/arcs-cli.mjs"
   },
   "files": [
     "dist/",
@@ -16,6 +16,21 @@
   "engines": {
     "node": ">=18"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rryando/arcs.git"
+  },
+  "keywords": [
+    "arcs",
+    "dag",
+    "ai-agents",
+    "task-orchestration",
+    "graph",
+    "workflow",
+    "cli"
+  ],
+  "author": "rryando",
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "build:opencode-bundle": "npm run build && node scripts/build-opencode-bundle.mjs",
@@ -23,7 +38,7 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "postinstall": "npm run build && node scripts/spoc-init.mjs",
+    "postinstall": "npm run build && node scripts/arcs-init.mjs",
     "init": "npm run build && node dist/index.js init",
     "lint": "biome check src/ test/",
     "lint:fix": "biome check --fix src/ test/",
@@ -41,6 +56,5 @@
     "typescript": "^5.8.3",
     "vite": "^6.4.1",
     "vitest": "^3.2.4"
-  },
-  "private": true
+  }
 }

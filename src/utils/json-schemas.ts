@@ -6,7 +6,7 @@
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
-// package.json (only fields SPOC reads)
+// package.json (only fields ARCS reads)
 // ---------------------------------------------------------------------------
 
 export const packageJsonSchema = z.object({
@@ -17,7 +17,7 @@ export const packageJsonSchema = z.object({
 export type PackageJson = z.infer<typeof packageJsonSchema>;
 
 // ---------------------------------------------------------------------------
-// ~/.spoc/config.json
+// ~/.arcs/config.json
 // ---------------------------------------------------------------------------
 
 export const cliConfigSchema = z.object({
@@ -137,7 +137,7 @@ export const taskIndexSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// OpenCode SPOC bundle manifest (source bundle)
+// OpenCode ARCS bundle manifest (source bundle)
 // ---------------------------------------------------------------------------
 
 const configMergeSchema = z.object({

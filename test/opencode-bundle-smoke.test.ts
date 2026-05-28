@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { withTempHomeDir } from "./helpers/temp-home-dir.js";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/spoc");
+const bundleRoot = resolve(root, "opencode/arcs");
 const manifestPath = resolve(bundleRoot, "manifest.json");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 const skillsDir = resolve(bundleRoot, "skills");
@@ -69,32 +69,33 @@ function runBundleBuild(outputRoot: string) {
     cwd: root,
     env: {
       ...process.env,
-      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
+      ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
     },
     encoding: "utf-8",
   });
 }
 
-describe("opencode SPOC bundle bundle", () => {
+describe("opencode ARCS bundle bundle", () => {
   it("ships a manifest with required install metadata", () => {
     const manifest = readJsonFile<InstallerManifest>(manifestPath);
 
-    expect(manifest.bundleId).toBe("spoc-opencode-bundle");
-    expect(manifest.installMode).toBe("opencode-spoc");
-    expect(manifest.sourceRoot).toBe("opencode/spoc");
+    expect(manifest.bundleId).toBe("arcs-opencode-bundle");
+    expect(manifest.installMode).toBe("opencode-arcs");
+    expect(manifest.sourceRoot).toBe("opencode/arcs");
     expect(manifest.skills.source).toBe("skills");
-    expect(manifest.skills.destination).toBe("skills/spoc");
+    expect(manifest.skills.destination).toBe("skills/arcs");
     expect(manifest.plugin.required).toBe(true);
-    expect(manifest.plugin.source).toBe(".opencode/plugins/spoc.js");
+    expect(manifest.plugin.source).toBe(".opencode/plugins/arcs.js");
     expect(manifest.agents).toEqual([
       { source: "prompts/software-engineer.txt", destination: "prompts/software-engineer.txt" },
       { source: "prompts/tech-architect.txt", destination: "prompts/tech-architect.txt" },
       { source: "prompts/qa-analyst.txt", destination: "prompts/qa-analyst.txt" },
       { source: "prompts/oncall-ops.txt", destination: "prompts/oncall-ops.txt" },
-      { source: "prompts/spoc-docs.txt", destination: "prompts/spoc-docs.txt" },
+      { source: "prompts/arcs-docs.txt", destination: "prompts/arcs-docs.txt" },
       { source: "prompts/system-architect.txt", destination: "prompts/system-architect.txt" },
       { source: "prompts/code-reviewer.txt", destination: "prompts/code-reviewer.txt" },
       { source: "prompts/docs-researcher.txt", destination: "prompts/docs-researcher.txt" },
+      { source: "prompts/devil-advocate.txt", destination: "prompts/devil-advocate.txt" },
     ]);
     expect(manifest.config.requiredMerges).toEqual(
       expect.arrayContaining([
@@ -167,13 +168,13 @@ describe("opencode SPOC bundle bundle", () => {
     const runtimeManifest = readJsonFile<RuntimeManifest>(runtimeManifestPath);
     const outputRoot = mkdtempSync(resolve(tmpdir(), "opencode-bundle-smoke-"));
 
-    // SPOC-native skills (authored in this repo) live in the bundle but aren't
+    // ARCS-native skills (authored in this repo) live in the bundle but aren't
     // declared in bundle-runtime.json — they are preserved output files.
-     const spocNativeSkillNames = ["caveman-commit", "init-project"];
-     const expectedSkillNames = [
-       ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
-     ].sort();
-     expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
+    const arcsNativeSkillNames = ["caveman-commit", "init-project"];
+    const expectedSkillNames = [
+      ...new Set([...Object.keys(runtimeManifest.skills), ...arcsNativeSkillNames]),
+    ].sort();
+    expect(readdirSync(skillsDir).sort()).toEqual(expectedSkillNames);
 
     try {
       // Output root IS the source of truth — copy the real bundle into the
@@ -185,11 +186,11 @@ describe("opencode SPOC bundle bundle", () => {
       const result = runBundleBuild(outputRoot);
 
       expect(result.status).toBe(0);
-      // Skills dir contains the manifest-declared skills plus the SPOC-native
+      // Skills dir contains the manifest-declared skills plus the ARCS-native
       // skills (preservedOutputFiles) — the build prunes nothing in this set.
-      const spocNativeSkillNames = ["caveman-commit", "init-project"];
+      const arcsNativeSkillNames = ["caveman-commit", "init-project"];
       const expectedSkillsAfterBuild = [
-        ...new Set([...Object.keys(runtimeManifest.skills), ...spocNativeSkillNames]),
+        ...new Set([...Object.keys(runtimeManifest.skills), ...arcsNativeSkillNames]),
       ].sort();
       expect(
         readdirSync(resolve(outputRoot, "skills"), { withFileTypes: true })
@@ -221,11 +222,11 @@ describe("opencode SPOC bundle bundle", () => {
 
       const pluginsDir = resolve(outputRoot, ".opencode", "plugins");
       const actualPluginFiles = existsSync(pluginsDir) ? listRelativeFiles(pluginsDir).sort() : [];
-      // plugins/ contains spoc.js as a preservedOutputFiles entry plus any
+      // plugins/ contains arcs.js as a preservedOutputFiles entry plus any
       // additional plugins declared in runtimeManifest.plugin.
       const expectedPluginFiles = [
         ...new Set([
-          "spoc.js",
+          "arcs.js",
           ...runtimeManifest.plugin.map((p) => p.replace(/^\.opencode\/plugins\//, "")),
         ]),
       ].sort();

@@ -10,14 +10,14 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 export const PACKAGE_ROOT = resolve(dirname(__filename), "../..");
 
-const DEFAULT_DATA_DIR_NAME = ".spoc";
+const DEFAULT_DATA_DIR_NAME = ".arcs";
 
 /**
  * Returns the data directory path.
- * Priority: SPOC_DATA_DIR env var > ~/.spoc
+ * Priority: ARCS_DATA_DIR env var > ~/.arcs
  */
 export function getDataDir(): string {
-  const envDir = process.env.SPOC_DATA_DIR;
+  const envDir = process.env.ARCS_DATA_DIR;
   if (envDir) {
     return resolve(envDir);
   }
@@ -32,13 +32,13 @@ function assertWritable(dir: string): void {
   try {
     accessSync(dir, constants.W_OK);
   } catch {
-    const source = process.env.SPOC_DATA_DIR
-      ? `SPOC_DATA_DIR="${process.env.SPOC_DATA_DIR}"`
+    const source = process.env.ARCS_DATA_DIR
+      ? `ARCS_DATA_DIR="${process.env.ARCS_DATA_DIR}"`
       : `~/${DEFAULT_DATA_DIR_NAME}`;
     throw new Error(
       `Data directory "${dir}" is not writable.\n` +
         `Source: ${source}\n` +
-        `Fix: check permissions, or set SPOC_DATA_DIR to a writable path.`,
+        `Fix: check permissions, or set ARCS_DATA_DIR to a writable path.`,
     );
   }
 }

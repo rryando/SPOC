@@ -19,7 +19,7 @@ describe("output-envelope", () => {
     it("creates correct shape with optional fields", () => {
       const result = failure("missing_param", "slug is required", {
         hint: "Pass --slug=<slug>",
-        usage: "spoc task list --slug=<slug>",
+        usage: "arcs task list --slug=<slug>",
         param: "slug",
       });
       expect(result).toEqual({
@@ -27,7 +27,7 @@ describe("output-envelope", () => {
         code: "missing_param",
         message: "slug is required",
         hint: "Pass --slug=<slug>",
-        usage: "spoc task list --slug=<slug>",
+        usage: "arcs task list --slug=<slug>",
         param: "slug",
       });
     });

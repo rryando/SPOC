@@ -11,9 +11,14 @@ import {
   readPlanIndex,
   updateTask,
 } from "../../utils/project-memory.js";
-import { normalizeIdentifier } from "../../utils/slug.js";
 import { resolveProject } from "../../utils/project-resolver.js";
-import { type CLIResult, type CommandFlags, defineCommand, ERROR_CODES } from "../command-registry.js";
+import { normalizeIdentifier } from "../../utils/slug.js";
+import {
+  type CLIResult,
+  type CommandFlags,
+  defineCommand,
+  ERROR_CODES,
+} from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
 import { attemptDiagramUpdate } from "./task.js";
 
@@ -63,7 +68,7 @@ async function handleDone(
   // Validate project directory exists
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -150,7 +155,7 @@ async function handleDone(
     lines.push(`Next: ${nextData.title}`);
     if (nextData.plan) lines.push(`Plan: ${nextData.plan}`);
     lines.push("");
-    lines.push(`Run: spoc done ${slug} ${nextData.id}`);
+    lines.push(`Run: arcs done ${slug} ${nextData.id}`);
   } else {
     lines.push("All tasks complete! Nothing left to do.");
   }

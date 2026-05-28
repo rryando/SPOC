@@ -8,7 +8,7 @@ describe("file-lock", () => {
   let tmp: string;
 
   beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), "spoc-lock-test-"));
+    tmp = mkdtempSync(join(tmpdir(), "arcs-lock-test-"));
   });
 
   afterEach(() => {

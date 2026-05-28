@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests for `spoc brief` command
+// Tests for `arcs brief` command
 // ---------------------------------------------------------------------------
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -192,7 +192,7 @@ function seedProject(
   }
 }
 
-describe("spoc brief", () => {
+describe("arcs brief", () => {
   it("returns correct envelope shape", async () => {
     await withTempDataDir(async (dir) => {
       seedProject(dir, "test-proj");
@@ -376,7 +376,7 @@ describe("spoc brief", () => {
   });
 
   it("summary skips leading H2 heading and grabs first prose paragraph", async () => {
-    // Regression: spoc's own overview.md starts with `## Summary` which the
+    // Regression: arcs's own overview.md starts with `## Summary` which the
     // brief was rendering verbatim instead of skipping to the actual prose.
     await withTempDataDir(async (dir) => {
       const overview =
@@ -424,10 +424,10 @@ describe("spoc brief", () => {
 });
 
 // ---------------------------------------------------------------------------
-// spoc context — default filtering and --full
+// arcs context — default filtering and --full
 // ---------------------------------------------------------------------------
 
-describe("spoc context", () => {
+describe("arcs context", () => {
   it("defaults audience to orchestrator", async () => {
     await withTempDataDir(async (dir) => {
       seedProject(dir, "test-proj");

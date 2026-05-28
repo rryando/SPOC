@@ -37,10 +37,7 @@ function isGitRepo(repoPath: string): boolean {
 }
 
 function getRecentBranches(repoPath: string): string[] {
-  const output = exec(
-    "git branch --sort=-committerdate --format='%(refname:short)'",
-    repoPath,
-  );
+  const output = exec("git branch --sort=-committerdate --format='%(refname:short)'", repoPath);
   if (!output) return [];
 
   return output
@@ -80,9 +77,7 @@ function getRecentCommitTopics(repoPath: string): string[] {
 function getTodos(repoPath: string): TodoEntry[] {
   const excludeDirs = ["node_modules", "dist", ".git", "vendor", "target"];
   const excludeArgs = excludeDirs.map((d) => `--exclude-dir=${d}`).join(" ");
-  const includePatterns = ["*.ts", "*.js", "*.py", "*.rs"]
-    .map((p) => `--include="${p}"`)
-    .join(" ");
+  const includePatterns = ["*.ts", "*.js", "*.py", "*.rs"].map((p) => `--include="${p}"`).join(" ");
 
   const output = exec(
     `grep -rn ${excludeArgs} ${includePatterns} "TODO\\|FIXME" . | head -20`,
@@ -97,7 +92,10 @@ function getTodos(repoPath: string): TodoEntry[] {
     if (!match) continue;
 
     const [, file, lineStr, rawText] = match;
-    const text = rawText.trim().replace(/^[/*# ]+/, "").trim();
+    const text = rawText
+      .trim()
+      .replace(/^[/*# ]+/, "")
+      .trim();
     todos.push({ file, line: parseInt(lineStr, 10), text });
   }
 

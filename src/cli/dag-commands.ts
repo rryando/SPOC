@@ -17,8 +17,8 @@ function cliError(msg: string): void {
 }
 
 function printUsage(): void {
-  console.log("Usage: spoc <command> [subcommand] [options]\n");
-  console.log("Run 'spoc --commands --json' for a full command list.");
+  console.log("Usage: arcs <command> [subcommand] [options]\n");
+  console.log("Run 'arcs --commands --json' for a full command list.");
 }
 
 // ---------------------------------------------------------------------------

@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { readJsonSafeSync } from "../utils/json.js";
+import { ORCHESTRATE_PROMPT_TEXT } from "./arcs-orchestrate.js";
+import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./arcs-orchestrate-caveman.js";
 import type { ModelTierConfig } from "./config.js";
-import { ORCHESTRATE_PROMPT_TEXT } from "./spoc-orchestrate.js";
-import { ORCHESTRATE_CAVEMAN_PROMPT_TEXT } from "./spoc-orchestrate-caveman.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,7 +23,7 @@ function writeJsonFile(path: string, data: Record<string, unknown>): void {
 
 /**
  * Deep-set a nested key path on an object (mutates in place).
- * E.g. deepSet(obj, ["agent", "SPOC Orchestrator"], value)
+ * E.g. deepSet(obj, ["agent", "ARCS Orchestrator"], value)
  */
 function _deepSet(obj: Record<string, unknown>, keys: string[], value: unknown): void {
   let current = obj;
@@ -45,14 +45,14 @@ function _deepSet(obj: Record<string, unknown>, keys: string[], value: unknown):
 const AGENT_TIER_MAP: Record<string, "heavy" | "standard" | "light"> = {
   "software-engineer": "heavy",
   "docs-researcher": "heavy",
-  "spoc-docs": "heavy",
+  "arcs-docs": "heavy",
   "oncall-ops": "heavy",
   "system-architect": "heavy",
   plan: "heavy",
   general: "heavy",
   build: "standard",
-  "SPOC Orchestrator": "standard",
-  "SPOC Caveman": "standard",
+  "ARCS Orchestrator": "standard",
+  "ARCS Caveman": "standard",
   explore: "light",
   "code-reviewer": "light",
   "tech-architect": "light",
@@ -97,45 +97,45 @@ function opencodePromptsDir(): string {
   return resolve(opencodeConfigDir(), "prompts");
 }
 
-/** Path to the SPOC orchestrator prompt file. */
+/** Path to the ARCS orchestrator prompt file. */
 function opencodePromptPath(): string {
-  return resolve(opencodePromptsDir(), "spoc-orchestrate.txt");
+  return resolve(opencodePromptsDir(), "arcs-orchestrate.txt");
 }
 
-/** Path to the SPOC Caveman orchestrator prompt file. */
+/** Path to the ARCS Caveman orchestrator prompt file. */
 function opencodeCavemanPromptPath(): string {
-  return resolve(opencodePromptsDir(), "spoc-orchestrate-caveman.txt");
+  return resolve(opencodePromptsDir(), "arcs-orchestrate-caveman.txt");
 }
 
 /**
- * The OpenCode agent entry for SPOC orchestrator.
+ * The OpenCode agent entry for ARCS orchestrator.
  */
-export const SPOC_AGENT_ENTRY = {
-  description: "SPOC - (Orchestrator)",
+export const ARCS_AGENT_ENTRY = {
+  description: "ARCS - (Orchestrator)",
   mode: "primary" as const,
-  prompt: "{file:./prompts/spoc-orchestrate.txt}",
+  prompt: "{file:./prompts/arcs-orchestrate.txt}",
   color: "#00bcd4",
 };
 
 /**
- * The OpenCode agent entry for SPOC Caveman — same capabilities as SPOC
+ * The OpenCode agent entry for ARCS Caveman — same capabilities as ARCS
  * Orchestrator, but with caveman speech layered on top for token efficiency.
  */
-export const SPOC_CAVEMAN_AGENT_ENTRY = {
-  description: "SPOC - Caveman (token-efficient orchestrator)",
+export const ARCS_CAVEMAN_AGENT_ENTRY = {
+  description: "ARCS - Caveman (token-efficient orchestrator)",
   mode: "primary" as const,
-  prompt: "{file:./prompts/spoc-orchestrate-caveman.txt}",
+  prompt: "{file:./prompts/arcs-orchestrate-caveman.txt}",
   color: "#d2691e",
 };
 
-/** The key used for the SPOC agent entry in opencode.json → agent.<key>. */
-const SPOC_AGENT_KEY = "SPOC Orchestrator";
+/** The key used for the ARCS agent entry in opencode.json → agent.<key>. */
+const ARCS_AGENT_KEY = "ARCS Orchestrator";
 
-/** The key used for the SPOC Caveman agent entry. */
-const SPOC_CAVEMAN_AGENT_KEY = "SPOC Caveman";
+/** The key used for the ARCS Caveman agent entry. */
+const ARCS_CAVEMAN_AGENT_KEY = "ARCS Caveman";
 
 /**
- * Checks whether the SPOC agent is already registered in opencode.json.
+ * Checks whether the ARCS agent is already registered in opencode.json.
  */
 export function opencodeHasAgent(): boolean {
   const configFile = resolve(opencodeConfigDir(), "opencode.json");
@@ -143,10 +143,10 @@ export function opencodeHasAgent(): boolean {
   try {
     const config = readJsonSafeSync<Record<string, unknown>>(configFile) ?? {};
     const agents = config.agent as Record<string, unknown> | undefined;
-    // Presence gate: if the orchestrator is registered, SPOC is "configured".
+    // Presence gate: if the orchestrator is registered, ARCS is "configured".
     // writeOpencodeAgent() always installs both the orchestrator and Caveman,
     // so existing installs auto-upgrade to gain Caveman on re-run.
-    return agents != null && SPOC_AGENT_KEY in agents;
+    return agents != null && ARCS_AGENT_KEY in agents;
   } catch {
     return false;
   }
@@ -161,11 +161,11 @@ export interface AgentWriteResult {
 }
 
 /**
- * Registers the SPOC orchestrator agents (standard + Caveman) as primary
+ * Registers the ARCS orchestrator agents (standard + Caveman) as primary
  * agents in opencode.json. Also writes both prompt text files to
  * ~/.config/opencode/prompts/.
  *
- * Both agents share full SPOC tool access and workflow rules; SPOC Caveman
+ * Both agents share full ARCS tool access and workflow rules; ARCS Caveman
  * layers caveman-speak on top for token-efficient chat output.
  */
 export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteResult {
@@ -181,8 +181,8 @@ export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteRes
   writeFileSync(cavemanPromptFile, `${ORCHESTRATE_CAVEMAN_PROMPT_TEXT}\n`, "utf-8");
 
   // Merge agent entries into opencode.json with controlled key order:
-  // 1. SPOC Orchestrator (always first — controls Tab-cycle position in OpenCode)
-  // 2. SPOC Caveman (second — Tab once to reach token-efficient mode)
+  // 1. ARCS Orchestrator (always first — controls Tab-cycle position in OpenCode)
+  // 2. ARCS Caveman (second — Tab once to reach token-efficient mode)
   // 3. build (third, if already present in config)
   // 4. all other existing agents in their original order
   const existing = readJsonFile(configFile);
@@ -190,40 +190,40 @@ export function writeOpencodeAgent(modelConfig?: ModelTierConfig): AgentWriteRes
 
   // Primary agents get a model field resolved from tier map (standard) unless
   // the user provided a perAgent override, which always wins.
-  const orchestratorEntry: Record<string, unknown> = { ...SPOC_AGENT_ENTRY };
+  const orchestratorEntry: Record<string, unknown> = { ...ARCS_AGENT_ENTRY };
   if (modelConfig) {
     orchestratorEntry.model = resolveAgentModel(
-      SPOC_AGENT_KEY,
-      AGENT_TIER_MAP[SPOC_AGENT_KEY] ?? "standard",
+      ARCS_AGENT_KEY,
+      AGENT_TIER_MAP[ARCS_AGENT_KEY] ?? "standard",
       modelConfig,
     );
   }
 
-  const cavemanEntry: Record<string, unknown> = { ...SPOC_CAVEMAN_AGENT_ENTRY };
+  const cavemanEntry: Record<string, unknown> = { ...ARCS_CAVEMAN_AGENT_ENTRY };
   if (modelConfig) {
     cavemanEntry.model = resolveAgentModel(
-      SPOC_CAVEMAN_AGENT_KEY,
-      AGENT_TIER_MAP[SPOC_CAVEMAN_AGENT_KEY] ?? "standard",
+      ARCS_CAVEMAN_AGENT_KEY,
+      AGENT_TIER_MAP[ARCS_CAVEMAN_AGENT_KEY] ?? "standard",
       modelConfig,
     );
   }
 
   const orderedAgents: Record<string, unknown> = {
-    [SPOC_AGENT_KEY]: orchestratorEntry,
-    [SPOC_CAVEMAN_AGENT_KEY]: cavemanEntry,
+    [ARCS_AGENT_KEY]: orchestratorEntry,
+    [ARCS_CAVEMAN_AGENT_KEY]: cavemanEntry,
   };
   if ("build" in existingAgents) {
     orderedAgents.build = existingAgents.build;
   }
   for (const [key, value] of Object.entries(existingAgents)) {
-    if (key !== SPOC_AGENT_KEY && key !== SPOC_CAVEMAN_AGENT_KEY && key !== "build") {
+    if (key !== ARCS_AGENT_KEY && key !== ARCS_CAVEMAN_AGENT_KEY && key !== "build") {
       orderedAgents[key] = value;
     }
   }
 
   existing.agent = orderedAgents;
-  // Set SPOC Orchestrator as the startup default agent (Caveman is opt-in via Tab)
-  existing.default_agent = SPOC_AGENT_KEY;
+  // Set ARCS Orchestrator as the startup default agent (Caveman is opt-in via Tab)
+  existing.default_agent = ARCS_AGENT_KEY;
   writeJsonFile(configFile, existing);
 
   return {

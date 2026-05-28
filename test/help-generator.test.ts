@@ -63,9 +63,9 @@ describe("generateCommandHelp", () => {
       },
       handler: noop,
     });
-    expect(help).toContain("spoc help-test propose — Test command for help generator");
+    expect(help).toContain("arcs help-test propose — Test command for help generator");
     expect(help).toContain(
-      "Usage: spoc help-test propose <summary> --ops=STRING --slug=STRING [--ttl=NUMBER]",
+      "Usage: arcs help-test propose <summary> --ops=STRING --slug=STRING [--ttl=NUMBER]",
     );
   });
 
@@ -173,6 +173,6 @@ describe("formatCommandsDiscovery", () => {
     const output = formatCommandsDiscovery(discovery, false);
     expect(output).toContain("Available commands:");
     expect(output).toContain("help-test propose");
-    expect(output).toContain("Use 'spoc <command> --help' for details.");
+    expect(output).toContain("Use 'arcs <command> --help' for details.");
   });
 });

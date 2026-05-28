@@ -144,11 +144,11 @@ export function renderDiagramTree(inspectJson: InspectOutput): string {
 export function renderDiagramShow(diagramPath: string): string {
   const localPath = resolve(
     import.meta.dirname,
-    "../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+    "../../opencode/arcs/skills/to-diagram/scripts/manage-diagram.mjs",
   );
   const configPath = resolve(
     homedir(),
-    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+    ".config/opencode/skills/arcs/to-diagram/scripts/manage-diagram.mjs",
   );
   const scriptPath = existsSync(localPath)
     ? localPath

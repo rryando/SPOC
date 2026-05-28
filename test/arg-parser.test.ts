@@ -179,7 +179,7 @@ describe("generateUsage", () => {
       "write propose",
     );
     const usage = generateUsage(def);
-    expect(usage).toBe("Usage: spoc write propose <summary> --ops=OPS --slug=SLUG [--ttl=TTL]");
+    expect(usage).toBe("Usage: arcs write propose <summary> --ops=OPS --slug=SLUG [--ttl=TTL]");
   });
 });
 

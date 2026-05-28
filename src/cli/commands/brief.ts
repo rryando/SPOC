@@ -148,7 +148,7 @@ async function handleBrief(
  * Walk paragraphs and return the first one that's actual prose (not a heading,
  * not a list, not a code fence). Truncates to 200 chars to keep the brief tight.
  *
- * Rationale: the SPOC project's own overview.md opens with `## Summary` which
+ * Rationale: the ARCS project's own overview.md opens with `## Summary` which
  * is a heading — taking the first paragraph naively rendered the heading text
  * verbatim. By skipping until we find prose, we always emit a real description.
  */

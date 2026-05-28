@@ -20,7 +20,7 @@ function filterByAudience(entries: KnowledgeMeta[], audience?: string): Knowledg
 }
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "spoc-audience-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcs-audience-test-"));
   mkdirSync(join(dir, "knowledge"), { recursive: true });
   return dir;
 }

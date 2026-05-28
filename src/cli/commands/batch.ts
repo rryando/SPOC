@@ -112,7 +112,7 @@ async function handleBatch(
 
   if (!filePath && !stdinFlag) {
     return failure("missing_param", "Either --file or --stdin is required", {
-      usage: "spoc batch --file=<path> or spoc batch --stdin",
+      usage: "arcs batch --file=<path> or arcs batch --stdin",
     });
   }
 

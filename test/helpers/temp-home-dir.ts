@@ -6,7 +6,7 @@ export async function withTempHomeDir(
   run: (homeDir: string) => Promise<void> | void,
 ): Promise<void> {
   const originalHome = process.env.HOME;
-  const homeDir = mkdtempSync(resolve(tmpdir(), "spoc-home-"));
+  const homeDir = mkdtempSync(resolve(tmpdir(), "arcs-home-"));
 
   mkdirSync(resolve(homeDir, ".config", "opencode"), { recursive: true });
   process.env.HOME = homeDir;

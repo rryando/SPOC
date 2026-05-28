@@ -3,10 +3,7 @@
 // ---------------------------------------------------------------------------
 import { existsSync } from "node:fs";
 import { getProjectDir } from "../../utils/paths.js";
-import {
-  createKnowledgeEntry,
-  type KnowledgeKind,
-} from "../../utils/project-memory.js";
+import { createKnowledgeEntry, type KnowledgeKind } from "../../utils/project-memory.js";
 import { normalizeIdentifier } from "../../utils/slug.js";
 import {
   type CLIResult,
@@ -50,7 +47,7 @@ async function handleRemember(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 

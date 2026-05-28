@@ -94,8 +94,8 @@ describe("file-existence validation (output root is source of truth)", () => {
     writeFile(outputRoot, "skills/planner/SKILL.md", "skill");
 
     const result = runBundleBuild({
-      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-      SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
+      ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+      ARCS_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
 
     expect(result.status).not.toBe(0);
@@ -125,7 +125,7 @@ describe("end-to-end smoke test (no source mirroring)", () => {
         reviewer: ["SKILL.md"],
       },
       agents: ["agents/helper.md"],
-      plugin: [".opencode/plugins/spoc.js"],
+      plugin: [".opencode/plugins/arcs.js"],
     };
 
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
@@ -134,13 +134,13 @@ describe("end-to-end smoke test (no source mirroring)", () => {
     writeFile(outputRoot, "skills/planner/notes.md", "planner-notes");
     writeFile(outputRoot, "skills/reviewer/SKILL.md", "reviewer-skill");
     writeFile(outputRoot, "agents/helper.md", "agent-helper");
-    writeFile(outputRoot, ".opencode/plugins/spoc.js", "plugin-code");
+    writeFile(outputRoot, ".opencode/plugins/arcs.js", "plugin-code");
     // Undeclared file that should be pruned by the build.
     writeFile(outputRoot, "skills/planner/stale.md", "stale content");
 
     const result = runBundleBuild({
-      SPOC_BUNDLE_OUTPUT_ROOT: outputRoot,
-      SPOC_BUNDLE_RUNTIME_MANIFEST: manifestPath,
+      ARCS_BUNDLE_OUTPUT_ROOT: outputRoot,
+      ARCS_BUNDLE_RUNTIME_MANIFEST: manifestPath,
     });
 
     expect(result.status).toBe(0);
@@ -157,7 +157,7 @@ describe("end-to-end smoke test (no source mirroring)", () => {
       "reviewer-skill",
     );
     expect(readFileSync(resolve(outputRoot, "agents/helper.md"), "utf-8")).toBe("agent-helper");
-    expect(readFileSync(resolve(outputRoot, ".opencode/plugins/spoc.js"), "utf-8")).toBe(
+    expect(readFileSync(resolve(outputRoot, ".opencode/plugins/arcs.js"), "utf-8")).toBe(
       "plugin-code",
     );
 

@@ -1,5 +1,5 @@
 /**
- * Core types for SPOC's graph-based retrieval layer.
+ * Core types for ARCS's graph-based retrieval layer.
  */
 
 export type NodeType = "task" | "plan" | "knowledge" | "file";

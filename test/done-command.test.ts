@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Tests for `spoc done` command
+// Tests for `arcs done` command
 // ---------------------------------------------------------------------------
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -8,11 +8,7 @@ import { describe, expect, it } from "vitest";
 import { runCommand } from "./helpers/cli-runner.js";
 import { withTempDataDir } from "./helpers/temp-data-dir.js";
 
-function seedProject(
-  dir: string,
-  slug: string,
-  opts?: { tasks?: unknown[]; plans?: unknown[] },
-) {
+function seedProject(dir: string, slug: string, opts?: { tasks?: unknown[]; plans?: unknown[] }) {
   const rootMeta = {
     version: "1.0",
     projects: [{ id: slug, name: "Test Project", status: "active", dependsOn: [] }],
@@ -84,7 +80,7 @@ function seedProject(
   writeFileSync(resolve(knowledgeDir, "index.json"), JSON.stringify({ entries: [] }), "utf-8");
 }
 
-describe("spoc done", () => {
+describe("arcs done", () => {
   it("marks task as done and returns next task as JSON", async () => {
     await withTempDataDir(async (dir) => {
       seedProject(dir, "test-proj");
@@ -136,7 +132,7 @@ describe("spoc done", () => {
       const output = result.data as string;
       expect(output).toContain("✓ Done: Implement feature X");
       expect(output).toContain("Next: Write tests");
-      expect(output).toContain("Run: spoc done human-proj t2");
+      expect(output).toContain("Run: arcs done human-proj t2");
     });
   });
 

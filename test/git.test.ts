@@ -8,7 +8,7 @@ const REPO_ROOT = join(import.meta.dirname, "..");
 let tempDir: string;
 
 beforeAll(() => {
-  tempDir = mkdtempSync(join(tmpdir(), "spoc-git-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "arcs-git-test-"));
 });
 
 afterAll(() => {
@@ -16,7 +16,7 @@ afterAll(() => {
 });
 
 describe("isGitRepo", () => {
-  it("returns true for the SPOC repo", () => {
+  it("returns true for the ARCS repo", () => {
     expect(isGitRepo(REPO_ROOT)).toBe(true);
   });
 
@@ -26,7 +26,7 @@ describe("isGitRepo", () => {
 });
 
 describe("getHeadCommit", () => {
-  it("returns a short SHA for the SPOC repo", () => {
+  it("returns a short SHA for the ARCS repo", () => {
     const sha = getHeadCommit(REPO_ROOT);
     expect(sha).toMatch(/^[a-f0-9]{7,}$/);
   });
@@ -37,7 +37,7 @@ describe("getHeadCommit", () => {
 });
 
 describe("getGitLog", () => {
-  it("returns non-empty array for the SPOC repo", () => {
+  it("returns non-empty array for the ARCS repo", () => {
     const entries = getGitLog(REPO_ROOT);
     expect(entries.length).toBeGreaterThan(0);
     const entry = entries[0];

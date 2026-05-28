@@ -25,7 +25,7 @@ import {
 const tempDirs: string[] = [];
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(resolve(tmpdir(), "spoc-project-memory-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "arcs-project-memory-"));
   tempDirs.push(dir);
   return dir;
 }

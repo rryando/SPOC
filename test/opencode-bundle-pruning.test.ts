@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const bundleRoot = resolve(root, "opencode/spoc");
+const bundleRoot = resolve(root, "opencode/arcs");
 const runtimeManifestPath = resolve(bundleRoot, "bundle-runtime.json");
 
 type RuntimeManifest = {
@@ -30,12 +30,9 @@ function listRelativeFiles(rootPath: string, currentPath = rootPath): string[] {
   });
 }
 
-// SPOC-native skills: authored in this repo, not sourced from upstream.
+// ARCS-native skills: authored in this repo, not sourced from upstream.
 // Must match the skill entries in scripts/build-opencode-bundle.mjs preservedOutputFiles.
-const spocNativeSkillFiles = [
-  "skills/caveman-commit/SKILL.md",
-  "skills/init-project/SKILL.md",
-];
+const arcsNativeSkillFiles = ["skills/caveman-commit/SKILL.md", "skills/init-project/SKILL.md"];
 
 describe("checked-in opencode bundle pruning", () => {
   it("matches the runtime manifest exactly", () => {
@@ -44,14 +41,14 @@ describe("checked-in opencode bundle pruning", () => {
       // Repo-authored preserved files (not sourced from installed location)
       "bundle-runtime.json",
       "manifest.json",
-      ".opencode/plugins/spoc.js",
+      ".opencode/plugins/arcs.js",
       ...Object.entries(runtimeManifest.skills).flatMap(([skillName, skillFiles]) =>
         skillFiles.map((relativeFilePath) => `skills/${skillName}/${relativeFilePath}`),
       ),
       ...runtimeManifest.agents,
       ...runtimeManifest.plugin,
-      // SPOC-native skills live in the bundle but aren't declared in bundle-runtime.json
-      ...spocNativeSkillFiles,
+      // ARCS-native skills live in the bundle but aren't declared in bundle-runtime.json
+      ...arcsNativeSkillFiles,
       // Agent prompt files (repo-authored, referenced via {file:} in manifest.json)
       "prompts/code-reviewer.txt",
       "prompts/devil-advocate.txt",
@@ -59,13 +56,13 @@ describe("checked-in opencode bundle pruning", () => {
       "prompts/oncall-ops.txt",
       "prompts/qa-analyst.txt",
       "prompts/software-engineer.txt",
-      "prompts/spoc-docs.txt",
+      "prompts/arcs-docs.txt",
       "prompts/system-architect.txt",
       "prompts/tech-architect.txt",
-      // Orchestrator prompt files generated from src/cli/spoc-orchestrate*.ts
+      // Orchestrator prompt files generated from src/cli/arcs-orchestrate*.ts
       // by build-opencode-bundle.mjs and committed to the repo bundle.
-      "prompts/spoc-orchestrate.txt",
-      "prompts/spoc-orchestrate-caveman.txt",
+      "prompts/arcs-orchestrate.txt",
+      "prompts/arcs-orchestrate-caveman.txt",
     ].sort();
 
     expect(listRelativeFiles(bundleRoot).sort()).toEqual(expectedBundleFiles);

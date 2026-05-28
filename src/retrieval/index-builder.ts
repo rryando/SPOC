@@ -1,5 +1,5 @@
 /**
- * Adapter that builds BM25 retrieval indexes from SPOC project knowledge and plan entries.
+ * Adapter that builds BM25 retrieval indexes from ARCS project knowledge and plan entries.
  */
 
 import { getProjectDir } from "../utils/paths.js";

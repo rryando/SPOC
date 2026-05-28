@@ -38,8 +38,8 @@ vi.mock("../src/cli/instructions.js", () => ({
 }));
 
 vi.mock("../src/cli/bundle-installer.js", () => ({
-  detectSpocBundleInstall: vi.fn(),
-  installSpocBundle: vi.fn(),
+  detectArcsBundleInstall: vi.fn(),
+  installArcsBundle: vi.fn(),
 }));
 
 const mockedExecSync = vi.mocked(childProcess.execSync);

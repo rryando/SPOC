@@ -43,7 +43,7 @@ async function handleRelatedCmd(
   if (!taskId && !knowledgeId && !planId) {
     return failure(ERROR_CODES.MISSING_PARAM, "One of --task, --knowledge, or --plan is required", {
       usage:
-        "spoc related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
+        "arcs related <slug> --task=<id> | --knowledge=<id> | --plan=<id> [--limit=N] [--json]",
     });
   }
 

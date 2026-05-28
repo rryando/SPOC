@@ -14,7 +14,7 @@ import {
 const tempDirs: string[] = [];
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(resolve(tmpdir(), "spoc-knowledge-audience-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "arcs-knowledge-audience-"));
   tempDirs.push(dir);
   return dir;
 }

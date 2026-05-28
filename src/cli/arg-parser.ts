@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Schema-driven argument parser for SPOC CLI commands
+// Schema-driven argument parser for ARCS CLI commands
 // ---------------------------------------------------------------------------
 
 import { type CLIResult, type CommandDef, ERROR_CODES } from "./command-registry.js";
@@ -168,7 +168,7 @@ export function parseArgs(def: CommandDef, rawArgs: string[]): ParseResult {
 }
 
 export function generateUsage(def: CommandDef): string {
-  const parts = [`Usage: spoc ${def.path}`];
+  const parts = [`Usage: arcs ${def.path}`];
   const sorted = Object.entries(def.params).sort(([, a], [, b]) => {
     if (a.positional !== undefined && b.positional !== undefined)
       return a.positional - b.positional;

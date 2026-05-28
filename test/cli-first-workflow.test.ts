@@ -10,7 +10,7 @@ import { handleDagCommand } from "../src/cli/dag-commands.js";
 // ---------------------------------------------------------------------------
 
 function createTempDataDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "spoc-cli-workflow-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcs-cli-workflow-"));
   writeFileSync(
     join(dir, "meta.json"),
     JSON.stringify({
@@ -147,7 +147,7 @@ let stderr: string[];
 
 beforeEach(() => {
   dataDir = createTempDataDir();
-  process.env.SPOC_DATA_DIR = dataDir;
+  process.env.ARCS_DATA_DIR = dataDir;
   stdout = [];
   stderr = [];
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -159,7 +159,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.SPOC_DATA_DIR;
+  delete process.env.ARCS_DATA_DIR;
   vi.restoreAllMocks();
 });
 

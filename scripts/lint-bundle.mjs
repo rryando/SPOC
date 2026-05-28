@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Bundle linter — detects drift/issues in the opencode SPOC bundle without
+// Bundle linter — detects drift/issues in the opencode ARCS bundle without
 // overwriting anything. The repo bundle directory is the source of truth.
 //
 // Env vars:
-//   BUNDLE_LINT_BUNDLE_ROOT  — override bundle root (default: opencode/spoc)
+//   BUNDLE_LINT_BUNDLE_ROOT  — override bundle root (default: opencode/arcs)
 //
 // Outputs JSON to stdout: { issues: [...], summary: { errors, warnings } }
 // Exit code: 0 if no errors, 1 if errors found.
@@ -12,7 +12,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-const defaultBundleRoot = resolve(repoRoot, "opencode/spoc");
+const defaultBundleRoot = resolve(repoRoot, "opencode/arcs");
 
 const bundleRoot = process.env.BUNDLE_LINT_BUNDLE_ROOT
   ? resolve(repoRoot, process.env.BUNDLE_LINT_BUNDLE_ROOT)
@@ -22,7 +22,7 @@ const bundleRoot = process.env.BUNDLE_LINT_BUNDLE_ROOT
 const preservedFiles = new Set([
   "manifest.json",
   "bundle-runtime.json",
-  ".opencode/plugins/spoc.js",
+  ".opencode/plugins/arcs.js",
   "skills/loop/SKILL.md",
   "skills/caveman-commit/SKILL.md",
   "skills/caveman-review/SKILL.md",
@@ -33,15 +33,15 @@ const preservedFiles = new Set([
   "prompts/tech-architect.txt",
   "prompts/qa-analyst.txt",
   "prompts/oncall-ops.txt",
-  "prompts/spoc-docs.txt",
+  "prompts/arcs-docs.txt",
   "prompts/system-architect.txt",
   "prompts/code-reviewer.txt",
   "prompts/docs-researcher.txt",
-  // Orchestrator prompt files — generated from src/cli/spoc-orchestrate*.ts
+  // Orchestrator prompt files — generated from src/cli/arcs-orchestrate*.ts
   // by build-opencode-bundle.mjs. Committed mirrors so the bundle is
   // self-describing alongside the static sub-agent prompts.
-  "prompts/spoc-orchestrate.txt",
-  "prompts/spoc-orchestrate-caveman.txt",
+  "prompts/arcs-orchestrate.txt",
+  "prompts/arcs-orchestrate-caveman.txt",
 ]);
 
 /** @type {Array<{severity: 'error'|'warning', kind: string, message: string, file?: string, repair?: string}>} */const issues = [];
@@ -165,8 +165,8 @@ for (const [skillName, skillFiles] of Object.entries(manifest.skills ?? {})) {
   }
 }
 
-// --- Check 5: spoc-dashboard/package.json type field ---
-const dashboardPkgPath = resolve(bundleRoot, "skills/spoc-dashboard/package.json");
+// --- Check 5: arcs-dashboard/package.json type field ---
+const dashboardPkgPath = resolve(bundleRoot, "skills/arcs-dashboard/package.json");
 if (existsSync(dashboardPkgPath)) {
   try {
     const pkg = JSON.parse(readFileSync(dashboardPkgPath, "utf-8"));
@@ -174,8 +174,8 @@ if (existsSync(dashboardPkgPath)) {
       addIssue(
         "error",
         "package-json-invalid",
-        `spoc-dashboard package.json missing "type" field (expected "commonjs")`,
-        "skills/spoc-dashboard/package.json",
+        `arcs-dashboard package.json missing "type" field (expected "commonjs")`,
+        "skills/arcs-dashboard/package.json",
         `Add "type": "commonjs" to the package.json`,
       );
     }
@@ -183,15 +183,15 @@ if (existsSync(dashboardPkgPath)) {
     addIssue(
       "error",
       "package-json-invalid",
-      `spoc-dashboard package.json is not valid JSON: ${err.message}`,
-      "skills/spoc-dashboard/package.json",
+      `arcs-dashboard package.json is not valid JSON: ${err.message}`,
+      "skills/arcs-dashboard/package.json",
     );
   }
 }
 
 // --- Check 6: REMOVED. The repo bundle is the source of truth — there is no
 // external "config root" mirror to compare against. Drift detection against
-// ~/.config/opencode/ has been deleted; use `spoc deploy-superpowers --dry-run`
+// ~/.config/opencode/ has been deleted; use `arcs deploy-superpowers --dry-run`
 // if you want to preview what would change in the deployment target.
 
 function output() {

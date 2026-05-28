@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { quickScan } from "../src/utils/quick-scan.js";
 
 function makeTempDir(): string {
-  return mkdtempSync(join(tmpdir(), "spoc-quick-scan-test-"));
+  return mkdtempSync(join(tmpdir(), "arcs-quick-scan-test-"));
 }
 
 function initGitRepo(dir: string): void {
@@ -113,9 +113,7 @@ describe("quickScan", () => {
     );
 
     const result = quickScan(tmpDir);
-    const fromNodeModules = result.todos.filter((t) =>
-      t.file.startsWith("node_modules"),
-    );
+    const fromNodeModules = result.todos.filter((t) => t.file.startsWith("node_modules"));
     expect(fromNodeModules).toHaveLength(0);
   });
 

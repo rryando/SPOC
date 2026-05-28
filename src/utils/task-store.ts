@@ -1,12 +1,12 @@
 /**
- * Task CRUD storage for SPOC projects.
+ * Task CRUD storage for ARCS projects.
  *
  * Provides create, list, get, update, delete operations for tasks,
  * with a flat JSON index and markdown render for human-readable output.
  */
 
-import { basename, join } from "node:path";
 import { writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
 import { itemNotFound, normalizedIdCollision } from "./errors.js";
 import { withLock } from "./file-lock.js";
@@ -26,8 +26,8 @@ import {
 // Re-export types used by consumers
 // ---------------------------------------------------------------------------
 
-export type { TaskStatus, TaskPriority, FileRef } from "./storage-utils.js";
-export { TASK_STATUSES, TASK_PRIORITIES } from "./storage-utils.js";
+export type { FileRef, TaskPriority, TaskStatus } from "./storage-utils.js";
+export { TASK_PRIORITIES, TASK_STATUSES } from "./storage-utils.js";
 
 // ---------------------------------------------------------------------------
 // Meta types

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleDagCommand } from "../src/cli/dag-commands.js";
 
 function createTempDataDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "spoc-cli-ext-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arcs-cli-ext-test-"));
   writeFileSync(
     join(dir, "meta.json"),
     JSON.stringify({
@@ -132,7 +132,7 @@ let stderr: string[];
 
 beforeEach(() => {
   dataDir = createTempDataDir();
-  process.env.SPOC_DATA_DIR = dataDir;
+  process.env.ARCS_DATA_DIR = dataDir;
   stdout = [];
   stderr = [];
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
@@ -144,7 +144,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.SPOC_DATA_DIR;
+  delete process.env.ARCS_DATA_DIR;
   vi.restoreAllMocks();
 });
 
@@ -152,7 +152,7 @@ afterEach(() => {
 // plan command
 // ---------------------------------------------------------------------------
 
-describe("spoc plan list", () => {
+describe("arcs plan list", () => {
   it("lists plans for project", async () => {
     await handleDagCommand("plan", ["list", "--slug=test-proj", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -172,7 +172,7 @@ describe("spoc plan list", () => {
   });
 });
 
-describe("spoc plan get", () => {
+describe("arcs plan get", () => {
   it("gets plan meta", async () => {
     await handleDagCommand("plan", ["get", "test-proj", "my-plan", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -197,7 +197,7 @@ describe("spoc plan get", () => {
 // knowledge command
 // ---------------------------------------------------------------------------
 
-describe("spoc knowledge search", () => {
+describe("arcs knowledge search", () => {
   it("searches knowledge entries", async () => {
     await handleDagCommand("knowledge", ["search", "test-proj", "api", "rest", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -211,7 +211,7 @@ describe("spoc knowledge search", () => {
   });
 });
 
-describe("spoc knowledge create", () => {
+describe("arcs knowledge create", () => {
   it("creates a knowledge entry", async () => {
     await handleDagCommand("knowledge", [
       "create",
@@ -243,7 +243,7 @@ describe("spoc knowledge create", () => {
 // batch command
 // ---------------------------------------------------------------------------
 
-describe("spoc batch", () => {
+describe("arcs batch", () => {
   it("executes batch operations", async () => {
     const batchFile = join(dataDir, "batch.json");
     writeFileSync(
@@ -287,7 +287,7 @@ describe("spoc batch", () => {
 // validate command
 // ---------------------------------------------------------------------------
 
-describe("spoc validate", () => {
+describe("arcs validate", () => {
   it("runs validation and returns report", async () => {
     await handleDagCommand("validate", ["--slug=test-proj", "--json"]);
     const parsed = JSON.parse(stdout[0]);
@@ -311,7 +311,7 @@ describe("spoc validate", () => {
 // diagram command (unit test — script may not exist)
 // ---------------------------------------------------------------------------
 
-describe("spoc diagram", () => {
+describe("arcs diagram", () => {
   it("errors on unknown subcommand", async () => {
     await handleDagCommand("diagram", ["foo", "--json"]);
     expect(stderr[0]).toContain("unknown diagram subcommand");

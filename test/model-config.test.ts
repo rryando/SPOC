@@ -81,7 +81,7 @@ describe("readOpenCodeConfig", () => {
   let originalHome: string | undefined;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "spoc-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "arcs-test-"));
     originalHome = process.env.HOME;
     process.env.HOME = tempDir;
   });
@@ -140,7 +140,7 @@ describe("applyAgentModelConfig", () => {
   let configFile: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "spoc-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "arcs-test-"));
     originalHome = process.env.HOME;
     process.env.HOME = tempDir;
     configDir = join(tempDir, ".config", "opencode");
@@ -166,8 +166,8 @@ describe("applyAgentModelConfig", () => {
   it("assigns tier-based models to all agents (including primary)", async () => {
     const config = {
       agent: {
-        "SPOC Orchestrator": { prompt: "test" },
-        "SPOC Caveman": { prompt: "test" },
+        "ARCS Orchestrator": { prompt: "test" },
+        "ARCS Caveman": { prompt: "test" },
         explore: { prompt: "explore things" },
         "software-engineer": { prompt: "code stuff" },
         build: { prompt: "build stuff" },
@@ -183,8 +183,8 @@ describe("applyAgentModelConfig", () => {
     expect(result.agent["software-engineer"].model).toBe("big/model");
     expect(result.agent.build.model).toBe("mid/model");
     // Primary agents are standard tier
-    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/model");
-    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
+    expect(result.agent["ARCS Orchestrator"].model).toBe("mid/model");
+    expect(result.agent["ARCS Caveman"].model).toBe("mid/model");
   });
 
   it("applies perAgent override to sub-agents", async () => {
@@ -211,8 +211,8 @@ describe("applyAgentModelConfig", () => {
   it("applies perAgent override to primary agents", async () => {
     const config = {
       agent: {
-        "SPOC Orchestrator": { prompt: "test" },
-        "SPOC Caveman": { prompt: "test" },
+        "ARCS Orchestrator": { prompt: "test" },
+        "ARCS Caveman": { prompt: "test" },
       },
     };
     writeFileSync(configFile, JSON.stringify(config));
@@ -221,20 +221,20 @@ describe("applyAgentModelConfig", () => {
       heavy: "big/model",
       standard: "mid/model",
       light: "small/model",
-      perAgent: { "SPOC Orchestrator": "special/orchestrator" },
+      perAgent: { "ARCS Orchestrator": "special/orchestrator" },
     });
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
-    expect(result.agent["SPOC Orchestrator"].model).toBe("special/orchestrator");
+    expect(result.agent["ARCS Orchestrator"].model).toBe("special/orchestrator");
     // Caveman has no override — falls back to standard tier
-    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
+    expect(result.agent["ARCS Caveman"].model).toBe("mid/model");
   });
 
   it("replaces stale model on primary agents with current tier value", async () => {
     const config = {
       agent: {
-        "SPOC Orchestrator": { prompt: "test", model: "old/model" },
-        "SPOC Caveman": { prompt: "test", model: "old/model" },
+        "ARCS Orchestrator": { prompt: "test", model: "old/model" },
+        "ARCS Caveman": { prompt: "test", model: "old/model" },
       },
     };
     writeFileSync(configFile, JSON.stringify(config));
@@ -243,8 +243,8 @@ describe("applyAgentModelConfig", () => {
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
     // Both primary agents are standard tier — old model is replaced, not removed
-    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/model");
-    expect(result.agent["SPOC Caveman"].model).toBe("mid/model");
+    expect(result.agent["ARCS Orchestrator"].model).toBe("mid/model");
+    expect(result.agent["ARCS Caveman"].model).toBe("mid/model");
   });
 
   it("skips agents not in tier map", async () => {
@@ -277,7 +277,7 @@ describe("writeOpencodeAgent with modelConfig", () => {
   let configFile: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "spoc-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "arcs-test-"));
     originalHome = process.env.HOME;
     process.env.HOME = tempDir;
     configDir = join(tempDir, ".config", "opencode");
@@ -296,8 +296,8 @@ describe("writeOpencodeAgent with modelConfig", () => {
     writeOpencodeAgent({ heavy: "big/m", standard: "mid/m", light: "sm/m" });
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
-    expect(result.agent["SPOC Orchestrator"].model).toBe("mid/m");
-    expect(result.agent["SPOC Caveman"].model).toBe("mid/m");
+    expect(result.agent["ARCS Orchestrator"].model).toBe("mid/m");
+    expect(result.agent["ARCS Caveman"].model).toBe("mid/m");
   });
 
   it("sets model on primary agents with perAgent override", async () => {
@@ -305,13 +305,13 @@ describe("writeOpencodeAgent with modelConfig", () => {
       heavy: "big/m",
       standard: "mid/m",
       light: "sm/m",
-      perAgent: { "SPOC Orchestrator": "override/orch" },
+      perAgent: { "ARCS Orchestrator": "override/orch" },
     });
 
     const result = JSON.parse(await readFile(configFile, "utf-8"));
-    expect(result.agent["SPOC Orchestrator"].model).toBe("override/orch");
+    expect(result.agent["ARCS Orchestrator"].model).toBe("override/orch");
     // Caveman falls back to standard tier
-    expect(result.agent["SPOC Caveman"].model).toBe("mid/m");
+    expect(result.agent["ARCS Caveman"].model).toBe("mid/m");
   });
 
   it("creates config file if it does not exist", async () => {

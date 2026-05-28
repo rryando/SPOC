@@ -52,7 +52,7 @@ export async function resolveProject(pathOrSlug: string | undefined): Promise<Re
     if (!existsSync(projMetaPath)) {
       return {
         ok: false,
-        result: failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${pathOrSlug}" not found in SPOC`),
+        result: failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${pathOrSlug}" not found in ARCS`),
       };
     }
     try {
@@ -91,7 +91,7 @@ export async function resolveProject(pathOrSlug: string | undefined): Promise<Re
   try {
     rootMeta = await readRootMeta(dataDir);
   } catch {
-    return { ok: false, result: failure("read_error", "Could not read SPOC data directory") };
+    return { ok: false, result: failure("read_error", "Could not read ARCS data directory") };
   }
 
   type PM = { id: string; name: string; description?: string; workspacePaths: string[] };

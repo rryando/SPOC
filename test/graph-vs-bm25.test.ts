@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/utils/paths.js", () => ({
   getProjectDir: vi.fn(),
-  getDataDir: vi.fn(() => "/tmp/spoc-data"),
+  getDataDir: vi.fn(() => "/tmp/arcs-data"),
 }));
 
 import { retrieveRelated } from "../src/retrieval/graph-retrieval.js";
@@ -17,7 +17,7 @@ const mockedGetProjectDir = vi.mocked(getProjectDir);
 const tempDirs: string[] = [];
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(resolve(tmpdir(), "spoc-graph-vs-bm25-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "arcs-graph-vs-bm25-"));
   tempDirs.push(dir);
   return dir;
 }

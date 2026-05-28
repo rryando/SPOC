@@ -1,5 +1,5 @@
 /**
- * Loop state management for SPOC projects.
+ * Loop state management for ARCS projects.
  *
  * Stores active loop state as loop-state.json in each project directory.
  * Used by CLI commands (start/cancel/get) and the OpenCode plugin hook

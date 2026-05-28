@@ -10,7 +10,7 @@ import { ensureDataDir, getDataDir } from "../utils/paths.js";
 // Schema
 // ---------------------------------------------------------------------------
 
-export interface SpocConfig {
+export interface ArcsConfig {
   version: "1";
   ides: string[];
 }
@@ -19,7 +19,7 @@ export interface SpocConfig {
 // Defaults
 // ---------------------------------------------------------------------------
 
-export function defaultConfig(): SpocConfig {
+export function defaultConfig(): ArcsConfig {
   return {
     version: "1",
     ides: [],
@@ -35,7 +35,7 @@ function configPath(): string {
 }
 
 /**
- * Returns true if ~/.spoc/config.json exists.
+ * Returns true if ~/.arcs/config.json exists.
  */
 export function configExists(): boolean {
   try {
@@ -49,7 +49,7 @@ export function configExists(): boolean {
 /**
  * Reads config from disk. Returns default config if file missing.
  */
-export function readConfig(): SpocConfig {
+export function readConfig(): ArcsConfig {
   const raw = readJsonSafeSync<unknown>(configPath());
   if (raw === undefined) return defaultConfig();
   const result = cliConfigSchema.safeParse(raw);
@@ -66,7 +66,7 @@ export function readConfig(): SpocConfig {
 /**
  * Writes config to disk. Ensures data dir exists first.
  */
-export function writeConfig(config: SpocConfig): void {
+export function writeConfig(config: ArcsConfig): void {
   ensureDataDir();
   writeFileSync(configPath(), `${JSON.stringify(config, null, 2)}\n`, "utf-8");
 }

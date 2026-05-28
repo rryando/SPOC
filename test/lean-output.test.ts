@@ -65,7 +65,7 @@ describe("leanify", () => {
     expect(twice).toEqual(once);
   });
 
-  it("measures token reduction: realistic SPOC task JSON is at least 20% smaller", () => {
+  it("measures token reduction: realistic ARCS task JSON is at least 20% smaller", () => {
     // A realistic task with typical metadata noise ratio
     const realisticTask = {
       id: "task-001",

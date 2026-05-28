@@ -5,7 +5,7 @@ import { PACKAGE_ROOT } from "./paths.js";
 /**
  * Renders a mustache-style template by replacing {{variable}} placeholders.
  * NOTE: Template reading remains synchronous — templates are local package
- * assets read once during `spoc project init`, not on the hot path.
+ * assets read once during `arcs project init`, not on the hot path.
  */
 export function renderTemplate(templatePath: string, variables: Record<string, string>): string {
   const template = readFileSync(templatePath, "utf-8");

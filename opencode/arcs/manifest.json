@@ -1,0 +1,279 @@
+{
+  "bundleId": "arcs-opencode-bundle",
+  "installMode": "opencode-arcs",
+  "bundleVersionSource": "package.json",
+  "sourceRoot": "opencode/arcs",
+  "skills": {
+    "source": "skills",
+    "destination": "skills/arcs"
+  },
+  "agents": [
+    { "source": "prompts/software-engineer.txt", "destination": "prompts/software-engineer.txt" },
+    { "source": "prompts/tech-architect.txt", "destination": "prompts/tech-architect.txt" },
+    { "source": "prompts/qa-analyst.txt", "destination": "prompts/qa-analyst.txt" },
+    { "source": "prompts/oncall-ops.txt", "destination": "prompts/oncall-ops.txt" },
+    { "source": "prompts/arcs-docs.txt", "destination": "prompts/arcs-docs.txt" },
+    { "source": "prompts/system-architect.txt", "destination": "prompts/system-architect.txt" },
+    { "source": "prompts/code-reviewer.txt", "destination": "prompts/code-reviewer.txt" },
+    { "source": "prompts/docs-researcher.txt", "destination": "prompts/docs-researcher.txt" },
+    { "source": "prompts/devil-advocate.txt", "destination": "prompts/devil-advocate.txt" }
+  ],
+  "ownedPaths": [
+    "skills/arcs",
+    "plugins/arcs.js"
+  ],
+  "plugin": {
+    "required": true,
+    "source": ".opencode/plugins/arcs.js",
+    "destination": "plugins/arcs.js"
+  },
+  "config": {
+    "requiredMerges": [
+      {
+        "path": [
+          "permission"
+        ],
+        "value": {
+          "external_directory": {
+            "/tmp": "allow",
+            "~/.arcs": "allow",
+            "~/.config/opencode": "allow"
+          }
+        }
+      },
+      {
+        "path": [
+          "model"
+        ],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "build",
+          "model"
+        ],
+        "value": "github-copilot/claude-sonnet-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "plan",
+          "model"
+        ],
+        "value": "github-copilot/claude-opus-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "general",
+          "model"
+        ],
+        "value": "github-copilot/claude-opus-4.6"
+      },
+      {
+        "path": [
+          "agent",
+          "explore",
+          "model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
+      },
+      {
+        "path": [
+          "agent",
+          "code-reviewer"
+        ],
+        "value": {
+          "description": "Reviews code changes for production readiness and catches correctness, maintainability, and testing issues.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "prompt": "{file:./prompts/code-reviewer.txt}",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "deny"
+          }
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "docs-researcher"
+        ],
+        "value": {
+          "description": "Handles documentation writing, research synthesis, OCR-adjacent extraction, and document-heavy analysis tasks.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/docs-researcher.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "tech-architect"
+        ],
+        "value": {
+          "description": "Architecture and analysis specialist. Deep structural reasoning, refactor guidance, trade-off evaluation, and root cause analysis without making hasty edits.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "permission": {
+            "edit": "ask",
+            "bash": "ask",
+            "webfetch": "deny",
+            "external_directory": {
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/tech-architect.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "software-engineer"
+        ],
+        "value": {
+          "description": "Implementation specialist. Writes code, runs tests, ships features. Loads quick-dev, code-agent, test-driven-development, executing-plans, finishing-a-development-branch, and aesthetic skills as needed.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "allow",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/software-engineer.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "arcs-docs"
+        ],
+        "value": {
+          "description": "ARCS documentation specialist. Manages plans, knowledge entries, diagrams, and DAG health. Knows ARCS structure intimately.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "allow",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.arcs": "allow",
+              "~/.config/opencode": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/arcs-docs.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "qa-analyst"
+        ],
+        "value": {
+          "description": "Quality enforcement specialist. Proactive code audits, review dispatch, convention compliance.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-haiku-4.5",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow",
+            "external_directory": {
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/qa-analyst.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "devil-advocate"
+        ],
+        "value": {
+          "description": "Adversarial phase-gate agent. Checks work at phase boundaries using KISS/YAGNI/DRY principles. Runs tests, reads diffs, delivers pass/block verdicts. Cannot edit code.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-sonnet-4.6",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/devil-advocate.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "oncall-ops"
+        ],
+        "value": {
+          "description": "Debugging and diagnosis specialist. Finds root causes through systematic investigation, log triage, bisect, and performance profiling.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "ask",
+            "bash": "allow",
+            "webfetch": "deny",
+            "mcp": "allow",
+            "external_directory": {
+              "/tmp": "allow",
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/oncall-ops.txt}"
+        }
+      },
+      {
+        "path": [
+          "agent",
+          "system-architect"
+        ],
+        "value": {
+          "description": "Architecture and design specialist. Module boundaries, dependency graphs, migration strategies, and cross-project design decisions.",
+          "mode": "subagent",
+          "model": "github-copilot/claude-opus-4.6",
+          "permission": {
+            "edit": "deny",
+            "bash": "allow",
+            "webfetch": "allow",
+            "mcp": "allow",
+            "external_directory": {
+              "~/.arcs": "allow"
+            }
+          },
+          "prompt": "{file:./prompts/system-architect.txt}"
+        }
+      },
+      {
+        "path": [
+          "small_model"
+        ],
+        "value": "github-copilot/claude-haiku-4.5"
+      }
+    ]
+  }
+}

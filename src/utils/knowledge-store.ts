@@ -1,14 +1,19 @@
 /**
- * Knowledge entry CRUD storage for SPOC projects.
+ * Knowledge entry CRUD storage for ARCS projects.
  *
  * Provides create, update, delete, and index-read operations for knowledge
  * entries, with automatic index maintenance and rebuild-on-read resilience.
  */
 
-import { basename, join } from "node:path";
 import { readdir, unlink, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
-import { indexRebuildFailed, invalidFileFormat, itemNotFound, normalizedIdCollision } from "./errors.js";
+import {
+  indexRebuildFailed,
+  invalidFileFormat,
+  itemNotFound,
+  normalizedIdCollision,
+} from "./errors.js";
 import { withLock } from "./file-lock.js";
 import { readJsonSafe } from "./json.js";
 import { knowledgeMetaSchema } from "./json-schemas.js";
@@ -29,8 +34,8 @@ import {
 // Re-export types used by consumers
 // ---------------------------------------------------------------------------
 
-export type { KnowledgeKind, KnowledgeAudience, FileRef } from "./storage-utils.js";
-export { KNOWLEDGE_KINDS, KNOWLEDGE_AUDIENCES } from "./storage-utils.js";
+export type { FileRef, KnowledgeAudience, KnowledgeKind } from "./storage-utils.js";
+export { KNOWLEDGE_AUDIENCES, KNOWLEDGE_KINDS } from "./storage-utils.js";
 
 // ---------------------------------------------------------------------------
 // Meta types

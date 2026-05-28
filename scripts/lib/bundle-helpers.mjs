@@ -140,13 +140,13 @@ export function listSourceAgentPaths(sourceRoot) {
   return [];
 }
 
-export function assertSourceParity(runtimeManifest, sourceRoot, spocNativeSkillNames) {
+export function assertSourceParity(runtimeManifest, sourceRoot, arcsNativeSkillNames) {
   // DEPRECATED: source-root mirroring removed. The repo bundle directory is
   // the source of truth — there is no external mirror to assert parity with.
   // Retained as a no-op so any external caller continues to import cleanly.
   void runtimeManifest;
   void sourceRoot;
-  void spocNativeSkillNames;
+  void arcsNativeSkillNames;
 }
 
 export function validateDeclaredPath(relativePath, outputRoot, validationRoot) {

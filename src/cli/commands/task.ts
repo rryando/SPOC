@@ -66,7 +66,7 @@ async function handleTaskList(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -119,7 +119,7 @@ async function handleTaskGet(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -172,7 +172,7 @@ async function handleTaskCreate(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -218,7 +218,7 @@ defineCommand({
 });
 
 /**
- * Map task status (snake_case in the SPOC task model) to diagram classDef
+ * Map task status (snake_case in the ARCS task model) to diagram classDef
  * status (camelCase in the Mermaid script). The two namespaces are
  * intentionally distinct — task statuses follow Python/JSON convention,
  * diagram statuses match the classDef identifiers.
@@ -239,13 +239,13 @@ function taskStatusToDiagramStatus(status: TaskStatus): string {
 function findDiagramScript(): string | undefined {
   const localPath = resolve(
     import.meta.dirname,
-    "../../../opencode/spoc/skills/to-diagram/scripts/manage-diagram.mjs",
+    "../../../opencode/arcs/skills/to-diagram/scripts/manage-diagram.mjs",
   );
   if (existsSync(localPath)) return localPath;
 
   const configPath = resolve(
     homedir(),
-    ".config/opencode/skills/spoc/to-diagram/scripts/manage-diagram.mjs",
+    ".config/opencode/skills/arcs/to-diagram/scripts/manage-diagram.mjs",
   );
   if (existsSync(configPath)) return configPath;
 
@@ -300,7 +300,7 @@ async function handleTaskTransition(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -369,7 +369,7 @@ async function handleTaskUpdate(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -418,7 +418,7 @@ async function handleTaskDelete(
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
     return failure(ERROR_CODES.PROJECT_NOT_FOUND, `Project "${slug}" not found`, {
-      hint: "Run 'spoc project list' to see available projects.",
+      hint: "Run 'arcs project list' to see available projects.",
     });
   }
 
@@ -430,7 +430,7 @@ async function handleTaskDelete(
     await getTask(projectDir, taskId);
   } catch {
     return failure(ERROR_CODES.ENTITY_NOT_FOUND, `Task "${taskId}" not found`, {
-      hint: `Run 'spoc task list ${slug}' to see available tasks.`,
+      hint: `Run 'arcs task list ${slug}' to see available tasks.`,
     });
   }
 

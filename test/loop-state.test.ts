@@ -20,7 +20,7 @@ import {
 const tempDirs: string[] = [];
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(resolve(tmpdir(), "spoc-loop-test-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "arcs-loop-test-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -287,31 +287,31 @@ describe("cancelLoop", () => {
 
 describe("findActiveLoop", () => {
   let originalDataDir: string | undefined;
-  let spocDataDir: string;
+  let arcsDataDir: string;
 
   beforeEach(() => {
-    originalDataDir = process.env.SPOC_DATA_DIR;
-    spocDataDir = mkdtempSync(resolve(tmpdir(), "spoc-loop-find-"));
-    tempDirs.push(spocDataDir);
-    process.env.SPOC_DATA_DIR = spocDataDir;
+    originalDataDir = process.env.ARCS_DATA_DIR;
+    arcsDataDir = mkdtempSync(resolve(tmpdir(), "arcs-loop-find-"));
+    tempDirs.push(arcsDataDir);
+    process.env.ARCS_DATA_DIR = arcsDataDir;
   });
 
   afterEach(() => {
     if (originalDataDir === undefined) {
-      delete process.env.SPOC_DATA_DIR;
+      delete process.env.ARCS_DATA_DIR;
     } else {
-      process.env.SPOC_DATA_DIR = originalDataDir;
+      process.env.ARCS_DATA_DIR = originalDataDir;
     }
   });
 
   function setupMeta(projects: Array<{ id: string }>): void {
     writeFileSync(
-      join(spocDataDir, "meta.json"),
+      join(arcsDataDir, "meta.json"),
       JSON.stringify({ version: "1.0", projects }),
       "utf-8",
     );
     for (const p of projects) {
-      mkdirSync(join(spocDataDir, "projects", p.id), { recursive: true });
+      mkdirSync(join(arcsDataDir, "projects", p.id), { recursive: true });
     }
   }
 
@@ -332,7 +332,7 @@ describe("findActiveLoop", () => {
     // Write an inactive loop state to proj-a
     const inactiveState = makeLoopState({ active: false, projectSlug: "proj-a" });
     writeFileSync(
-      join(spocDataDir, "projects", "proj-a", LOOP_STATE_FILE),
+      join(arcsDataDir, "projects", "proj-a", LOOP_STATE_FILE),
       JSON.stringify(inactiveState),
       "utf-8",
     );
@@ -346,7 +346,7 @@ describe("findActiveLoop", () => {
 
     const activeState = makeLoopState({ active: true, projectSlug: "proj-b" });
     writeFileSync(
-      join(spocDataDir, "projects", "proj-b", LOOP_STATE_FILE),
+      join(arcsDataDir, "projects", "proj-b", LOOP_STATE_FILE),
       JSON.stringify(activeState),
       "utf-8",
     );
@@ -354,7 +354,7 @@ describe("findActiveLoop", () => {
     const result = await findActiveLoop();
     expect(result).not.toBeNull();
     expect(result!.slug).toBe("proj-b");
-    expect(result!.projectDir).toBe(join(spocDataDir, "projects", "proj-b"));
+    expect(result!.projectDir).toBe(join(arcsDataDir, "projects", "proj-b"));
     expect(result!.state).toEqual(activeState);
   });
 });

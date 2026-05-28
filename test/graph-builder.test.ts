@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/utils/paths.js", () => ({
   getProjectDir: vi.fn(),
-  getDataDir: vi.fn(() => "/tmp/spoc-data"),
+  getDataDir: vi.fn(() => "/tmp/arcs-data"),
 }));
 
 import { buildAdjacencyIndex } from "../src/retrieval/graph-builder.js";
@@ -16,7 +16,7 @@ const mockedGetProjectDir = vi.mocked(getProjectDir);
 const tempDirs: string[] = [];
 
 function makeProjectDir(): string {
-  const dir = mkdtempSync(resolve(tmpdir(), "spoc-graph-builder-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "arcs-graph-builder-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -93,7 +93,7 @@ afterEach(() => {
 
 describe("buildAdjacencyIndex", () => {
   it("returns empty graph for non-existent project", async () => {
-    mockedGetProjectDir.mockReturnValue("/tmp/nonexistent-spoc-project-xyz");
+    mockedGetProjectDir.mockReturnValue("/tmp/nonexistent-arcs-project-xyz");
 
     const graph = await buildAdjacencyIndex("nonexistent-project-xyz");
     expect(graph.nodes.size).toBe(0);

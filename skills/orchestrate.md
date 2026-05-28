@@ -1,9 +1,9 @@
 ---
 name: orchestrate
-description: Classify intent and route work across all SPOC workflows
+description: Classify intent and route work across all ARCS workflows
 ---
 
-> **Canonical source:** `src/cli/spoc-orchestrate.ts` (`ORCHESTRATE_PROMPT_TEXT`).
+> **Canonical source:** `src/cli/arcs-orchestrate.ts` (`ORCHESTRATE_PROMPT_TEXT`).
 > This is a condensed summary. TS prompt wins on disagreement.
 
 ## When
@@ -14,7 +14,7 @@ User request maps to multiple workflows, needs routing, or chains INIT → BRAIN
 
 ```mermaid
 flowchart TD
-    A[User Request] --> B[T0: spoc brief --lean --json]
+    A[User Request] --> B[T0: arcs brief --lean --json]
     B --> C[Classify Intent]
     C -->|new project| INIT[INIT]
     C -->|plan/decompose| BRAINSTORM[BRAINSTORM]
@@ -29,7 +29,7 @@ flowchart TD
 
 | Tier | What | Who |
 |------|------|-----|
-| **T0** | `spoc brief --lean --json` — routing surface, focus, next action | Orchestrator |
+| **T0** | `arcs brief --lean --json` — routing surface, focus, next action | Orchestrator |
 | **T1** | Single doc fetch | Sub-agent (default) |
 | **T2** | Index listings | Sub-agent (default) |
 | **T3** | Full body read | Sub-agent always |
@@ -39,7 +39,7 @@ flowchart TD
 
 ### T0 envelope shape
 
-`spoc brief --json` returns a tight ~1 KB envelope:
+`arcs brief --json` returns a tight ~1 KB envelope:
 
 ```json
 {
@@ -63,11 +63,11 @@ Use `recommendedSurface` to pick the routing branch:
 
 ## CLI Primer
 
-All ops: `spoc <group> <action> [args] --json`. Mutating commands run directly — no token:
+All ops: `arcs <group> <action> [args] --json`. Mutating commands run directly — no token:
 ```bash
-spoc <command> --json
+arcs <command> --json
 ```
-Discovery: `spoc --commands --json`
+Discovery: `arcs --commands --json`
 
 ## Skill Selection (EXECUTE)
 
@@ -80,9 +80,9 @@ Discovery: `spoc --commands --json`
 
 ## Loop Tools
 
-- `spoc loop start <slug> --prompt="..." --max-iterations=50 --json` — self-referential dev loop
-- `spoc loop cancel <slug> --json` — cancel active loop
-- `spoc loop status <slug> --json` — inspect loop state
+- `arcs loop start <slug> --prompt="..." --max-iterations=50 --json` — self-referential dev loop
+- `arcs loop cancel <slug> --json` — cancel active loop
+- `arcs loop status <slug> --json` — inspect loop state
 
 Pair with `loop` skill for iteration discipline.
 

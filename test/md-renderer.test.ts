@@ -73,10 +73,10 @@ describe("renderMarkdown", () => {
 
     it("project list with name and status", () => {
       const md = renderMarkdown("project list", [
-        { name: "spoc", status: "active", description: "CLI tool" },
+        { name: "arcs", status: "active", description: "CLI tool" },
       ]);
       expect(md).toContain("## Projects (1)");
-      expect(md).toContain("- **spoc** [active] — CLI tool");
+      expect(md).toContain("- **arcs** [active] — CLI tool");
     });
   });
 
