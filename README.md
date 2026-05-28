@@ -1,10 +1,23 @@
+<div align="center">
+
 # ARCS
 
-> Give AI agents durable memory — so they start from context, not a blank slate.
+**DAG-based task orchestration for AI agents**
+
+[![npm](https://img.shields.io/npm/v/@rryando/arcs?color=cb3837&label=npm&logo=npm)](https://www.npmjs.com/package/@rryando/arcs)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+*Give AI agents durable memory — so they start from context, not a blank slate.*
+
+</div>
+
+---
 
 ARCS tracks projects, tasks, plans, and knowledge as a directed acyclic graph (DAG) stored in `~/.arcs/`. AI agents call `arcs <command>` to read structured project context instead of scanning codebases from scratch each session.
 
-The name is a direct nod to graph theory — where nodes are connected by "arcs" (directed edges). It perfectly describes this DAG-based task orchestration tool.
+> **arcs** `/ɑːrks/` — In graph theory, directed edges connecting nodes. A nod to the DAG-based orchestration at the core of this tool.
 
 ---
 
@@ -105,25 +118,18 @@ rtk init -g --opencode      # OpenCode plugin (instead of Claude Code)
 
 ## Quick Start
 
-**1. Install from npm**
+**1. Install globally**
 
 ```bash
 npm install -g @rryando/arcs
 ```
 
-**2. Run the setup wizard**
+This automatically:
+- Registers the `arcs` CLI at `~/.local/bin/arcs`
+- Creates `~/.arcs/` (project data store)
+- Deploys bundled agents + skills into `~/.config/opencode/`
 
-```bash
-npm run init
-```
-
-The wizard:
-1. Builds the TypeScript source
-2. Registers the `arcs` CLI at `~/.local/bin/arcs`
-3. Creates `~/.arcs/` (project data store)
-4. Deploys bundled agents + skills into `~/.config/opencode/`
-
-**3. Track a project**
+**2. Track a project**
 
 Open OpenCode in your desired project folder, then call `arcs init` to register it with ARCS:
 
@@ -133,7 +139,7 @@ arcs init
 
 This creates the DAG structure for the project and registers the current directory as a workspace path.
 
-**4. Start using ARCS**
+**3. Start using ARCS**
 
 You'll see the **ARCS Orchestrator** listed as a selectable agent in OpenCode. Every session starts with an operating brief instead of a blank slate:
 
@@ -286,11 +292,13 @@ Registering a workspace path enables two features:
 
 ## Development
 
-### Setup
+### Install from source
 
 ```bash
+git clone https://github.com/rryando/arcs.git
+cd arcs
 npm install
-npm run build
+npm run init
 ```
 
 ### Commands
