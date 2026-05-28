@@ -5,6 +5,7 @@
 import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
 import { resolveProject } from "../../utils/project-resolver.js";
+import { toposort, type ToposortInput } from "../../utils/toposort.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
 import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
@@ -59,18 +60,38 @@ async function handleNext(
       status: t.status,
       planId: t.planId,
       priority: t.priority,
+      dependsOn: t.dependsOn,
     })),
     plans: planIndex.plans.map((p) => ({ id: p.id, title: p.title, status: p.status })),
   });
 
-  // Pick the top open task — prefer in_progress, then backlog by priority order
-  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  // Pick the top open task — prefer in_progress, then ready backlog by toposort order
+  const doneIds = new Set(allTasks.filter((t) => t.status === "done").map((t) => t.id));
+  const isReady = (t: (typeof allTasks)[0]) =>
+    !t.dependsOn || t.dependsOn.every((d) => doneIds.has(d));
+
+  const toposortInputs: ToposortInput[] = allTasks.map((t) => ({
+    id: t.id,
+    dependsOn: t.dependsOn,
+    priority: t.priority,
+  }));
+  let toposortOrder: string[];
+  try {
+    toposortOrder = toposort(toposortInputs);
+  } catch {
+    // Fallback to natural order on cycle (shouldn't happen in well-formed data)
+    toposortOrder = allTasks.map((t) => t.id);
+  }
+  const orderMap = new Map(toposortOrder.map((id, i) => [id, i]));
+
   const sorted = [...openTasks].sort((a, b) => {
     if (a.status === "in_progress" && b.status !== "in_progress") return -1;
     if (b.status === "in_progress" && a.status !== "in_progress") return 1;
-    const pa = priorityOrder[a.priority ?? "medium"] ?? 1;
-    const pb = priorityOrder[b.priority ?? "medium"] ?? 1;
-    return pa - pb;
+    const aReady = isReady(a);
+    const bReady = isReady(b);
+    if (aReady && !bReady) return -1;
+    if (!aReady && bReady) return 1;
+    return (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999);
   });
 
   const task = sorted[0]!;

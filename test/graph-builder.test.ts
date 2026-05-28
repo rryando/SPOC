@@ -211,7 +211,6 @@ describe("buildAdjacencyIndex", () => {
     expect(fooRefs).toContain("knowledge:k1");
     expect(fooRefs).toContain("task:t1");
   });
-
   it("sourceHashes are populated with mtimes", async () => {
     const projectDir = makeProjectDir();
     writeKnowledgeIndex(join(projectDir, "knowledge"), []);
@@ -224,5 +223,62 @@ describe("buildAdjacencyIndex", () => {
     expect(graph.sourceHashes.knowledge).toBeGreaterThan(0);
     expect(graph.sourceHashes.plans).toBeGreaterThan(0);
     expect(graph.sourceHashes.tasks).toBeGreaterThan(0);
+  });
+
+  it("creates task_blocks_task edges for tasks with dependsOn", async () => {
+    const projectDir = makeProjectDir();
+    writeTaskIndex(join(projectDir, "tasks"), [
+      TASK_ENTRY("t1"),
+      TASK_ENTRY("t2", { dependsOn: ["t1"] }),
+    ]);
+
+    mockedGetProjectDir.mockReturnValue(projectDir);
+    const graph = await buildAdjacencyIndex("test-slug");
+
+    expect(graph.nodes.has("task:t1")).toBe(true);
+    expect(graph.nodes.has("task:t2")).toBe(true);
+
+    // Forward: t1 blocks t2
+    const t1Edges = graph.edges.get("task:t1") ?? [];
+    expect(
+      t1Edges.some((e) => e.target === "task:t2" && e.relation === "task_blocks_task"),
+    ).toBe(true);
+
+    // Reverse: t2 depends on t1
+    const t2Edges = graph.edges.get("task:t2") ?? [];
+    expect(
+      t2Edges.some((e) => e.target === "task:t1" && e.relation === "task_blocks_task"),
+    ).toBe(true);
+  });
+
+  it("task_blocks_task edges have weight 0.95", async () => {
+    const projectDir = makeProjectDir();
+    writeTaskIndex(join(projectDir, "tasks"), [
+      TASK_ENTRY("t1"),
+      TASK_ENTRY("t2", { dependsOn: ["t1"] }),
+    ]);
+
+    mockedGetProjectDir.mockReturnValue(projectDir);
+    const graph = await buildAdjacencyIndex("test-slug");
+
+    const t1Edges = graph.edges.get("task:t1") ?? [];
+    const blockEdge = t1Edges.find((e) => e.target === "task:t2" && e.relation === "task_blocks_task");
+    expect(blockEdge?.weight).toBe(0.95);
+  });
+
+  it("creates dep node even if dep task not in index", async () => {
+    const projectDir = makeProjectDir();
+    writeTaskIndex(join(projectDir, "tasks"), [
+      TASK_ENTRY("t2", { dependsOn: ["t-external"] }),
+    ]);
+
+    mockedGetProjectDir.mockReturnValue(projectDir);
+    const graph = await buildAdjacencyIndex("test-slug");
+
+    expect(graph.nodes.has("task:t-external")).toBe(true);
+    const extEdges = graph.edges.get("task:t-external") ?? [];
+    expect(
+      extEdges.some((e) => e.target === "task:t2" && e.relation === "task_blocks_task"),
+    ).toBe(true);
   });
 });

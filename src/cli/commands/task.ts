@@ -143,6 +143,7 @@ defineCommand({
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     title: { type: "string", required: true, positional: 1, description: "Task title" },
     planId: { type: "string", description: "Associated plan ID" },
+    dependsOn: { type: "string", description: "Comma-separated task IDs this task depends on" },
     priority: {
       type: "string",
       default: "medium",
@@ -168,6 +169,10 @@ async function handleTaskCreate(
   const planId = params.planId as string | undefined;
   const priority = (params.priority as TaskPriority) ?? "medium";
   const status = (params.status as TaskStatus) ?? "backlog";
+  const dependsOnRaw = params.dependsOn as string | undefined;
+  const dependsOn = dependsOnRaw
+    ? dependsOnRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -177,13 +182,14 @@ async function handleTaskCreate(
   }
 
   if (flags.dryRun) {
-    return success({ dryRun: true, wouldCreate: { title, slug, planId, priority, status } });
+    return success({ dryRun: true, wouldCreate: { title, slug, planId, priority, status, dependsOn } });
   }
 
   try {
     const task = await createTask(projectDir, {
       title,
       ...(planId && { planId }),
+      ...(dependsOn && { dependsOn }),
       priority,
       status,
     });
@@ -352,6 +358,7 @@ defineCommand({
       enum: ["critical", "high", "medium", "low"],
     },
     planId: { type: "string", description: "Associated plan ID" },
+    dependsOn: { type: "string", description: "Comma-separated task IDs (empty string to clear)" },
   },
   handler: handleTaskUpdate,
 });
@@ -365,6 +372,10 @@ async function handleTaskUpdate(
   const title = params.title as string | undefined;
   const priority = params.priority as TaskPriority | undefined;
   const planId = params.planId as string | undefined;
+  const dependsOnRaw = params.dependsOn as string | undefined;
+  const dependsOn = dependsOnRaw !== undefined
+    ? (dependsOnRaw === "" ? [] : dependsOnRaw.split(",").map((s) => s.trim()).filter(Boolean))
+    : undefined;
 
   const projectDir = getProjectDir(slug);
   if (!existsSync(projectDir)) {
@@ -376,7 +387,7 @@ async function handleTaskUpdate(
   if (flags.dryRun) {
     return success({
       dryRun: true,
-      wouldUpdate: { slug, taskId, title, priority, planId },
+      wouldUpdate: { slug, taskId, title, priority, planId, dependsOn },
     });
   }
 
@@ -386,6 +397,7 @@ async function handleTaskUpdate(
       ...(title && { title }),
       ...(priority && { priority }),
       ...(planId && { planId }),
+      ...(dependsOn !== undefined && { dependsOn }),
     });
     return success(task);
   } catch (err) {

@@ -177,4 +177,76 @@ describe("arcs next", () => {
       expect(result.ok).toBe(false);
     });
   });
+
+  it("skips blocked task and returns the ready one", async () => {
+    await withTempDataDir(async (dir) => {
+      seedProject(dir, "dep-proj", {
+        tasks: [
+          {
+            id: "t-blocked",
+            normalizedId: "t-blocked",
+            title: "Blocked task",
+            status: "backlog",
+            priority: "high",
+            dependsOn: ["t-prereq"],
+            createdAt: "2025-01-01T00:00:00Z",
+            updatedAt: "2025-01-01T00:00:00Z",
+          },
+          {
+            id: "t-prereq",
+            normalizedId: "t-prereq",
+            title: "Prereq task",
+            status: "backlog",
+            priority: "low",
+            createdAt: "2025-01-01T00:00:00Z",
+            updatedAt: "2025-01-01T00:00:00Z",
+          },
+        ],
+        plans: [],
+      });
+      const result = await runCommand("next", ["dep-proj", "--json"]);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const data = result.data as Record<string, unknown>;
+      const task = data.task as Record<string, unknown>;
+      // t-prereq is ready (no deps); t-blocked is blocked
+      expect(task.id).toBe("t-prereq");
+    });
+  });
+
+  it("returns task when dep is done", async () => {
+    await withTempDataDir(async (dir) => {
+      seedProject(dir, "done-dep-proj", {
+        tasks: [
+          {
+            id: "t-main",
+            normalizedId: "t-main",
+            title: "Main task",
+            status: "backlog",
+            priority: "high",
+            dependsOn: ["t-done"],
+            createdAt: "2025-01-01T00:00:00Z",
+            updatedAt: "2025-01-01T00:00:00Z",
+          },
+          {
+            id: "t-done",
+            normalizedId: "t-done",
+            title: "Done dep",
+            status: "done",
+            priority: "medium",
+            createdAt: "2025-01-01T00:00:00Z",
+            updatedAt: "2025-01-01T00:00:00Z",
+          },
+        ],
+        plans: [],
+      });
+      const result = await runCommand("next", ["done-dep-proj", "--json"]);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const data = result.data as Record<string, unknown>;
+      const task = data.task as Record<string, unknown>;
+      // t-main is ready because t-done is done
+      expect(task.id).toBe("t-main");
+    });
+  });
 });

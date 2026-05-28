@@ -214,4 +214,48 @@ describe("deriveOperatingBrief (structured)", () => {
     expect(brief.recommendedSurface).toBe("QUEUE");
     expect(brief.nextAction).toBe("Continue task T040");
   });
+
+  it("skips blocked task in in_progress plan — only picks ready task", () => {
+    const tasks: StructuredTask[] = [
+      { id: "T050", title: "Blocked task", status: "backlog", planId: "P006", dependsOn: ["T051"] },
+      { id: "T051", title: "Prereq task", status: "backlog", planId: "P006" },
+    ];
+    const plans: StructuredPlan[] = [{ id: "P006", title: "Blocked Plan", status: "in_progress" }];
+    const brief = deriveOperatingBrief({ tasks, plans });
+    // T050 is blocked; T051 has no deps so it's ready
+    expect(brief.recommendedSurface).toBe("QUEUE");
+    expect(brief.nextAction).toBe("Start task T051");
+  });
+
+  it("reports all-blocked state when every backlog task has unmet deps", () => {
+    const tasks: StructuredTask[] = [
+      { id: "T060", title: "Blocked A", status: "backlog", dependsOn: ["T061"] },
+      { id: "T061", title: "Blocked B", status: "backlog", dependsOn: ["T060"] },
+    ];
+    const plans: StructuredPlan[] = [];
+    const brief = deriveOperatingBrief({ tasks, plans });
+    expect(brief.recommendedSurface).toBe("PLAN");
+    expect(brief.why).toMatch(/blocked by incomplete dependencies/i);
+  });
+
+  it("treats tasks without dependsOn as always ready (backward compat)", () => {
+    const tasks: StructuredTask[] = [
+      { id: "T070", title: "No deps task", status: "backlog", priority: "high" },
+    ];
+    const plans: StructuredPlan[] = [];
+    const brief = deriveOperatingBrief({ tasks, plans });
+    expect(brief.recommendedSurface).toBe("QUEUE");
+    expect(brief.nextAction).toBe("Start task T070");
+  });
+
+  it("skips blocked backlog task and selects the ready one", () => {
+    const tasks: StructuredTask[] = [
+      { id: "T080", title: "Blocked high pri", status: "backlog", priority: "high", dependsOn: ["T082"] },
+      { id: "T081", title: "Ready low pri", status: "backlog", priority: "low" },
+    ];
+    const plans: StructuredPlan[] = [];
+    const brief = deriveOperatingBrief({ tasks, plans });
+    expect(brief.recommendedSurface).toBe("QUEUE");
+    expect(brief.nextAction).toBe("Start task T081");
+  });
 });

@@ -26,6 +26,7 @@ export interface StructuredTask {
   status: "backlog" | "in_progress" | "done" | "cancelled";
   planId?: string;
   priority?: "low" | "medium" | "high";
+  dependsOn?: string[];
 }
 
 export interface StructuredPlan {
@@ -35,6 +36,12 @@ export interface StructuredPlan {
 }
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+function isTaskReady(task: StructuredTask, allTasks: StructuredTask[]): boolean {
+  if (!task.dependsOn || task.dependsOn.length === 0) return true;
+  const doneIds = new Set(allTasks.filter((t) => t.status === "done").map((t) => t.id));
+  return task.dependsOn.every((d) => doneIds.has(d));
+}
 
 /**
  * Derive an operating brief from structured task and plan data.
@@ -60,7 +67,9 @@ export function deriveOperatingBrief(input: {
   // 2. Any plan in_progress with a backlog task → QUEUE
   const inProgressPlans = plans.filter((p) => p.status === "in_progress");
   for (const plan of inProgressPlans) {
-    const readyTask = tasks.find((t) => t.status === "backlog" && t.planId === plan.id);
+    const readyTask = tasks.find(
+      (t) => t.status === "backlog" && t.planId === plan.id && isTaskReady(t, tasks),
+    );
     if (readyTask) {
       return {
         currentFocus: plan.title,
@@ -85,7 +94,17 @@ export function deriveOperatingBrief(input: {
   // 4. Any backlog task (no in-progress plan) → QUEUE, highest priority
   const backlog = tasks.filter((t) => t.status === "backlog");
   if (backlog.length > 0) {
-    const sorted = [...backlog].sort(
+    const readyBacklog = backlog.filter((t) => isTaskReady(t, tasks));
+    if (readyBacklog.length === 0) {
+      // All backlog tasks are blocked by unmet dependencies
+      return {
+        currentFocus: "No active work",
+        recommendedSurface: "PLAN",
+        why: "All remaining tasks are blocked by incomplete dependencies",
+        nextAction: "Resolve dependencies or start a new plan",
+      };
+    }
+    const sorted = [...readyBacklog].sort(
       (a, b) =>
         (PRIORITY_ORDER[a.priority ?? "medium"] ?? 1) -
         (PRIORITY_ORDER[b.priority ?? "medium"] ?? 1),

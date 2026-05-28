@@ -10,7 +10,8 @@ export type EdgeRelation =
   | "knowledge_touches_file"
   | "plan_contains_task"
   | "shares_keywords"
-  | "project_depends_on";
+  | "project_depends_on"
+  | "task_blocks_task";
 
 export interface GraphNode {
   id: string;
@@ -49,6 +50,7 @@ export interface ScoredNode {
 
 export const EDGE_WEIGHTS: Record<EdgeRelation, number> = {
   task_belongs_to_plan: 1.0,
+  task_blocks_task: 0.95,
   shares_source_file: 0.9,
   knowledge_touches_file: 0.85,
   plan_contains_task: 0.8,

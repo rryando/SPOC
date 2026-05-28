@@ -122,6 +122,8 @@ A plan diagram MUST be generated and presented before proceeding to storage. Dra
 arcs plan create <slug> --title="YYYY-MM-DD <topic> Design" --summary="..." --status=proposed --keywords="spec,design" --body="<markdown>" --json
 ```
 
+When creating tasks from the plan, wire execution order with `--dependsOn=dep-task-id-1,dep-task-id-2`. The `dependsOn` graph determines what `arcs next` returns — priority is a tiebreaker within the same topological level.
+
 After storage: _"Spec saved to plan `<planId>`. Review it. Push back if anything's wrong."_
 
 ## Visual Companion

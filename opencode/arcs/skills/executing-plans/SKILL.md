@@ -51,6 +51,8 @@ When plan has `.diagram.mmd`:
 3. After each transition, re-scan for newly-unblocked nodes
 4. If metadata incomplete → fall back to plan body for that task
 
+**Dependency-aware ordering:** `arcs next` respects `dependsOn` — it only surfaces tasks whose dependencies are all `done`. Use `arcs next` as the authoritative source for what's executable; you don't need to manually parse `.mmd` for ordering. `arcs diagram ready` remains useful for per-plan metadata inspection.
+
 **Transition requires both flags:** `arcs task transition <slug> <taskId> done --diagramNodeId=T001 --planId=<planId>`
 
 ## Sub-Agent Context

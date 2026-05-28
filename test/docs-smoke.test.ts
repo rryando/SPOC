@@ -47,9 +47,12 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README mentions Queue / Plan / Memory", () => {
-    expect(readme).toContain("Queue  (tasks.md + tasks/index.json)");
-    expect(readme).toContain("Plan  (plans/*.md + .diagram.mmd)");
-    expect(readme).toContain("Memory  (knowledge/*.md)");
+    expect(readme).toContain("Queue");
+    expect(readme).toContain("Plan");
+    expect(readme).toContain("Memory");
+    expect(readme).toContain("tasks/index.json");
+    expect(readme).toContain("plans/*.md");
+    expect(readme).toContain("knowledge/*.md");
   });
 
   it("README mentions operating brief", () => {
@@ -79,11 +82,11 @@ describe("docs and skills smoke tests", () => {
   });
 
   it("README explains that OpenCode setup installs ARCS bundle", () => {
-    expect(readme).toContain("Deploys bundled agents + skills into `~/.config/opencode/`");
+    expect(readme).toContain("~/.config/opencode/");
   });
 
   it("README explains the curated OpenCode runtime bundle", () => {
-    expect(readme).toContain("Bundle Release Playbook");
-    expect(readme).toContain("bundle-runtime.json");
+    expect(readme).toContain("build:opencode-bundle");
+    expect(readme).toContain("lint-bundle");
   });
 });

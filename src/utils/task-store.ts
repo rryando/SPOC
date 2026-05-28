@@ -8,7 +8,8 @@
 import { writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { invalidateGraphCache } from "../retrieval/graph-invalidate.js";
-import { itemNotFound, normalizedIdCollision } from "./errors.js";
+import { itemNotFound, normalizedIdCollision, taskDependencyCycleDetected, taskDependencyNotFound } from "./errors.js";
+import { detectCycle } from "./toposort.js";
 import { withLock } from "./file-lock.js";
 import { readJsonSafe } from "./json.js";
 import { normalizeIdentifier } from "./slug.js";
@@ -40,6 +41,7 @@ export interface TaskMeta {
   status: import("./storage-utils.js").TaskStatus;
   priority: import("./storage-utils.js").TaskPriority;
   planId?: string;
+  dependsOn?: string[];
   sourceFiles?: import("./storage-utils.js").FileRef[];
   createdAt: string;
   updatedAt: string;
@@ -58,6 +60,7 @@ export interface CreateTaskInput {
   status?: import("./storage-utils.js").TaskStatus;
   priority?: import("./storage-utils.js").TaskPriority;
   planId?: string;
+  dependsOn?: string[];
   sourceFiles?: import("./storage-utils.js").FileRef[];
   now?: string;
 }
@@ -68,8 +71,36 @@ export interface UpdateTaskInput {
   status?: import("./storage-utils.js").TaskStatus;
   priority?: import("./storage-utils.js").TaskPriority;
   planId?: string | null;
+  dependsOn?: string[] | null;
   sourceFiles?: import("./storage-utils.js").FileRef[];
   now?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Dependency validation helpers
+// ---------------------------------------------------------------------------
+
+function validateDependsOn(
+  dependsOn: string[],
+  index: TaskIndex,
+  taskNormalizedId: string,
+): void {
+  // Check all referenced IDs exist
+  for (const depId of dependsOn) {
+    if (!index.tasks.some((t) => t.normalizedId === depId || t.id === depId)) {
+      throw taskDependencyNotFound(depId);
+    }
+  }
+
+  // Check for cycles using proposed graph state
+  const proposed = index.tasks.map((t) => ({
+    id: t.normalizedId,
+    dependsOn: t.normalizedId === taskNormalizedId ? dependsOn : t.dependsOn,
+  }));
+  const cycle = detectCycle(proposed);
+  if (cycle) {
+    throw taskDependencyCycleDetected(cycle);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +195,10 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
     throw normalizedIdCollision("task", input.title, normalizedId);
   }
 
+  if (input.dependsOn && input.dependsOn.length > 0) {
+    validateDependsOn(input.dependsOn, index, normalizedId);
+  }
+
   const ts = nowISO(input.now);
 
   const meta: TaskMeta = {
@@ -173,6 +208,7 @@ export async function createTask(projectDir: string, input: CreateTaskInput): Pr
     status,
     priority,
     ...(input.planId && { planId: input.planId }),
+    ...(input.dependsOn && input.dependsOn.length > 0 && { dependsOn: input.dependsOn }),
     ...(sourceFiles && { sourceFiles }),
     createdAt: ts,
     updatedAt: ts,
@@ -239,6 +275,14 @@ export async function updateTask(projectDir: string, input: UpdateTaskInput): Pr
       delete task.planId;
     } else {
       task.planId = input.planId;
+    }
+  }
+  if (input.dependsOn !== undefined) {
+    if (input.dependsOn === null || input.dependsOn.length === 0) {
+      delete task.dependsOn;
+    } else {
+      validateDependsOn(input.dependsOn, index, normalizedId);
+      task.dependsOn = input.dependsOn;
     }
   }
   if (input.sourceFiles !== undefined) {

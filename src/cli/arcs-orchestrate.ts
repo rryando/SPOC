@@ -39,7 +39,7 @@ Discovery: \`arcs --commands --json\` (cache once per session). Batch op names a
 | Validate | \`arcs validate <slug> --json\` |
 | Task transition | \`arcs task transition <slug> <taskId> <status> --planId=<id> --diagramNodeId=<node> --json\` |
 | Batch writes | \`arcs batch --file=ops.json --json\` |
-| Create task | \`arcs task create <slug> <title> --priority=medium --planId=<id> --json\` |
+| Create task | \`arcs task create <slug> <title> --priority=medium --planId=<id> --dependsOn=id1,id2 --json\` |
 | Create knowledge | \`arcs knowledge create <slug> <title> --kind=<kind> --summary="..." --body="..." --source-files="src/foo.ts:anchor" --json\` |
 | Create plan | \`arcs plan create <slug> <title> --summary="..." --status=planned --json\` |
 | Update plan meta | \`arcs plan update-meta <slug> <planId> [--status=proposed\\|planned\\|in_progress\\|done\\|archived] --json\` |
@@ -313,7 +313,7 @@ CLI:
 4. When scope survives challenge → dispatch scoping sub-agent with minimal framing
 5. Present plan + diagram → user confirms
 6. Dispatch \`devil-advocate\` PHASE: brainstorm with proposed plan → handle verdict
-7. On PASS: \`arcs plan create\` → \`arcs task create × N\` → \`arcs diagram init <slug> <planId> --json\`
+7. On PASS: \`arcs plan create\` → \`arcs task create × N\` (use \`--dependsOn\` to express execution order) → \`arcs diagram init <slug> <planId> --json\`
 
 **Constraints:**
 - Every diagram node gets a Task record (\`planId\` set, \`status: backlog\`, priority by depth)
@@ -331,6 +331,7 @@ CLI:
 5. Auto-sync if: 3+ transitions OR \`lastSyncedAt\` > 7 days OR plan done
 **Constraints:**
 - Orchestrator NEVER loads T1+ directly — delegate reads to sub-agent
+- \`arcs next\` is dependency-aware (topological sort) — it returns the first task whose \`dependsOn\` are all done. Use it as the primary task selection mechanism.
 - \`arcs task transition\` atomically updates task status + diagram node. MUST pass both \`--planId\` and \`--diagramNodeId\` (both required for diagram patch)
 - Sub-agents NEVER edit \`.mmd\` files — agents must NOT manually patch \`.mmd\` for status transitions. Scope changes reported back, orchestrator regenerates via \`arcs diagram sort-metadata <slug> <planId> --json\`
 - \`arcs diagram ready\` after each transition to discover newly-unblocked nodes
@@ -347,7 +348,7 @@ CLI:
 5. Receive sync report → present to user
 
 **arcs-docs sub-agent covers:**
-overview.md, tasks.md, dependencies.md, knowledge.md, plans/ status, knowledge/ accuracy, .diagram.mmd diagram drift (classDef mismatch, phantom nodes), AGENTS.md staleness, sourceFiles existence.
+overview.md, tasks.md, dependencies.md, knowledge.md, plans/ status, knowledge/ accuracy, .diagram.mmd diagram drift (classDef mismatch, phantom nodes), AGENTS.md staleness, sourceFiles existence. Graph recalculation includes \`task_blocks_task\` edges derived from \`dependsOn\` fields.
 
 Delegate to arcs-docs sub-agent with: T0 context, \`arcs validate\` output, staleness info. Sub-agent applies mutations directly via the ARCS CLI. Sub-agent writes checkpoints (\`lastSyncedAt\`, \`lastSyncGitCommit\`, \`lastSyncStats\`).
 

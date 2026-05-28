@@ -36,6 +36,20 @@ export function cycleDetected(fromSlug: string, toSlug: string): DagError {
   );
 }
 
+export function taskDependencyCycleDetected(cyclePath: string[]): DagError {
+  return new DagError(
+    "TASK_DEPENDENCY_CYCLE",
+    `Dependency cycle detected: ${cyclePath.join(" → ")}`,
+  );
+}
+
+export function taskDependencyNotFound(depId: string): DagError {
+  return new DagError(
+    "TASK_DEPENDENCY_NOT_FOUND",
+    `Task dependency "${depId}" does not exist.`,
+  );
+}
+
 export function dependencyNotFound(ids: string[]): DagError {
   return new DagError("DEPENDENCY_NOT_FOUND", `Unknown dependency target(s): ${ids.join(", ")}`);
 }

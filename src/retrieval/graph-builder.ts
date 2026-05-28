@@ -117,6 +117,7 @@ export async function buildAdjacencyIndex(slug: string): Promise<AdjacencyIndex>
     id: string;
     title: string;
     planId?: string;
+    dependsOn?: string[];
     sourceFiles?: Array<{ path: string }>;
   }> = [];
   try {
@@ -152,6 +153,24 @@ export async function buildAdjacencyIndex(slug: string): Promise<AdjacencyIndex>
           target: `file:${sf.path}`,
           relation: "knowledge_touches_file",
           weight: EDGE_WEIGHTS.knowledge_touches_file,
+        });
+      }
+    }
+    if (task.dependsOn) {
+      for (const depId of task.dependsOn) {
+        const depNodeId = `task:${depId}`;
+        addNode(nodes, { id: depNodeId, type: "task" });
+        addEdge(edges, {
+          source: depNodeId,
+          target: nodeId,
+          relation: "task_blocks_task",
+          weight: EDGE_WEIGHTS.task_blocks_task,
+        });
+        addEdge(edges, {
+          source: nodeId,
+          target: depNodeId,
+          relation: "task_blocks_task",
+          weight: EDGE_WEIGHTS.task_blocks_task,
         });
       }
     }

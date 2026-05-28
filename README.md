@@ -166,26 +166,38 @@ Full command discovery: `arcs --commands --json` (61 commands).
 
 ## Multi-Project Orchestration *(planned)*
 
-When working across multiple ARCS-tracked projects, `arcs cross-invoke` eliminates the context-switch. Instead of manually opening a second terminal, switching directories, and re-prompting — one command queues the work and triggers execution:
+When working across multiple ARCS-tracked projects, `arcs cross-invoke` eliminates the context-switch. One command tracks the work in the target project's DAG and optionally drives opencode there via the opencode Server HTTP API:
 
 ```bash
 # Working in frontend, need a backend change
 arcs cross-invoke loqua "Add POST /api/auth/register endpoint"
 ```
 
-What happens:
+What always happens:
 1. **Task created** in `loqua`'s DAG — tracked immediately, survives session failure
-2. **T0 context fetched** — `arcs brief loqua` provides operating brief for the target project
-3. **opencode invoked** — `opencode run --dir /path/to/loqua --agent orchestrator "<enriched prompt>"`
-
-The enriched prompt includes the target project's current focus, the task ID, and the agent loop hint (`arcs next → work → arcs done <taskId>`), so the target orchestrator wakes up in context.
-
-**Graceful degradation:** if the target project's workspace path isn't configured, the task is still created and a hint is printed — no silent failures.
+2. **T0 context fetched** — `arcs brief loqua` provides the operating brief for the target project
+3. **Enriched command printed** — ready-to-run `opencode run` with task ID and agent loop hint pre-injected
 
 ```bash
-arcs cross-invoke loqua "Add auth endpoint" --dry-run   # preview the opencode command
-arcs cross-invoke loqua "Add auth endpoint" --agent implementer  # target a specific agent
+# Default — print the command, run it when ready (safe, no auto-execution)
+arcs cross-invoke loqua "Add auth endpoint"
+
+# Execute — drives opencode in the target workspace via Server API
+arcs cross-invoke loqua "Add auth endpoint" --exec
 ```
+
+With `--exec`, ARCS starts a headless opencode server in the target workspace, sends the prompt asynchronously, and streams events back — including permission requests you approve directly in your terminal, one at a time. No TUI takeover. No blind auto-approve.
+
+```
+✓ Task tsk_abc123 created in loqua (backlog)
+→ [loqua] write_file: src/api/auth/register.ts
+→ [loqua] Allow write_file src/api/auth/register.ts? (y/n): y
+→ [loqua] run_command: npm test
+→ [loqua] Allow run_command npm test? (y/n): y
+✓ [loqua] Session complete
+```
+
+**Graceful degradation:** if the target project's workspace path isn't configured, the task is still created and a setup hint is printed — no silent failures.
 
 ---
 
