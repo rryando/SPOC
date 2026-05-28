@@ -139,6 +139,7 @@ All commands: `arcs <command> [args] --json`. Structured output: `{ok, data}` on
 | `arcs context [slug]` | Full context assembly (audience-targeted) |
 | `arcs search <slug> "<query>"` | BM25 + graph-scored search across DAG |
 | `arcs validate <slug>` | Health check — status drift, orphans, staleness |
+| `arcs cross-invoke <slug> "<prompt>"` | *(planned)* Create a task in another project and invoke opencode there |
 
 ### Tasks, Plans, Knowledge
 
@@ -160,6 +161,31 @@ All commands: `arcs <command> [args] --json`. Structured output: `{ok, data}` on
 | `--help` | Per-command usage |
 
 Full command discovery: `arcs --commands --json` (61 commands).
+
+---
+
+## Multi-Project Orchestration *(planned)*
+
+When working across multiple ARCS-tracked projects, `arcs cross-invoke` eliminates the context-switch. Instead of manually opening a second terminal, switching directories, and re-prompting — one command queues the work and triggers execution:
+
+```bash
+# Working in frontend, need a backend change
+arcs cross-invoke loqua "Add POST /api/auth/register endpoint"
+```
+
+What happens:
+1. **Task created** in `loqua`'s DAG — tracked immediately, survives session failure
+2. **T0 context fetched** — `arcs brief loqua` provides operating brief for the target project
+3. **opencode invoked** — `opencode run --dir /path/to/loqua --agent orchestrator "<enriched prompt>"`
+
+The enriched prompt includes the target project's current focus, the task ID, and the agent loop hint (`arcs next → work → arcs done <taskId>`), so the target orchestrator wakes up in context.
+
+**Graceful degradation:** if the target project's workspace path isn't configured, the task is still created and a hint is printed — no silent failures.
+
+```bash
+arcs cross-invoke loqua "Add auth endpoint" --dry-run   # preview the opencode command
+arcs cross-invoke loqua "Add auth endpoint" --agent implementer  # target a specific agent
+```
 
 ---
 
