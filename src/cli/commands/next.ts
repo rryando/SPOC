@@ -2,7 +2,8 @@
 // next — Tell the user what to work on next with relevant context
 // ---------------------------------------------------------------------------
 
-import { listTasks, readPlanIndex } from "../../utils/project-memory.js";
+import { listTasks, readKnowledgeIndex, readPlanIndex } from "../../utils/project-memory.js";
+import { buildProjectRetrievalIndex } from "../../retrieval/index-builder.js";
 import { resolveProject } from "../../utils/project-resolver.js";
 import { deriveOperatingBrief } from "../../utils/workflow-policy.js";
 import { type CLIResult, type CommandFlags, defineCommand } from "../command-registry.js";
@@ -36,9 +37,10 @@ async function handleNext(
 
   const { slug, projectDir } = resolved;
 
-  const [allTasks, planIndex] = await Promise.all([
+  const [allTasks, planIndex, retrievalIndex] = await Promise.all([
     listTasks(projectDir),
     readPlanIndex(projectDir),
+    buildProjectRetrievalIndex(slug),
   ]);
 
   const openTasks = allTasks.filter((t) => t.status !== "done" && t.status !== "cancelled");
@@ -81,6 +83,21 @@ async function handleNext(
 
   const doneCommand = `spoc done ${slug} ${task.id}`;
 
+  // Fetch top 2 related knowledge entries
+  const knowledgeResults = retrievalIndex.searchKnowledge(task.title, 2);
+  const relatedKnowledge = knowledgeResults.map((r) => ({
+    id: r.id,
+    title: r.title,
+    kind: (r as { kind?: string }).kind ?? "lesson",
+  }));
+
+  // Also pull kind from the index for gotcha prefixing
+  const knowledgeIndex = await readKnowledgeIndex(projectDir);
+  const enrichedRelated = relatedKnowledge.map((rk) => {
+    const entry = knowledgeIndex.entries.find((e) => e.id === rk.id);
+    return { id: rk.id, title: rk.title, kind: entry?.kind ?? "lesson" };
+  });
+
   if (flags.json) {
     return success({
       task: {
@@ -92,8 +109,14 @@ async function handleNext(
       context,
       planTitle: plan?.title ?? null,
       command: doneCommand,
+      relatedKnowledge: enrichedRelated,
     });
   }
+
+  const knowledgeLines = enrichedRelated.map((rk) => {
+    const prefix = rk.kind === "gotcha" ? "⚠️  Watch out:" : "ℹ️ ";
+    return `  ${prefix} ${rk.title}`;
+  });
 
   const lines: string[] = [
     `Next: ${task.title}`,
@@ -102,6 +125,7 @@ async function handleNext(
     "",
     "Context:",
     context,
+    ...(knowledgeLines.length > 0 ? ["", "Related knowledge:", ...knowledgeLines] : []),
     "",
     `When done: ${doneCommand}`,
   ].filter((l, i) => i === 0 || l !== "" || i > 3);

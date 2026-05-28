@@ -32,7 +32,7 @@ function autoTitle(text: string): string {
 
 defineCommand({
   path: "remember",
-  description: "Capture a knowledge insight with zero ceremony (no write-gate required)",
+  description: "Capture a knowledge insight with zero ceremony",
   params: {
     slug: { type: "string", required: true, positional: 0, description: "Project slug" },
     text: { type: "string", required: true, positional: 1, description: "The insight to remember" },

@@ -12,29 +12,6 @@ import { isLeanMode } from "./lean-output.js";
 import { render, stripTimestamps } from "./output-envelope.js";
 import "./commands/index.js";
 
-// ---------------------------------------------------------------------------
-// Write-gate (opt-in guarded mode)
-// ---------------------------------------------------------------------------
-
-/**
- * Checks write-gate enforcement. Only active when SPOC_GUARDED=1 (set by
- * --guarded flag or environment). Returns a failure result if the token is
- * missing/invalid in guarded mode, otherwise returns null (proceed).
- */
-export function requireWriteGate(token?: string): { ok: false; code: string; message: string; hint?: string } | null {
-  const guarded = process.env.SPOC_GUARDED === "1";
-  if (!guarded) return null; // No-op in default (unguarded) mode
-  if (!token || token.trim().length === 0) {
-    return {
-      ok: false,
-      code: "write_gate_required",
-      message: "Write-gate token required in guarded mode",
-      hint: "Run 'spoc write propose' to obtain a token, then pass --token=<token>. Or omit --guarded to run without write-gate enforcement.",
-    };
-  }
-  return null; // Token provided — allow write
-}
-
 function cliError(msg: string): void {
   console.error(msg);
 }
@@ -57,17 +34,12 @@ export async function handleDagCommand(command: string, args: string[]): Promise
   const rest: string[] = [];
   let json = false;
   let lean = false;
-  let token: string | undefined;
 
   for (const arg of args) {
     if (arg === "--json") json = true;
     else if (arg === "--lean") lean = true;
     else if (arg === "--dry-run") {
       /* consumed */
-    } else if (arg === "--guarded") {
-      process.env.SPOC_GUARDED = "1";
-    } else if (arg.startsWith("--token=")) {
-      token = arg.slice("--token=".length);
     } else rest.push(arg);
   }
 
@@ -160,16 +132,6 @@ export async function handleDagCommand(command: string, args: string[]): Promise
   if (result.parsed.flags.help) {
     // Let the main router handle --help
     return false;
-  }
-
-  // Write-gate enforcement (opt-in via --guarded or SPOC_GUARDED=1)
-  if (registeredCmd.mutation) {
-    const gateResult = requireWriteGate(token);
-    if (gateResult) {
-      render(gateResult, { json, lean });
-      process.exitCode = 1;
-      return true;
-    }
   }
 
   const cmdResult = await registeredCmd.handler(result.parsed.params, result.parsed.flags);

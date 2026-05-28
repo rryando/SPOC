@@ -18,3 +18,4 @@ import "./brief.js";
 import "./next.js";
 import "./remember.js";
 import "./done.js";
+import "./status.js";

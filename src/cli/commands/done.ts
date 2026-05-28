@@ -5,11 +5,13 @@
 import { existsSync } from "node:fs";
 import { getProjectDir } from "../../utils/paths.js";
 import {
+  createKnowledgeEntry,
   getTask,
   listTasks,
   readPlanIndex,
   updateTask,
 } from "../../utils/project-memory.js";
+import { normalizeIdentifier } from "../../utils/slug.js";
 import { resolveProject } from "../../utils/project-resolver.js";
 import { type CLIResult, type CommandFlags, defineCommand, ERROR_CODES } from "../command-registry.js";
 import { failure, success } from "../output-envelope.js";
@@ -36,6 +38,7 @@ defineCommand({
     },
     planId: { type: "string", description: "Plan ID (enables atomic diagram update)" },
     diagramNodeId: { type: "string", description: "Diagram node ID to update (e.g. T001)" },
+    learn: { type: "string", description: "Capture a quick insight linked to this task" },
   },
   handler: handleDone,
 });
@@ -50,6 +53,7 @@ async function handleDone(
   const taskId = params.taskId as string;
   const planIdParam = params.planId as string | undefined;
   const diagramNodeId = params.diagramNodeId as string | undefined;
+  const learnText = params.learn as string | undefined;
 
   const resolved = await resolveProject(rawSlug);
   if (!resolved.ok) return resolved.result;
@@ -105,10 +109,38 @@ async function handleDone(
     ? { id: nextTask.id, title: nextTask.title, plan: nextPlan?.title ?? null }
     : null;
 
+  // Capture --learn insight if provided
+  let learnedEntry: { id: string; title: string; kind: string } | null = null;
+  if (learnText) {
+    try {
+      const lower = learnText.toLowerCase();
+      const kind = /don't|never|careful|watch out|gotcha/.test(lower)
+        ? "gotcha"
+        : /learned|lesson|realized|mistake/.test(lower)
+          ? "lesson"
+          : /pattern|always|convention|rule/.test(lower)
+            ? "pattern"
+            : "lesson";
+      const title = learnText.length <= 50 ? learnText : `${learnText.slice(0, 50)}...`;
+      const id = normalizeIdentifier(title);
+      const entry = await createKnowledgeEntry(projectDir, {
+        id,
+        title,
+        kind: kind as "gotcha" | "lesson" | "pattern",
+        keywords: [completedTask.id],
+        summary: learnText,
+      });
+      learnedEntry = { id: entry.id, title: entry.title, kind: entry.kind };
+    } catch {
+      // Best-effort — don't fail the done command for a learn error
+    }
+  }
+
   if (flags.json) {
     return success({
       completed: completedTask,
       next: nextData,
+      ...(learnedEntry ? { learned: learnedEntry } : {}),
     });
   }
 
@@ -121,6 +153,10 @@ async function handleDone(
     lines.push(`Run: spoc done ${slug} ${nextData.id}`);
   } else {
     lines.push("All tasks complete! Nothing left to do.");
+  }
+
+  if (learnedEntry) {
+    lines.push(`✓ Remembered [${learnedEntry.kind}]: ${learnedEntry.title}`);
   }
 
   return success(lines.join("\n"));
