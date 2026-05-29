@@ -13,17 +13,14 @@ export interface GenerateDiagramResult {
 
 /**
  * Generates a Mermaid .mmd diagram from plan tasks.
- * Node IDs assigned T001+ sorted by priority (high→medium→low) then id.localeCompare.
+ * Node IDs assigned T001+ in stable task.id order (a.id.localeCompare(b.id)).
+ * Stable across regeneration regardless of priority changes — node IDs only shift
+ * when tasks are added/removed/reordered by id, never by priority drift.
  * Emits --> dependency arrows from dependsOn fields.
  * Populates %% blocked-by: per-node metadata and plan-level %% ready: / %% blocked: comments.
  */
 export function generateDiagramFromTasks(planId: string, tasks: TaskMeta[]): GenerateDiagramResult {
-  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-  const sorted = [...tasks].sort(
-    (a, b) =>
-      (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1) ||
-      a.id.localeCompare(b.id),
-  );
+  const sorted = [...tasks].sort((a, b) => a.id.localeCompare(b.id));
 
   const nodes: DiagramNode[] = sorted.map((t, i) => ({
     nodeId: `T${String(i + 1).padStart(3, "0")}`,

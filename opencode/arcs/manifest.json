@@ -36,8 +36,11 @@
         "value": {
           "external_directory": {
             "/tmp": "allow",
+            "/tmp/**": "allow",
             "~/.arcs": "allow",
-            "~/.config/opencode": "allow"
+            "~/.arcs/**": "allow",
+            "~/.config/opencode": "allow",
+            "~/.config/opencode/**": "allow"
           }
         }
       },
@@ -111,7 +114,9 @@
             "webfetch": "allow",
             "external_directory": {
               "/tmp": "allow",
-              "~/.arcs": "allow"
+              "/tmp/**": "allow",
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/docs-researcher.txt}"
@@ -131,7 +136,8 @@
             "bash": "ask",
             "webfetch": "deny",
             "external_directory": {
-              "~/.arcs": "allow"
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/tech-architect.txt}"
@@ -153,7 +159,9 @@
             "mcp": "allow",
             "external_directory": {
               "/tmp": "allow",
-              "~/.arcs": "allow"
+              "/tmp/**": "allow",
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/software-engineer.txt}"
@@ -175,8 +183,11 @@
             "mcp": "allow",
             "external_directory": {
               "/tmp": "allow",
+              "/tmp/**": "allow",
               "~/.arcs": "allow",
-              "~/.config/opencode": "allow"
+              "~/.arcs/**": "allow",
+              "~/.config/opencode": "allow",
+              "~/.config/opencode/**": "allow"
             }
           },
           "prompt": "{file:./prompts/arcs-docs.txt}"
@@ -197,7 +208,8 @@
             "webfetch": "deny",
             "mcp": "allow",
             "external_directory": {
-              "~/.arcs": "allow"
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/qa-analyst.txt}"
@@ -219,7 +231,9 @@
             "mcp": "allow",
             "external_directory": {
               "/tmp": "allow",
-              "~/.arcs": "allow"
+              "/tmp/**": "allow",
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/devil-advocate.txt}"
@@ -241,7 +255,9 @@
             "mcp": "allow",
             "external_directory": {
               "/tmp": "allow",
-              "~/.arcs": "allow"
+              "/tmp/**": "allow",
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/oncall-ops.txt}"
@@ -262,7 +278,8 @@
             "webfetch": "allow",
             "mcp": "allow",
             "external_directory": {
-              "~/.arcs": "allow"
+              "~/.arcs": "allow",
+              "~/.arcs/**": "allow"
             }
           },
           "prompt": "{file:./prompts/system-architect.txt}"

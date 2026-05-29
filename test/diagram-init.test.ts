@@ -89,4 +89,89 @@ describe("diagram init", () => {
       expect(result.ok).toBe(true);
     });
   });
+
+  it("translates dependsOn taskIds into diagram node IDs (edges + blocked-by)", async () => {
+    await withTempDataDir(async () => {
+      await runCommand("project init", ["testproj", "--description=Test project"]);
+      const planResult = await runCommand("plan create", [
+        "testproj",
+        "Dep Plan",
+        "--summary=s",
+        "--status=planned",
+      ]);
+      const planId = (planResult.data as { id: string }).id;
+
+      const a = await runCommand("task create", ["testproj", "Alpha", `--planId=${planId}`]);
+      const aId = (a.data as { id: string }).id;
+      const b = await runCommand("task create", [
+        "testproj",
+        "Bravo",
+        `--planId=${planId}`,
+        `--dependsOn=${aId}`,
+      ]);
+      const bId = (b.data as { id: string }).id;
+      await runCommand("task create", [
+        "testproj",
+        "Charlie",
+        `--planId=${planId}`,
+        `--dependsOn=${aId},${bId}`,
+      ]);
+
+      const result = await runCommand("diagram init", ["testproj", planId]);
+      expect(result.ok).toBe(true);
+
+      const mmd = await readFile((result.data as { path: string }).path, "utf-8");
+
+      // Stable id-sorted ordering: Alpha=T001, Bravo=T002, Charlie=T003
+      expect(mmd).toContain("T001 --> T002");
+      expect(mmd).toContain("T001 --> T003");
+      expect(mmd).toContain("T002 --> T003");
+
+      // Per-node blocked-by metadata
+      expect(mmd).toMatch(/%% node: T002[\s\S]*?%% blocked-by: T001/);
+      expect(mmd).toMatch(/%% node: T003[\s\S]*?%% blocked-by: T001, T002/);
+
+      // Plan-level ready/blocked summary
+      expect(mmd).toContain("%% ready: T001");
+      expect(mmd).toContain("%% blocked: T002, T003");
+    });
+  });
+
+  it("assigns stable node IDs by task.id regardless of priority", async () => {
+    await withTempDataDir(async () => {
+      await runCommand("project init", ["testproj", "--description=Test project"]);
+      const planResult = await runCommand("plan create", [
+        "testproj",
+        "Stable Plan",
+        "--summary=s",
+        "--status=planned",
+      ]);
+      const planId = (planResult.data as { id: string }).id;
+
+      // Create in order; second has higher priority — must NOT jump ahead.
+      // Titles "Alpha" and "Bravo" are chosen so derived task IDs sort
+      // lexicographically in creation order (alpha < bravo). Renaming these
+      // tasks will invalidate the assertion — keep names ASCII-sorted.
+      await runCommand("task create", [
+        "testproj",
+        "Alpha",
+        `--planId=${planId}`,
+        "--priority=low",
+      ]);
+      await runCommand("task create", [
+        "testproj",
+        "Bravo",
+        `--planId=${planId}`,
+        "--priority=high",
+      ]);
+
+      const result = await runCommand("diagram init", ["testproj", planId]);
+      const mmd = await readFile((result.data as { path: string }).path, "utf-8");
+
+      // Alpha (low priority, created first, taskId sorts first) must be T001.
+      // Bravo (high priority) must NOT jump ahead — proves sort is by id, not priority.
+      expect(mmd).toMatch(/%% node: T001[\s\S]*?%% title: Alpha/);
+      expect(mmd).toMatch(/%% node: T002[\s\S]*?%% title: Bravo/);
+    });
+  });
 });

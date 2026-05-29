@@ -320,11 +320,13 @@ CLI:
 4. When scope survives challenge → dispatch scoping sub-agent with minimal framing
 5. Present plan + diagram → user confirms
 6. Dispatch `devil-advocate` PHASE: brainstorm with proposed plan → handle verdict
-7. On PASS: `arcs plan create` → `arcs task create × N` (use `--dependsOn` to express execution order) → `arcs diagram init <slug> <planId> --json`
+7. On PASS: `arcs plan create` → `arcs task create × N` (**ALWAYS** pass `--dependsOn=<earlierTaskId>,...` for chained tasks — diagram edges are derived from this field, never from titles) → `arcs diagram init <slug> <planId> --json`
 
 **Constraints:**
 - Every diagram node gets a Task record (`planId` set, `status: backlog`, priority by depth)
-- Diagram uses `flowchart TD`, stable IDs (T001+), rich per-node metadata
+- Diagram uses `flowchart TD`, stable IDs (T001+ in task.id order), rich per-node metadata
+- **Never embed `T###` ordinals in task titles** — node IDs are derived from sorted task.id at `diagram init` time. Embedding ordinals breaks regeneration.
+- **`--dependsOn` is the only way to encode execution order.** A diagram with no edges = tasks created without `--dependsOn`. Fix the data, not the diagram.
 - Silently load the `to-diagram` skill before generating diagrams
 - Never write to DAG before user confirms summary
 - **YAGNI before scope**: propose the minimal version, let user opt into more
