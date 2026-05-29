@@ -21,6 +21,7 @@ ARCS gives AI coding agents a queryable project DAG so they never start cold. In
 
 ---
 
+
 ## The Problem
 
 Every AI coding session starts fresh. The agent doesn't know:
@@ -36,6 +37,59 @@ ARCS solves this with three persistent surfaces:
 | **Queue** | `tasks/index.json` | Work items with dependency ordering via `dependsOn` |
 | **Plan** | `plans/*.md` + `.diagram.mmd` | Multi-step feature work with Mermaid execution maps |
 | **Memory** | `knowledge/*.md` | Durable discoveries: lessons, patterns, gotchas, architecture |
+
+---
+
+
+
+## Quick Start
+
+**1. First Time Setup: Install / Update**
+
+```bash
+npm install -g @rryando/arcs
+
+# setup models
+arcs init
+```
+
+Registers `arcs` CLI, creates `~/.arcs/`, deploys agents + skills to `~/.config/opencode/`.
+
+**2. Init Existing Project to arcs**
+
+```bash
+cd your-project
+
+opencode
+
+send `arch init` on ARCS Orchestrator subagent
+
+and follow thru initiation process
+```
+
+<img width="948" height="499" alt="image" src="https://github.com/user-attachments/assets/2795bd80-f1bb-4c34-9a60-9b6ef9d81d04" />
+
+
+**3. Use it**
+
+```bash
+arcs brief              # What should I work on?
+arcs next               # Get next unblocked task
+arcs done <taskId>      # Mark complete, unblock dependents
+arcs remember "..."     # Capture what I learned
+```
+
+Or select **ARCS Orchestrator** in OpenCode for full automation.
+
+---
+
+## Prerequisites
+
+| Tool | Required | Notes |
+|------|----------|-------|
+| [Node.js](https://nodejs.org/) v18+ | Yes | Runtime |
+| [OpenCode](https://opencode.ai/) | Recommended | Agent host (orchestrator + sub-agents) |
+| [graphify](https://github.com/safishamsi/graphify) | No | Optional AST-based codebase knowledge extraction |
 
 ---
 
@@ -270,46 +324,6 @@ The orchestrator dispatches specialist sub-agents with scoped prompts:
 ### Knowledge Kinds
 
 8 structured categories: `lesson`, `gotcha`, `pattern`, `architecture`, `module`, `feature`, `reference`, `decision`.
-
----
-
-## Quick Start
-
-**1. Install**
-
-```bash
-npm install -g @rryando/arcs
-```
-
-Registers `arcs` CLI, creates `~/.arcs/`, deploys agents + skills to `~/.config/opencode/`.
-
-**2. Track a project**
-
-```bash
-cd your-project
-arcs init
-```
-
-**3. Use it**
-
-```bash
-arcs brief              # What should I work on?
-arcs next               # Get next unblocked task
-arcs done <taskId>      # Mark complete, unblock dependents
-arcs remember "..."     # Capture what I learned
-```
-
-Or select **ARCS Orchestrator** in OpenCode for full automation.
-
----
-
-## Prerequisites
-
-| Tool | Required | Notes |
-|------|----------|-------|
-| [Node.js](https://nodejs.org/) v18+ | Yes | Runtime |
-| [OpenCode](https://opencode.ai/) | Recommended | Agent host (orchestrator + sub-agents) |
-| [graphify](https://github.com/safishamsi/graphify) | No | Optional AST-based codebase knowledge extraction |
 
 ---
 
